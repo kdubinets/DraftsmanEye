@@ -14,6 +14,10 @@ export type ExerciseId =
   | 'division-vertical-fifths'
   | 'copy-horizontal-horizontal'
   | 'copy-horizontal-vertical'
+  | 'copy-vertical-vertical'
+  | 'copy-vertical-horizontal'
+  | 'double-horizontal-horizontal'
+  | 'double-horizontal-vertical'
   | 'double-vertical-vertical'
   | 'double-vertical-horizontal';
 
@@ -24,6 +28,7 @@ type ExerciseBase = {
   family: string;
   label: string;
   description: string;
+  implemented: boolean;
 };
 
 export type SingleMarkTrial = {
@@ -80,6 +85,30 @@ export const EXERCISES: ExerciseDefinition[] = [
     'Transfer a horizontal reference length to a vertical guide.',
   ),
   placeholderExercise(
+    'copy-vertical-vertical',
+    'Same-Axis Transfer',
+    'Copy Vertical to Vertical',
+    'Transfer a vertical reference length to a vertical guide.',
+  ),
+  placeholderExercise(
+    'copy-vertical-horizontal',
+    'Cross-Axis Transfer',
+    'Copy Vertical to Horizontal',
+    'Transfer a vertical reference length to a horizontal guide.',
+  ),
+  placeholderExercise(
+    'double-horizontal-horizontal',
+    'Same-Axis Transfer',
+    'Double Horizontal on Horizontal',
+    'Mark a point at double the shown horizontal length.',
+  ),
+  placeholderExercise(
+    'double-horizontal-vertical',
+    'Cross-Axis Transfer',
+    'Double Horizontal on Vertical',
+    'Double a horizontal reference along a vertical guide.',
+  ),
+  placeholderExercise(
     'double-vertical-vertical',
     'Same-Axis Transfer',
     'Double Vertical on Vertical',
@@ -108,11 +137,12 @@ export function getExerciseById(exerciseId: ExerciseId): ExerciseDefinition {
 }
 
 export function getAutoExercise(progress: StoredProgress): ExerciseDefinition {
-  let selected = EXERCISES[0];
+  const implementedExercises = EXERCISES.filter((exercise) => exercise.implemented);
+  let selected = implementedExercises[0];
   let lowestScore = Number.POSITIVE_INFINITY;
   let lowestAttempts = Number.POSITIVE_INFINITY;
 
-  for (const exercise of EXERCISES) {
+  for (const exercise of implementedExercises) {
     const entry = progress[exercise.id];
     const attempts = entry?.attempts ?? 0;
     const emaScore = entry?.emaScore ?? 0;
@@ -156,6 +186,7 @@ function divisionExercise(
     family: 'Division',
     label: `${orientationLabel} ${fractionLabel}`,
     description: `Divide a ${axis} line into ${denominator} equal parts.`,
+    implemented: true,
     createTrial: () =>
       createDivisionTrial(
         axis,
@@ -234,6 +265,7 @@ function placeholderExercise(
     family,
     label,
     description,
+    implemented: false,
     createTrial: () => ({
       label,
       prompt: 'This drill is not implemented yet.',

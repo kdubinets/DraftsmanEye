@@ -328,6 +328,12 @@ button {
   background: #e7d6bf;
 }
 
+.secondary-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+  transform: none;
+}
+
 @media (max-width: 720px) {
   .page-shell {
     width: min(100% - 1rem, 1100px);

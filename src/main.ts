@@ -166,10 +166,7 @@ function renderExerciseScreen(
 
     summary.hidden = false;
     summary.replaceChildren(
-      resultStat(
-        'Accuracy',
-        `${result.relativeAccuracyPercent.toFixed(1)} EMA-ready score`,
-      ),
+      resultStat('Score', result.relativeAccuracyPercent.toFixed(1)),
       resultStat('Placed', `${Math.round(result.placedScalar)} px`),
       resultStat('Target', `${Math.round(result.targetScalar)} px`),
       resultStat(
@@ -281,16 +278,19 @@ function exerciseCard(
 
   const score = document.createElement('p');
   score.className = 'score-chip';
-  score.textContent = formatScore(emaScore);
+  score.textContent = exercise.implemented ? formatScore(emaScore) : '---';
 
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'secondary-action';
-  button.textContent = 'Practice';
-  button.addEventListener('click', () => {
-    state = { screen: 'exercise', exerciseId: exercise.id, source: 'direct' };
-    renderApp();
-  });
+  button.textContent = exercise.implemented ? 'Practice' : 'Comming';
+  button.disabled = !exercise.implemented;
+  if (exercise.implemented) {
+    button.addEventListener('click', () => {
+      state = { screen: 'exercise', exerciseId: exercise.id, source: 'direct' };
+      renderApp();
+    });
+  }
 
   footer.append(score, button);
   article.append(family, title, body, footer);
@@ -563,7 +563,7 @@ function formatScore(score: number | undefined): string {
     return 'No score yet';
   }
 
-  return `EMA ${score.toFixed(1)}`;
+  return score.toFixed(1);
 }
 
 function formatSignedValue(value: number): string {

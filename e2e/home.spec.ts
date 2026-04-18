@@ -25,7 +25,37 @@ test('home page lists drills and auto entry point', async ({ page }) => {
       name: 'Copy Horizontal to Vertical',
     }),
   ).toBeVisible();
-  await expect(page.getByText('No score yet')).toHaveCount(12);
+  await expect(
+    page.getByRole('heading', {
+      level: 3,
+      name: 'Copy Vertical to Horizontal',
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('heading', {
+      level: 3,
+      name: 'Double Horizontal on Horizontal',
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('heading', {
+      level: 3,
+      name: 'Double Vertical on Horizontal',
+    }),
+  ).toBeVisible();
+  await expect(page.getByText('No score yet')).toHaveCount(8);
+  await expect(page.getByRole('button', { name: 'Comming' })).toHaveCount(8);
+  await expect(
+    page
+      .getByRole('article')
+      .filter({
+        has: page.getByRole('heading', {
+          level: 3,
+          name: 'Double Horizontal on Horizontal',
+        }),
+      })
+      .getByRole('button', { name: 'Comming' }),
+  ).toBeDisabled();
 });
 
 test('horizontal halves drill can be completed and updates score on return', async ({
@@ -68,7 +98,7 @@ test('horizontal halves drill can be completed and updates score on return', asy
   await expect(
     page.getByRole('heading', { level: 1, name: /choose a drill/i }),
   ).toBeVisible();
-  await expect(page.getByText(/^EMA /)).toHaveCount(1);
+  await expect(page.locator('.score-chip').filter({ hasText: /^\d+\.\d$/ })).toHaveCount(1);
 });
 
 test('vertical thirds drill can be completed', async ({ page }) => {
