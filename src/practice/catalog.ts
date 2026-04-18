@@ -5,11 +5,19 @@ import type { StoredProgress } from '../storage/progress';
 
 export type ExerciseId =
   | 'division-horizontal-halves'
+  | 'division-horizontal-thirds'
+  | 'division-horizontal-quarters'
+  | 'division-horizontal-fifths'
+  | 'division-vertical-halves'
   | 'division-vertical-thirds'
+  | 'division-vertical-quarters'
+  | 'division-vertical-fifths'
   | 'copy-horizontal-horizontal'
   | 'copy-horizontal-vertical'
   | 'double-vertical-vertical'
   | 'double-vertical-horizontal';
+
+export type LineAxis = 'horizontal' | 'vertical';
 
 type ExerciseBase = {
   id: ExerciseId;
@@ -25,17 +33,21 @@ export type SingleMarkTrial = {
     width: number;
     height: number;
   };
-  line: {
-    startX: number;
-    endX: number;
-    y: number;
-  };
-  scoreSelection: (placedX: number) => SingleMarkTrialResult;
+  line: TrialLine;
+  scoreSelection: (placedScalar: number) => SingleMarkTrialResult;
+};
+
+export type TrialLine = {
+  axis: LineAxis;
+  anchorX: number;
+  anchorY: number;
+  startScalar: number;
+  endScalar: number;
 };
 
 export type SingleMarkTrialResult = {
-  placedX: number;
-  targetX: number;
+  placedScalar: number;
+  targetScalar: number;
   signedErrorPixels: number;
   relativeErrorPercent: number;
   relativeAccuracyPercent: number;
@@ -47,13 +59,14 @@ export type ExerciseDefinition = ExerciseBase & {
 };
 
 export const EXERCISES: ExerciseDefinition[] = [
-  horizontalHalvesExercise(),
-  placeholderExercise(
-    'division-vertical-thirds',
-    'Division',
-    'Vertical Thirds',
-    'Divide a vertical line into thirds.',
-  ),
+  divisionExercise('division-horizontal-halves', 'horizontal', 2),
+  divisionExercise('division-horizontal-thirds', 'horizontal', 3),
+  divisionExercise('division-horizontal-quarters', 'horizontal', 4),
+  divisionExercise('division-horizontal-fifths', 'horizontal', 5),
+  divisionExercise('division-vertical-halves', 'vertical', 2),
+  divisionExercise('division-vertical-thirds', 'vertical', 3),
+  divisionExercise('division-vertical-quarters', 'vertical', 4),
+  divisionExercise('division-vertical-fifths', 'vertical', 5),
   placeholderExercise(
     'copy-horizontal-horizontal',
     'Same-Axis Transfer',
@@ -120,33 +133,93 @@ export function getAutoExercise(progress: StoredProgress): ExerciseDefinition {
   return selected;
 }
 
-function horizontalHalvesExercise(): ExerciseDefinition {
-  return {
-    id: 'division-horizontal-halves',
-    family: 'Division',
-    label: 'Horizontal Halves',
-    description: 'Divide a horizontal line in half.',
-    createTrial: () => {
-      const width = 760;
-      const height = 320;
-      const length = randomInteger(280, 520);
-      const edgePadding = 52;
-      const maxCenterOffsetX = width / 2 - length / 2 - edgePadding;
-      const centerX = width / 2 + boundedNormalOffset(maxCenterOffsetX, 0.2);
-      const startX = centerX - length / 2;
-      const endX = centerX + length / 2;
-      const maxCenterOffsetY = height / 2 - 68;
-      const y = height / 2 + boundedNormalOffset(maxCenterOffsetY, 0.2);
-      const targetX = (startX + endX) / 2;
+function divisionExercise(
+  id: Extract<
+    ExerciseId,
+    | 'division-horizontal-halves'
+    | 'division-horizontal-thirds'
+    | 'division-horizontal-quarters'
+    | 'division-horizontal-fifths'
+    | 'division-vertical-halves'
+    | 'division-vertical-thirds'
+    | 'division-vertical-quarters'
+    | 'division-vertical-fifths'
+  >,
+  axis: LineAxis,
+  denominator: 2 | 3 | 4 | 5,
+): ExerciseDefinition {
+  const orientationLabel = axis === 'horizontal' ? 'Horizontal' : 'Vertical';
+  const fractionLabel = denominatorLabel(denominator);
 
-      return {
-        label: 'Horizontal Halves',
-        prompt: 'Click where the line should be divided into two equal halves.',
-        viewport: { width, height },
-        line: { startX, endX, y },
-        scoreSelection: (placedX) => scoreHorizontalSelection(placedX, targetX, length),
-      };
-    },
+  return {
+    id,
+    family: 'Division',
+    label: `${orientationLabel} ${fractionLabel}`,
+    description: `Divide a ${axis} line into ${denominator} equal parts.`,
+    createTrial: () =>
+      createDivisionTrial(
+        axis,
+        denominator,
+        `${orientationLabel} ${fractionLabel}`,
+      ),
+  };
+}
+
+function createDivisionTrial(
+  axis: LineAxis,
+  denominator: 2 | 3 | 4 | 5,
+  label: string,
+): SingleMarkTrial {
+  const width = 760;
+  const height = axis === 'horizontal' ? 320 : 640;
+  const length =
+    axis === 'horizontal' ? randomInteger(280, 520) : randomInteger(360, 520);
+  const edgePadding = 52;
+  const centerOffsetSigma = 0.2;
+  const orientationText = axis === 'horizontal' ? 'horizontal' : 'vertical';
+
+  if (axis === 'horizontal') {
+    const maxCenterOffsetX = width / 2 - length / 2 - edgePadding;
+    const centerX =
+      width / 2 + boundedNormalOffset(maxCenterOffsetX, centerOffsetSigma);
+    const maxCenterOffsetY = height / 2 - 68;
+    const anchorY =
+      height / 2 + boundedNormalOffset(maxCenterOffsetY, centerOffsetSigma);
+    const startScalar = centerX - length / 2;
+    const endScalar = centerX + length / 2;
+    const targetScalar = startScalar + length / denominator;
+
+    return {
+      label,
+      prompt: `Click where the ${orientationText} line should be divided at ${fractionPrompt(
+        denominator,
+      )} of its length.`,
+      viewport: { width, height },
+      line: { axis, anchorX: 0, anchorY, startScalar, endScalar },
+      scoreSelection: (placedScalar) =>
+        scoreSelection(placedScalar, targetScalar, length, axis),
+    };
+  }
+
+  const maxCenterOffsetY = height / 2 - length / 2 - edgePadding;
+  const centerY =
+    height / 2 + boundedNormalOffset(maxCenterOffsetY, centerOffsetSigma);
+  const maxCenterOffsetX = width / 2 - 68;
+  const anchorX =
+    width / 2 + boundedNormalOffset(maxCenterOffsetX, centerOffsetSigma);
+  const startScalar = centerY - length / 2;
+  const endScalar = centerY + length / 2;
+  const targetScalar = startScalar + length / denominator;
+
+  return {
+    label,
+    prompt: `Click where the ${orientationText} line should be divided at ${fractionPrompt(
+      denominator,
+    )} of its length.`,
+    viewport: { width, height },
+    line: { axis, anchorX, anchorY: 0, startScalar, endScalar },
+    scoreSelection: (placedScalar) =>
+      scoreSelection(placedScalar, targetScalar, length, axis),
   };
 }
 
@@ -165,31 +238,76 @@ function placeholderExercise(
       label,
       prompt: 'This drill is not implemented yet.',
       viewport: { width: 760, height: 320 },
-      line: { startX: 180, endX: 580, y: 160 },
-      scoreSelection: (placedX) => scoreHorizontalSelection(placedX, 380, 400),
+      line: {
+        axis: 'horizontal',
+        anchorX: 0,
+        anchorY: 160,
+        startScalar: 180,
+        endScalar: 580,
+      },
+      scoreSelection: (placedScalar) =>
+        scoreSelection(placedScalar, 380, 400, 'horizontal'),
     }),
   };
 }
 
-function scoreHorizontalSelection(
-  placedX: number,
-  targetX: number,
+function scoreSelection(
+  placedScalar: number,
+  targetScalar: number,
   referenceLength: number,
+  axis: LineAxis,
 ): SingleMarkTrialResult {
-  const signedErrorPixels = placedX - targetX;
+  const signedErrorPixels = placedScalar - targetScalar;
   const absoluteErrorPixels = Math.abs(signedErrorPixels);
   const relativeErrorPercent = (absoluteErrorPixels / referenceLength) * 100;
   const relativeAccuracyPercent = clamp(100 - relativeErrorPercent, 0, 100);
 
   return {
-    placedX,
-    targetX,
+    placedScalar,
+    targetScalar,
     signedErrorPixels,
     relativeErrorPercent,
     relativeAccuracyPercent,
-    directionLabel:
-      signedErrorPixels < 0 ? 'Too far left' : signedErrorPixels > 0 ? 'Too far right' : 'Exact',
+    directionLabel: directionLabel(axis, signedErrorPixels),
   };
+}
+
+function directionLabel(axis: LineAxis, signedErrorPixels: number): string {
+  if (signedErrorPixels === 0) {
+    return 'Exact';
+  }
+
+  if (axis === 'horizontal') {
+    return signedErrorPixels < 0 ? 'Too far left' : 'Too far right';
+  }
+
+  return signedErrorPixels < 0 ? 'Too high' : 'Too low';
+}
+
+function denominatorLabel(denominator: 2 | 3 | 4 | 5): string {
+  switch (denominator) {
+    case 2:
+      return 'Halves';
+    case 3:
+      return 'Thirds';
+    case 4:
+      return 'Quarters';
+    case 5:
+      return 'Fifths';
+  }
+}
+
+function fractionPrompt(denominator: 2 | 3 | 4 | 5): string {
+  switch (denominator) {
+    case 2:
+      return 'one half';
+    case 3:
+      return 'one third';
+    case 4:
+      return 'one quarter';
+    case 5:
+      return 'one fifth';
+  }
 }
 
 function randomInteger(min: number, max: number): number {
@@ -197,7 +315,10 @@ function randomInteger(min: number, max: number): number {
   return min + Math.floor(Math.random() * span);
 }
 
-function boundedNormalOffset(maxMagnitude: number, sigmaFraction: number): number {
+function boundedNormalOffset(
+  maxMagnitude: number,
+  sigmaFraction: number,
+): number {
   if (maxMagnitude <= 0) {
     return 0;
   }

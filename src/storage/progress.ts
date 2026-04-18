@@ -29,7 +29,10 @@ export function getStoredProgress(): StoredProgress {
   }
 }
 
-export function updateStoredProgress(exerciseId: string, nextScore: number): StoredProgress {
+export function updateStoredProgress(
+  exerciseId: string,
+  nextScore: number,
+): StoredProgress {
   const progress = getStoredProgress();
   const previousEntry = progress[exerciseId];
   const attempts = (previousEntry?.attempts ?? 0) + 1;
@@ -67,6 +70,9 @@ function isStoredProgress(value: unknown): value is StoredProgress {
     }
 
     const maybeEntry = entry as { emaScore?: unknown; attempts?: unknown };
-    return typeof maybeEntry.emaScore === 'number' && typeof maybeEntry.attempts === 'number';
+    return (
+      typeof maybeEntry.emaScore === 'number' &&
+      typeof maybeEntry.attempts === 'number'
+    );
   });
 }

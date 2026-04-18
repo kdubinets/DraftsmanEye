@@ -9,7 +9,10 @@ import {
   getExerciseById,
   type ExerciseDefinition,
   type ExerciseId,
+  type LineAxis,
+  type SingleMarkTrial,
   type SingleMarkTrialResult,
+  type TrialLine,
 } from './practice/catalog';
 import { getStoredProgress, updateStoredProgress } from './storage/progress';
 
@@ -54,7 +57,9 @@ function renderListScreen(): HTMLElement {
     headerBlock(),
     autoCard(),
     exerciseGrid(
-      EXERCISES.map((exercise) => exerciseCard(exercise, progress[exercise.id]?.emaScore)),
+      EXERCISES.map((exercise) =>
+        exerciseCard(exercise, progress[exercise.id]?.emaScore),
+      ),
     ),
   );
 }
@@ -105,13 +110,17 @@ function renderExerciseScreen(
   });
   autoButton.hidden = true;
 
-  const svg = renderTrialSvg(trial, () => result, (nextX) => {
-    if (result) {
-      return;
-    }
+  const svg = renderTrialSvg(
+    trial,
+    () => result,
+    (nextX) => {
+      if (result) {
+        return;
+      }
 
-    revealResult(trial.scoreSelection(nextX));
-  });
+      revealResult(trial.scoreSelection(nextX));
+    },
+  );
 
   actions.append(againButton, backButton, autoButton);
   stage.append(prompt, svg, feedback, summary, actions);
@@ -120,13 +129,17 @@ function renderExerciseScreen(
 
   function rerenderScene(): void {
     svg.replaceWith(
-      renderTrialSvg(trial, () => result, (nextX) => {
-        if (result) {
-          return;
-        }
+      renderTrialSvg(
+        trial,
+        () => result,
+        (nextX) => {
+          if (result) {
+            return;
+          }
 
-        revealResult(trial.scoreSelection(nextX));
-      }),
+          revealResult(trial.scoreSelection(nextX));
+        },
+      ),
     );
   }
 
@@ -140,7 +153,10 @@ function renderExerciseScreen(
     feedback.dataset.tone = feedbackClass;
     summary.dataset.tone = feedbackClass;
 
-    feedback.style.setProperty('--result-accent', `hsl(${feedbackHue} 55% 42%)`);
+    feedback.style.setProperty(
+      '--result-accent',
+      `hsl(${feedbackHue} 55% 42%)`,
+    );
     summary.style.setProperty('--result-accent', `hsl(${feedbackHue} 55% 42%)`);
 
     feedback.textContent =
@@ -150,10 +166,16 @@ function renderExerciseScreen(
 
     summary.hidden = false;
     summary.replaceChildren(
-      resultStat('Accuracy', `${result.relativeAccuracyPercent.toFixed(1)} EMA-ready score`),
-      resultStat('Placed', `${Math.round(result.placedX)} px`),
-      resultStat('Target', `${Math.round(result.targetX)} px`),
-      resultStat('Direction', result.signedErrorPixels === 0 ? 'Exact' : result.directionLabel),
+      resultStat(
+        'Accuracy',
+        `${result.relativeAccuracyPercent.toFixed(1)} EMA-ready score`,
+      ),
+      resultStat('Placed', `${Math.round(result.placedScalar)} px`),
+      resultStat('Target', `${Math.round(result.targetScalar)} px`),
+      resultStat(
+        'Direction',
+        result.signedErrorPixels === 0 ? 'Exact' : result.directionLabel,
+      ),
     );
 
     againButton.hidden = false;
@@ -210,7 +232,11 @@ function autoCard(): HTMLElement {
   button.className = 'primary-action';
   button.textContent = 'Start Auto';
   button.addEventListener('click', () => {
-    state = { screen: 'exercise', exerciseId: AUTO_EXERCISE_ID, source: 'auto' };
+    state = {
+      screen: 'exercise',
+      exerciseId: AUTO_EXERCISE_ID,
+      source: 'auto',
+    };
     renderApp();
   });
 
@@ -233,7 +259,10 @@ function exerciseGrid(cards: HTMLElement[]): HTMLElement {
   return section;
 }
 
-function exerciseCard(exercise: ExerciseDefinition, emaScore: number | undefined): HTMLElement {
+function exerciseCard(
+  exercise: ExerciseDefinition,
+  emaScore: number | undefined,
+): HTMLElement {
   const article = document.createElement('article');
   article.className = 'exercise-card';
 
@@ -292,16 +321,20 @@ function exerciseHeader(
 }
 
 function renderTrialSvg(
-  trial: ExerciseDefinition['createTrial'] extends () => infer Trial ? Trial : never,
+  trial: SingleMarkTrial,
   getResult: () => SingleMarkTrialResult | null,
   onSelect: (nextX: number) => void,
 ): SVGSVGElement {
   const svg = createSvg('svg');
   svg.setAttribute('class', 'exercise-canvas');
-  svg.setAttribute('viewBox', `0 0 ${trial.viewport.width} ${trial.viewport.height}`);
+  svg.setAttribute(
+    'viewBox',
+    `0 0 ${trial.viewport.width} ${trial.viewport.height}`,
+  );
   svg.setAttribute('role', 'img');
   svg.setAttribute('aria-label', `${trial.label} practice canvas`);
   svg.dataset.testid = 'exercise-canvas';
+  svg.dataset.axis = trial.line.axis;
 
   const frame = createSvg('rect');
   frame.setAttribute('x', '1');
@@ -312,21 +345,44 @@ function renderTrialSvg(
   frame.setAttribute('class', 'canvas-frame');
 
   const line = createSvg('line');
-  line.setAttribute('x1', String(trial.line.startX));
-  line.setAttribute('y1', String(trial.line.y));
-  line.setAttribute('x2', String(trial.line.endX));
-  line.setAttribute('y2', String(trial.line.y));
+  line.setAttribute('x1', String(linePoint(trial.line, 'start').x));
+  line.setAttribute('y1', String(linePoint(trial.line, 'start').y));
+  line.setAttribute('x2', String(linePoint(trial.line, 'end').x));
+  line.setAttribute('y2', String(linePoint(trial.line, 'end').y));
   line.setAttribute('class', 'exercise-line');
 
   const guide = createSvg('rect');
-  guide.setAttribute('x', String(trial.line.startX));
-  guide.setAttribute('y', String(trial.line.y - 22));
-  guide.setAttribute('width', String(trial.line.endX - trial.line.startX));
-  guide.setAttribute('height', '44');
+  if (trial.line.axis === 'horizontal') {
+    guide.setAttribute('x', String(trial.line.startScalar));
+    guide.setAttribute('y', String(trial.line.anchorY - 22));
+    guide.setAttribute(
+      'width',
+      String(trial.line.endScalar - trial.line.startScalar),
+    );
+    guide.setAttribute('height', '44');
+  } else {
+    guide.setAttribute('x', String(trial.line.anchorX - 22));
+    guide.setAttribute('y', String(trial.line.startScalar));
+    guide.setAttribute('width', '44');
+    guide.setAttribute(
+      'height',
+      String(trial.line.endScalar - trial.line.startScalar),
+    );
+  }
   guide.setAttribute('class', 'click-guide');
 
-  const startCap = createTick(trial.line.startX, trial.line.y, 'endpoint-tick');
-  const endCap = createTick(trial.line.endX, trial.line.y, 'endpoint-tick');
+  const startCap = createTick(
+    trial.line.axis,
+    trial.line,
+    trial.line.startScalar,
+    'endpoint-tick',
+  );
+  const endCap = createTick(
+    trial.line.axis,
+    trial.line,
+    trial.line.endScalar,
+    'endpoint-tick',
+  );
 
   svg.addEventListener('pointerdown', (event) => {
     const localPoint = localSvgPoint(svg, event.clientX, event.clientY);
@@ -334,16 +390,26 @@ function renderTrialSvg(
       return;
     }
 
-    const withinGuideY = Math.abs(localPoint.y - trial.line.y) <= 28;
-    const withinGuideX =
-      localPoint.x >= trial.line.startX - 12 && localPoint.x <= trial.line.endX + 12;
+    const scalar = scalarFromPoint(trial.line.axis, localPoint);
+    const crossAxisDistance = crossAxisDistanceFromPoint(
+      trial.line.axis,
+      trial.line,
+      localPoint,
+    );
+    const withinGuideCrossAxis = crossAxisDistance <= 28;
+    const withinGuideScalar =
+      scalar >= trial.line.startScalar - 12 &&
+      scalar <= trial.line.endScalar + 12;
 
-    if (!withinGuideY || !withinGuideX) {
+    if (!withinGuideCrossAxis || !withinGuideScalar) {
       return;
     }
 
-    const clampedX = Math.max(trial.line.startX, Math.min(localPoint.x, trial.line.endX));
-    onSelect(clampedX);
+    const clampedScalar = Math.max(
+      trial.line.startScalar,
+      Math.min(scalar, trial.line.endScalar),
+    );
+    onSelect(clampedScalar);
   });
 
   svg.append(frame, guide, line, startCap, endCap);
@@ -353,30 +419,96 @@ function renderTrialSvg(
     const accent = `hsl(${feedbackHueForError(result.relativeErrorPercent)} 55% 42%)`;
 
     const gap = createSvg('line');
-    gap.setAttribute('x1', String(result.placedX));
-    gap.setAttribute('y1', String(trial.line.y - 34));
-    gap.setAttribute('x2', String(result.targetX));
-    gap.setAttribute('y2', String(trial.line.y - 34));
+    const gapStart = gapPoint(trial.line.axis, trial.line, result.placedScalar);
+    const gapEnd = gapPoint(trial.line.axis, trial.line, result.targetScalar);
+    gap.setAttribute('x1', String(gapStart.x));
+    gap.setAttribute('y1', String(gapStart.y));
+    gap.setAttribute('x2', String(gapEnd.x));
+    gap.setAttribute('y2', String(gapEnd.y));
     gap.setAttribute('class', 'error-gap');
     gap.style.stroke = accent;
 
-    const placedTick = createTick(result.placedX, trial.line.y, 'user-tick');
+    const placedTick = createTick(
+      trial.line.axis,
+      trial.line,
+      result.placedScalar,
+      'user-tick',
+    );
     placedTick.style.stroke = accent;
 
-    svg.append(gap, placedTick, createTick(result.targetX, trial.line.y, 'target-tick'));
+    svg.append(
+      gap,
+      placedTick,
+      createTick(
+        trial.line.axis,
+        trial.line,
+        result.targetScalar,
+        'target-tick',
+      ),
+    );
   }
 
   return svg;
 }
 
-function createTick(x: number, y: number, className: string): SVGLineElement {
+function createTick(
+  axis: LineAxis,
+  line: TrialLine,
+  scalar: number,
+  className: string,
+): SVGLineElement {
   const tick = createSvg('line');
-  tick.setAttribute('x1', String(x));
-  tick.setAttribute('y1', String(y - 30));
-  tick.setAttribute('x2', String(x));
-  tick.setAttribute('y2', String(y + 30));
+  const tickLength = 30;
+
+  if (axis === 'horizontal') {
+    tick.setAttribute('x1', String(scalar));
+    tick.setAttribute('y1', String(line.anchorY - tickLength));
+    tick.setAttribute('x2', String(scalar));
+    tick.setAttribute('y2', String(line.anchorY + tickLength));
+  } else {
+    tick.setAttribute('x1', String(line.anchorX - tickLength));
+    tick.setAttribute('y1', String(scalar));
+    tick.setAttribute('x2', String(line.anchorX + tickLength));
+    tick.setAttribute('y2', String(scalar));
+  }
+
   tick.setAttribute('class', className);
   return tick;
+}
+
+function linePoint(
+  line: TrialLine,
+  edge: 'start' | 'end',
+): { x: number; y: number } {
+  const scalar = edge === 'start' ? line.startScalar : line.endScalar;
+  return line.axis === 'horizontal'
+    ? { x: scalar, y: line.anchorY }
+    : { x: line.anchorX, y: scalar };
+}
+
+function gapPoint(
+  axis: LineAxis,
+  line: TrialLine,
+  scalar: number,
+): { x: number; y: number } {
+  const gapOffset = 34;
+  return axis === 'horizontal'
+    ? { x: scalar, y: line.anchorY - gapOffset }
+    : { x: line.anchorX - gapOffset, y: scalar };
+}
+
+function scalarFromPoint(axis: LineAxis, point: DOMPoint | SVGPoint): number {
+  return axis === 'horizontal' ? point.x : point.y;
+}
+
+function crossAxisDistanceFromPoint(
+  axis: LineAxis,
+  line: TrialLine,
+  point: DOMPoint | SVGPoint,
+): number {
+  return axis === 'horizontal'
+    ? Math.abs(point.y - line.anchorY)
+    : Math.abs(point.x - line.anchorX);
 }
 
 function localSvgPoint(
