@@ -29,6 +29,33 @@ export function getStoredProgress(): StoredProgress {
   }
 }
 
+export function updateStoredProgress(exerciseId: string, nextScore: number): StoredProgress {
+  const progress = getStoredProgress();
+  const previousEntry = progress[exerciseId];
+  const attempts = (previousEntry?.attempts ?? 0) + 1;
+  const alpha = 0.35;
+  const emaScore =
+    previousEntry === undefined
+      ? nextScore
+      : previousEntry.emaScore + alpha * (nextScore - previousEntry.emaScore);
+
+  const nextProgress: StoredProgress = {
+    ...progress,
+    [exerciseId]: {
+      attempts,
+      emaScore,
+    },
+  };
+
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextProgress));
+  } catch (error) {
+    console.error('Failed to persist progress.', error);
+  }
+
+  return nextProgress;
+}
+
 function isStoredProgress(value: unknown): value is StoredProgress {
   if (!value || typeof value !== 'object') {
     return false;

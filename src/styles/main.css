@@ -41,7 +41,9 @@ button {
 
 .hero,
 .auto-card,
-.exercise-card {
+.exercise-card,
+.exercise-header,
+.exercise-stage {
   background: var(--surface);
   backdrop-filter: blur(6px);
   border: 1px solid var(--border);
@@ -51,6 +53,11 @@ button {
 
 .hero {
   padding: 1.75rem;
+}
+
+.exercise-header,
+.exercise-stage {
+  padding: 1.5rem;
 }
 
 .eyebrow,
@@ -66,7 +73,8 @@ button {
 .hero h1,
 .auto-card h2,
 .exercise-section h2,
-.exercise-card h3 {
+.exercise-card h3,
+.exercise-title {
   margin: 0;
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -80,7 +88,9 @@ button {
 
 .hero-copy,
 .auto-card p,
-.exercise-card p {
+.exercise-card p,
+.exercise-stage p,
+.exercise-header p {
   color: var(--muted);
 }
 
@@ -125,6 +135,10 @@ button {
   margin-top: 2rem;
 }
 
+.exercise-header + .exercise-stage {
+  margin-top: 1.25rem;
+}
+
 .exercise-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -144,6 +158,134 @@ button {
 
 .exercise-card p {
   margin: 0;
+}
+
+.exercise-stage {
+  margin-top: 1.5rem;
+}
+
+.exercise-prompt {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+}
+
+.exercise-canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.canvas-frame {
+  fill: rgba(255, 251, 245, 0.92);
+  stroke: rgba(77, 58, 37, 0.12);
+  stroke-width: 2;
+}
+
+.click-guide {
+  fill: rgba(0, 0, 0, 0.001);
+  cursor: crosshair;
+  pointer-events: all;
+}
+
+.exercise-line {
+  stroke: #34261b;
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+.endpoint-tick,
+.user-tick,
+.target-tick {
+  stroke-linecap: round;
+}
+
+.endpoint-tick {
+  stroke-width: 4;
+  stroke: rgba(52, 38, 27, 0.4);
+}
+
+.user-tick {
+  stroke-width: 2.5;
+  stroke: #7a4d22;
+}
+
+.target-tick {
+  stroke-width: 3.5;
+  stroke: #2f7d5d;
+}
+
+.error-gap {
+  stroke: #c26134;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 7 6;
+}
+
+.feedback-banner {
+  --result-accent: rgba(77, 58, 37, 0.24);
+  margin: 1rem 0 0;
+  padding: 0.85rem 1rem;
+  border-radius: 16px;
+  background: var(--surface-strong);
+  border: 1px solid color-mix(in srgb, var(--result-accent) 30%, var(--border));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--result-accent) 12%, transparent);
+}
+
+.feedback-banner[data-tone="excellent"] {
+  background: color-mix(in srgb, white 86%, var(--result-accent));
+}
+
+.feedback-banner[data-tone="good"] {
+  background: color-mix(in srgb, white 88%, var(--result-accent));
+}
+
+.feedback-banner[data-tone="ok"] {
+  background: color-mix(in srgb, white 90%, var(--result-accent));
+}
+
+.feedback-banner[data-tone="bad"] {
+  background: color-mix(in srgb, white 92%, var(--result-accent));
+}
+
+.result-summary {
+  --result-accent: rgba(77, 58, 37, 0.24);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.8rem;
+  margin-top: 1rem;
+}
+
+.result-stat {
+  padding: 0.9rem 1rem;
+  border-radius: 16px;
+  background: rgba(255, 248, 238, 0.9);
+  border: 1px solid color-mix(in srgb, var(--result-accent) 30%, var(--border));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--result-accent) 10%, transparent);
+}
+
+.result-label,
+.result-value {
+  margin: 0;
+}
+
+.result-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--result-accent) 72%, #5f3c1a);
+}
+
+.result-value {
+  margin-top: 0.3rem;
+  color: #332720;
+}
+
+.session-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin-top: 1rem;
 }
 
 .card-footer {
@@ -179,12 +321,18 @@ button {
 
   .hero,
   .auto-card,
-  .exercise-card {
+  .exercise-card,
+  .exercise-header,
+  .exercise-stage {
     border-radius: 18px;
   }
 
   .card-footer {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .session-actions {
+    flex-direction: column;
   }
 }
