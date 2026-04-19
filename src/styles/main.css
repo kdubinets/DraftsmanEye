@@ -586,6 +586,101 @@ button {
   transform: none;
 }
 
+.hero-settings-link {
+  margin-top: 1rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.hero-settings-link:hover {
+  color: var(--accent);
+}
+
+.settings-heading {
+  margin: 0 0 1.5rem;
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.settings-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.settings-section h2 {
+  margin: 0 0 1rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.settings-row:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.settings-label-group {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.settings-label {
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings-note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.settings-toggle {
+  flex-shrink: 0;
+  inline-size: 1.1rem;
+  block-size: 1.1rem;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.settings-reset-btn {
+  margin-top: 0.75rem;
+  padding: 0.6rem 1rem;
+  border: 1px solid rgba(194, 97, 52, 0.4);
+  border-radius: 999px;
+  background: none;
+  color: #a03a1a;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+
+.settings-reset-btn:hover {
+  background: rgba(194, 97, 52, 0.08);
+}
+
 @media (max-width: 720px) {
   .page-shell {
     width: min(100% - 1rem, 1100px);

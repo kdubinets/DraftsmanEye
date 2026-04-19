@@ -18,7 +18,7 @@ export function mountListScreen(
   const progress = filterStaleAggregates(getStoredProgress(), knownIds);
   root.append(
     pageShell(
-      headerBlock(),
+      headerBlock(onNavigate),
       autoCard(onNavigate, progress),
       exerciseGrid(
         EXERCISES.map((ex) =>
@@ -30,7 +30,7 @@ export function mountListScreen(
   return () => {};
 }
 
-function headerBlock(): HTMLElement {
+function headerBlock(onNavigate: (next: AppState) => void): HTMLElement {
   const header = document.createElement('header');
   header.className = 'hero';
 
@@ -46,7 +46,13 @@ function headerBlock(): HTMLElement {
   body.textContent =
     'Practice one estimation task at a time, review the result immediately, then repeat, return to the list, or let Auto choose the next drill.';
 
-  header.append(eyebrow, title, body);
+  const settingsLink = document.createElement('button');
+  settingsLink.type = 'button';
+  settingsLink.className = 'hero-settings-link';
+  settingsLink.textContent = 'Settings';
+  settingsLink.addEventListener('click', () => onNavigate({ screen: 'settings' }));
+
+  header.append(eyebrow, title, body, settingsLink);
   return header;
 }
 

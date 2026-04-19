@@ -5,12 +5,14 @@
  *
  * URL scheme:
  *   /                        → list screen
+ *   /settings                → settings screen
  *   /exercise/:id            → exercise screen (source defaults to 'direct' on deep-link)
  */
 import './styles/main.css';
 import { getMountableById } from './exercises/registry';
 import { mountScreen } from './app/screens';
 import { mountListScreen } from './screens/list';
+import { mountSettingsScreen } from './screens/settings';
 import type { AppState } from './app/state';
 import type { ExerciseId } from './practice/catalog';
 
@@ -24,15 +26,21 @@ let currentCleanup: () => void = () => {};
 
 // Parse the current URL into an AppState, falling back to list for unknown paths.
 function stateFromUrl(): AppState {
-  const match = /^\/exercise\/([^/]+)$/.exec(window.location.pathname);
-  if (match) {
-    return { screen: 'exercise', exerciseId: match[1] as ExerciseId, source: 'direct' };
+  const { pathname } = window.location;
+  const exerciseMatch = /^\/exercise\/([^/]+)$/.exec(pathname);
+  if (exerciseMatch) {
+    return { screen: 'exercise', exerciseId: exerciseMatch[1] as ExerciseId, source: 'direct' };
+  }
+  if (pathname === '/settings') {
+    return { screen: 'settings' };
   }
   return { screen: 'list' };
 }
 
 function urlFromState(state: AppState): string {
-  return state.screen === 'exercise' ? `/exercise/${state.exerciseId}` : '/';
+  if (state.screen === 'exercise') return `/exercise/${state.exerciseId}`;
+  if (state.screen === 'settings') return '/settings';
+  return '/';
 }
 
 window.addEventListener('popstate', () => {
@@ -51,6 +59,11 @@ function mountState(state: AppState): void {
 
   if (state.screen === 'list') {
     currentCleanup = mountScreen(root, (r) => mountListScreen(r, navigate));
+    return;
+  }
+
+  if (state.screen === 'settings') {
+    currentCleanup = mountScreen(root, (r) => mountSettingsScreen(r, navigate));
     return;
   }
 

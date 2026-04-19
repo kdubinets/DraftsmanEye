@@ -36,6 +36,12 @@ let cache: ProgressStore | null = null;
 /** Clears the in-memory cache. Only for use in tests that reset localStorage between cases. */
 export function _resetProgressCache(): void { cache = null; }
 
+/** Wipes all stored progress from localStorage and resets the in-memory cache. */
+export function resetStoredProgress(): void {
+  window.localStorage.removeItem(STORAGE_KEY);
+  cache = null;
+}
+
 export function getStoredProgress(): ProgressStore {
   if (cache) return cache;
   const raw = window.localStorage.getItem(STORAGE_KEY);
