@@ -39,6 +39,13 @@ const appRoot = root;
 const CONFIG = {
   freehand: {
     allowTouchDrawing: false,
+    visualizePressureWidth: true,
+    visualizeSpeedColor: true,
+    minPressureStrokeWidth: 3.25,
+    maxPressureStrokeWidth: 8,
+    defaultStrokeWidth: 5,
+    slowSpeedPixelsPerSecond: 180,
+    fastSpeedPixelsPerSecond: 1100,
   },
 } as const;
 
@@ -437,8 +444,8 @@ function renderFreehandExerciseScreen(
   targetLayer.setAttribute('class', 'freehand-target-layer');
   renderFreehandTargetMarks(targetLayer, target);
 
-  const userStroke = createSvg('path');
-  userStroke.setAttribute('class', 'freehand-user-stroke');
+  const userStrokeLayer = createSvg('g');
+  userStrokeLayer.setAttribute('class', 'freehand-user-stroke-layer');
 
   const fittedLine = createSvg('line');
   fittedLine.setAttribute('class', 'freehand-fit-line');
@@ -470,7 +477,7 @@ function renderFreehandExerciseScreen(
     fittedLine,
     fittedCircle,
     fittedEllipse,
-    userStroke,
+    userStrokeLayer,
     closureGap,
     startTangent,
     endTangent,
@@ -493,7 +500,7 @@ function renderFreehandExerciseScreen(
 
     drawingPointerId = event.pointerId;
     points = [point];
-    userStroke.setAttribute('d', freehandPath(points));
+    renderFreehandStroke(userStrokeLayer, points, 'freehand-user-stroke');
     svg.setPointerCapture(event.pointerId);
     feedback.textContent = 'Keep the stroke continuous, then lift.';
   });
@@ -509,7 +516,7 @@ function renderFreehandExerciseScreen(
     }
 
     points.push(...nextPoints);
-    userStroke.setAttribute('d', freehandPath(points));
+    renderFreehandStroke(userStrokeLayer, points, 'freehand-user-stroke');
   });
 
   const finishStroke = (event: PointerEvent): void => {
@@ -537,7 +544,7 @@ function renderFreehandExerciseScreen(
     const nextResult = scoreFreehandStroke(exercise.kind, points, target);
     if (!nextResult) {
       points = [];
-      userStroke.removeAttribute('d');
+      userStrokeLayer.replaceChildren();
       feedback.textContent = freehandRetryText(exercise.kind);
       return;
     }
@@ -603,7 +610,7 @@ function renderFreehandExerciseScreen(
       result = null;
       target = createFreehandTarget(exercise.kind);
       resetTimer = null;
-      userStroke.removeAttribute('d');
+      userStrokeLayer.replaceChildren();
       renderFreehandTargetMarks(targetLayer, target);
       hideFreehandCorrectionElements(
         fittedLine,
@@ -1483,10 +1490,7 @@ function renderFreehandAttemptThumbnail(
     appendFreehandCorrection(content, attempt.result, true);
   }
 
-  const stroke = createSvg('path');
-  stroke.setAttribute('class', 'freehand-history-stroke');
-  stroke.setAttribute('d', freehandPath(attempt.points));
-  content.append(stroke);
+  appendFreehandStroke(content, attempt.points, 'freehand-history-stroke');
 
   svg.append(frame, content);
 
@@ -1565,10 +1569,7 @@ function renderFreehandAttemptPreview(
     appendFreehandCorrection(content, attempt.result, false);
   }
 
-  const stroke = createSvg('path');
-  stroke.setAttribute('class', 'freehand-user-stroke');
-  stroke.setAttribute('d', freehandPath(attempt.points));
-  content.append(stroke);
+  appendFreehandStroke(content, attempt.points, 'freehand-user-stroke');
 
   if (showCorrections && isClosedFreehandResult(attempt.result)) {
     const closureGap = createSvg('line');
@@ -1838,6 +1839,115 @@ function freehandPath(points: FreehandPoint[]): string {
     `M ${firstPoint.x.toFixed(2)} ${firstPoint.y.toFixed(2)}`,
     ...rest.map((point) => `L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`),
   ].join(' ');
+}
+
+function renderFreehandStroke(
+  parent: SVGGElement,
+  points: FreehandPoint[],
+  className: string,
+): void {
+  parent.replaceChildren();
+  appendFreehandStroke(parent, points, className);
+}
+
+function appendFreehandStroke(
+  parent: SVGGElement,
+  points: FreehandPoint[],
+  className: string,
+): void {
+  if (points.length === 0) {
+    return;
+  }
+
+  if (!usesSegmentedFreehandStroke()) {
+    const stroke = createSvg('path');
+    stroke.setAttribute('class', className);
+    stroke.setAttribute('d', freehandPath(points));
+    parent.append(stroke);
+    return;
+  }
+
+  for (let index = 1; index < points.length; index += 1) {
+    const start = points[index - 1];
+    const end = points[index];
+    if (start.x === end.x && start.y === end.y) {
+      continue;
+    }
+
+    const segment = createSvg('line');
+    segment.setAttribute('class', className);
+    segment.setAttribute('x1', start.x.toFixed(2));
+    segment.setAttribute('y1', start.y.toFixed(2));
+    segment.setAttribute('x2', end.x.toFixed(2));
+    segment.setAttribute('y2', end.y.toFixed(2));
+    segment.style.strokeWidth = `${freehandSegmentStrokeWidth(start, end).toFixed(2)}px`;
+    segment.style.stroke = freehandSegmentStrokeColor(start, end);
+    parent.append(segment);
+  }
+}
+
+function usesSegmentedFreehandStroke(): boolean {
+  return (
+    CONFIG.freehand.visualizePressureWidth ||
+    CONFIG.freehand.visualizeSpeedColor
+  );
+}
+
+function freehandSegmentStrokeWidth(
+  start: FreehandPoint,
+  end: FreehandPoint,
+): number {
+  if (!CONFIG.freehand.visualizePressureWidth) {
+    return CONFIG.freehand.defaultStrokeWidth;
+  }
+
+  const pressure = meaningfulPressure(start, end);
+  if (pressure === null) {
+    return CONFIG.freehand.defaultStrokeWidth;
+  }
+
+  return (
+    CONFIG.freehand.minPressureStrokeWidth +
+    pressure *
+      (CONFIG.freehand.maxPressureStrokeWidth -
+        CONFIG.freehand.minPressureStrokeWidth)
+  );
+}
+
+function meaningfulPressure(start: FreehandPoint, end: FreehandPoint): number | null {
+  const pressure = (start.pressure + end.pressure) / 2;
+  if (
+    start.pointerType === 'mouse' ||
+    end.pointerType === 'mouse' ||
+    !Number.isFinite(pressure) ||
+    pressure <= 0
+  ) {
+    return null;
+  }
+
+  return clampNumber(pressure, 0, 1);
+}
+
+function freehandSegmentStrokeColor(
+  start: FreehandPoint,
+  end: FreehandPoint,
+): string {
+  if (!CONFIG.freehand.visualizeSpeedColor) {
+    return '#34261b';
+  }
+
+  const elapsedSeconds = Math.max((end.time - start.time) / 1000, 0.001);
+  const speed = distanceBetween(start, end) / elapsedSeconds;
+  const ratio = clampNumber(
+    (speed - CONFIG.freehand.slowSpeedPixelsPerSecond) /
+      (CONFIG.freehand.fastSpeedPixelsPerSecond -
+        CONFIG.freehand.slowSpeedPixelsPerSecond),
+    0,
+    1,
+  );
+  const hue = 205 - ratio * 185;
+  const lightness = 32 + ratio * 8;
+  return `hsl(${hue.toFixed(1)} 72% ${lightness.toFixed(1)}%)`;
 }
 
 function scoreFreehandLine(

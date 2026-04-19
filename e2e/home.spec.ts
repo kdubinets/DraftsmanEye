@@ -442,7 +442,7 @@ test('ellipse drill scores a drawn stroke and auto-clears', async ({ page }) => 
   await expect(
     page.locator('.freehand-history-item .freehand-fit-ellipse'),
   ).toHaveCount(0);
-  await expect(page.locator('.freehand-history-stroke')).toBeVisible();
+  await expect(page.locator('.freehand-history-stroke').first()).toBeVisible();
 
   await expect(page.getByText(/Draw one ellipse in the field/i)).toBeVisible({
     timeout: 2500,
@@ -559,7 +559,7 @@ test('straight line drill scores a drawn stroke and auto-clears', async ({
     clientX: canvasBox.x + 300,
     clientY: canvasBox.y + 180,
   });
-  await expect(page.locator('.freehand-user-stroke')).not.toHaveAttribute('d');
+  await expect(page.locator('.freehand-user-stroke')).toHaveCount(0);
   await expect(page.getByText('Use Apple Pencil or mouse to draw.')).toBeVisible();
 
   await page.mouse.move(canvasBox.x + 120, canvasBox.y + 220);
@@ -573,6 +573,11 @@ test('straight line drill scores a drawn stroke and auto-clears', async ({
   await expect(
     page.getByTestId('freehand-canvas').locator('.freehand-fit-line'),
   ).toBeVisible();
+  await expect(page.locator('.freehand-user-stroke').first()).toBeVisible();
+  await expect(page.locator('.freehand-user-stroke').first()).toHaveAttribute(
+    'style',
+    /stroke-width: 5(?:\.00)?px; stroke: rgb\(/,
+  );
   await expect(page.locator('.freehand-closure-gap')).toBeHidden();
   await expect(page.locator('.freehand-history-item')).toHaveCount(1);
   await expect(
