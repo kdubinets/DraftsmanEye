@@ -300,7 +300,7 @@ export function mountFreehandScreen(
       if (event.key === 'Escape') closeModal();
     };
     document.addEventListener('keydown', escapeListener);
-    screen.append(modal);
+    document.body.append(modal);
   }
 }
 
