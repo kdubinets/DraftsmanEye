@@ -31,20 +31,26 @@ const EMA_ALPHA = 0.35;
 
 const EMPTY_STORE: ProgressStore = { version: 2, attempts: [], aggregates: {} };
 
+let cache: ProgressStore | null = null;
+
+/** Clears the in-memory cache. Only for use in tests that reset localStorage between cases. */
+export function _resetProgressCache(): void { cache = null; }
+
 export function getStoredProgress(): ProgressStore {
+  if (cache) return cache;
   const raw = window.localStorage.getItem(STORAGE_KEY);
-  if (!raw) return EMPTY_STORE;
+  if (!raw) return (cache = { ...EMPTY_STORE, aggregates: {} });
 
   try {
     const parsed = JSON.parse(raw) as unknown;
     if (!isProgressStore(parsed)) {
       console.error('Ignoring malformed progress payload from localStorage.');
-      return EMPTY_STORE;
+      return (cache = { ...EMPTY_STORE, aggregates: {} });
     }
-    return parsed;
+    return (cache = parsed);
   } catch (error) {
     console.error('Failed to parse stored progress.', error);
-    return EMPTY_STORE;
+    return (cache = { ...EMPTY_STORE, aggregates: {} });
   }
 }
 
@@ -72,6 +78,8 @@ export function updateStoredProgress(
     attempts,
     aggregates: { ...store.aggregates, [exerciseId]: nextAggregate },
   };
+
+  cache = next;
 
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));

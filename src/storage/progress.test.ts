@@ -10,13 +10,14 @@ const localStorageMock = {
 };
 vi.stubGlobal('window', { localStorage: localStorageMock });
 
-import { getStoredProgress, updateStoredProgress, filterStaleAggregates } from './progress';
+import { getStoredProgress, updateStoredProgress, filterStaleAggregates, _resetProgressCache } from './progress';
 
 const STORAGE_KEY = 'draftsman-eye.progress.v2';
 
 beforeEach(() => {
   localStorageMock.clear();
   vi.clearAllMocks();
+  _resetProgressCache();
 });
 
 describe('getStoredProgress', () => {

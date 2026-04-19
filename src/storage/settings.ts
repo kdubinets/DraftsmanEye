@@ -20,21 +20,25 @@ const DEFAULTS: Settings = {
   visualizeSpeedColor: true,
 };
 
+let cache: Settings | null = null;
+
 export function getSettings(): Settings {
+  if (cache) return cache;
   const raw = window.localStorage.getItem(STORAGE_KEY);
-  if (!raw) return { ...DEFAULTS };
+  if (!raw) return (cache = { ...DEFAULTS });
   try {
     const parsed = JSON.parse(raw) as unknown;
-    return mergeWithDefaults(parsed);
+    return (cache = mergeWithDefaults(parsed));
   } catch {
     console.error('Failed to parse stored settings; using defaults.');
-    return { ...DEFAULTS };
+    return (cache = { ...DEFAULTS });
   }
 }
 
 export function updateSetting<K extends keyof Settings>(key: K, value: Settings[K]): void {
   const current = getSettings();
   const next: Settings = { ...current, [key]: value };
+  cache = next;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   } catch (error) {
