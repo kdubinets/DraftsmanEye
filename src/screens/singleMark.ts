@@ -7,7 +7,8 @@
 import { getAutoExercise } from '../practice/catalog';
 import type { SingleMarkExerciseDefinition, LineAxis, TrialLine, SingleMarkTrialResult } from '../practice/catalog';
 import { getStoredProgress, updateStoredProgress } from '../storage/progress';
-import { createSvg, localSvgPoint } from '../render/svg';
+import { localSvgPoint } from '../render/svg';
+import { s, h } from '../render/h';
 import {
   pageShell,
   exerciseHeader,
@@ -33,23 +34,14 @@ export function mountSingleMarkScreen(
 
   const screen = pageShell();
   const header = exerciseHeader(exercise, source);
-  const stage = document.createElement('section');
-  stage.className = 'exercise-stage';
+  const stage = h('section', { class: 'exercise-stage' });
 
-  const prompt = document.createElement('p');
-  prompt.className = 'exercise-prompt';
-  prompt.textContent = trial.prompt;
-
-  const feedback = document.createElement('p');
-  feedback.className = 'feedback-banner';
-  feedback.textContent = 'Place one mark on the line.';
-
-  const summary = document.createElement('div');
-  summary.className = 'result-summary';
+  const prompt = h('p', { class: 'exercise-prompt' }, [trial.prompt]);
+  const feedback = h('p', { class: 'feedback-banner' }, ['Place one mark on the line.']);
+  const summary = h('div', { class: 'result-summary' });
   summary.hidden = true;
 
-  const actions = document.createElement('div');
-  actions.className = 'session-actions';
+  const actions = h('div', { class: 'session-actions' });
 
   const againBtn = actionButton('Again', () => {
     onNavigate({ screen: 'exercise', exerciseId: exercise.id, source });
@@ -127,65 +119,38 @@ function renderTrialSvg(
   getResult: () => SingleMarkTrialResult | null,
   onSelect: (scalar: number) => void,
 ): SVGSVGElement {
-  const svg = createSvg('svg');
-  svg.setAttribute('class', 'exercise-canvas');
-  svg.setAttribute(
-    'viewBox',
-    `0 0 ${trial.viewport.width} ${trial.viewport.height}`,
-  );
-  svg.setAttribute('role', 'img');
-  svg.setAttribute('aria-label', `${trial.label} practice canvas`);
-  svg.dataset.testid = 'exercise-canvas';
-  svg.dataset.axis = trial.line.axis;
+  const frame = s('rect', {
+    x: 1, y: 1,
+    width: trial.viewport.width - 2,
+    height: trial.viewport.height - 2,
+    rx: 24,
+    class: 'canvas-frame',
+  });
 
-  const frame = createSvg('rect');
-  frame.setAttribute('x', '1');
-  frame.setAttribute('y', '1');
-  frame.setAttribute('width', String(trial.viewport.width - 2));
-  frame.setAttribute('height', String(trial.viewport.height - 2));
-  frame.setAttribute('rx', '24');
-  frame.setAttribute('class', 'canvas-frame');
-
-  const line = createSvg('line');
-  line.setAttribute('x1', String(linePoint(trial.line, 'start').x));
-  line.setAttribute('y1', String(linePoint(trial.line, 'start').y));
-  line.setAttribute('x2', String(linePoint(trial.line, 'end').x));
-  line.setAttribute('y2', String(linePoint(trial.line, 'end').y));
-  line.setAttribute('class', 'exercise-line');
+  const line = s('line', {
+    x1: linePoint(trial.line, 'start').x,
+    y1: linePoint(trial.line, 'start').y,
+    x2: linePoint(trial.line, 'end').x,
+    y2: linePoint(trial.line, 'end').y,
+    class: 'exercise-line',
+  });
 
   // Invisible hit-rect wider than the line so taps near the ends still register.
-  const guide = createSvg('rect');
-  if (trial.line.axis === 'horizontal') {
-    guide.setAttribute('x', String(trial.line.startScalar));
-    guide.setAttribute('y', String(trial.line.anchorY - 22));
-    guide.setAttribute(
-      'width',
-      String(trial.line.endScalar - trial.line.startScalar),
-    );
-    guide.setAttribute('height', '44');
-  } else {
-    guide.setAttribute('x', String(trial.line.anchorX - 22));
-    guide.setAttribute('y', String(trial.line.startScalar));
-    guide.setAttribute('width', '44');
-    guide.setAttribute(
-      'height',
-      String(trial.line.endScalar - trial.line.startScalar),
-    );
-  }
-  guide.setAttribute('class', 'click-guide');
+  const guide = trial.line.axis === 'horizontal'
+    ? s('rect', { x: trial.line.startScalar, y: trial.line.anchorY - 22, width: trial.line.endScalar - trial.line.startScalar, height: 44, class: 'click-guide' })
+    : s('rect', { x: trial.line.anchorX - 22, y: trial.line.startScalar, width: 44, height: trial.line.endScalar - trial.line.startScalar, class: 'click-guide' });
 
-  const startCap = createTick(
-    trial.line.axis,
-    trial.line,
-    trial.line.startScalar,
-    'endpoint-tick',
-  );
-  const endCap = createTick(
-    trial.line.axis,
-    trial.line,
-    trial.line.endScalar,
-    'endpoint-tick',
-  );
+  const startCap = createTick(trial.line.axis, trial.line, trial.line.startScalar, 'endpoint-tick');
+  const endCap = createTick(trial.line.axis, trial.line, trial.line.endScalar, 'endpoint-tick');
+
+  const svg = s('svg', {
+    class: 'exercise-canvas',
+    viewBox: `0 0 ${trial.viewport.width} ${trial.viewport.height}`,
+    role: 'img',
+    'aria-label': `${trial.label} practice canvas`,
+  }, [frame, guide, line, startCap, endCap]);
+  svg.dataset.testid = 'exercise-canvas';
+  svg.dataset.axis = trial.line.axis;
 
   svg.addEventListener('pointerdown', (event) => {
     const local = localSvgPoint(svg, event.clientX, event.clientY);
@@ -208,28 +173,16 @@ function renderTrialSvg(
     );
   });
 
-  svg.append(frame, guide, line, startCap, endCap);
-
   const res = getResult();
   if (res) {
     const accent = `hsl(${feedbackHueForError(res.relativeErrorPercent)} 55% 42%)`;
-
-    const gapEl = createSvg('line');
     const gapA = gapPoint(trial.line.axis, trial.line, res.placedScalar);
     const gapB = gapPoint(trial.line.axis, trial.line, res.targetScalar);
-    gapEl.setAttribute('x1', String(gapA.x));
-    gapEl.setAttribute('y1', String(gapA.y));
-    gapEl.setAttribute('x2', String(gapB.x));
-    gapEl.setAttribute('y2', String(gapB.y));
-    gapEl.setAttribute('class', 'error-gap');
+
+    const gapEl = s('line', { x1: gapA.x, y1: gapA.y, x2: gapB.x, y2: gapB.y, class: 'error-gap' });
     gapEl.style.stroke = accent;
 
-    const placedTick = createTick(
-      trial.line.axis,
-      trial.line,
-      res.placedScalar,
-      'user-tick',
-    );
+    const placedTick = createTick(trial.line.axis, trial.line, res.placedScalar, 'user-tick');
     placedTick.style.stroke = accent;
 
     svg.append(
@@ -248,31 +201,20 @@ function createTick(
   scalar: number,
   className: string,
 ): SVGLineElement {
-  const tick = createSvg('line');
   const len = 30;
-  if (axis === 'horizontal') {
-    tick.setAttribute('x1', String(scalar));
-    tick.setAttribute('y1', String(line.anchorY - len));
-    tick.setAttribute('x2', String(scalar));
-    tick.setAttribute('y2', String(line.anchorY + len));
-  } else {
-    tick.setAttribute('x1', String(line.anchorX - len));
-    tick.setAttribute('y1', String(scalar));
-    tick.setAttribute('x2', String(line.anchorX + len));
-    tick.setAttribute('y2', String(scalar));
-  }
-  tick.setAttribute('class', className);
-  return tick;
+  return axis === 'horizontal'
+    ? s('line', { x1: scalar, y1: line.anchorY - len, x2: scalar, y2: line.anchorY + len, class: className })
+    : s('line', { x1: line.anchorX - len, y1: scalar, x2: line.anchorX + len, y2: scalar, class: className });
 }
 
 function linePoint(
   line: TrialLine,
   edge: 'start' | 'end',
 ): { x: number; y: number } {
-  const s = edge === 'start' ? line.startScalar : line.endScalar;
+  const sc = edge === 'start' ? line.startScalar : line.endScalar;
   return line.axis === 'horizontal'
-    ? { x: s, y: line.anchorY }
-    : { x: line.anchorX, y: s };
+    ? { x: sc, y: line.anchorY }
+    : { x: line.anchorX, y: sc };
 }
 
 function gapPoint(

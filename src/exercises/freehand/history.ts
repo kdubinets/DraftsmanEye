@@ -5,7 +5,7 @@
  * its bounding box computation instead.
  */
 import { feedbackHueForError, feedbackBandClass, feedbackLabel } from '../../scoring/bands';
-import { createSvg } from '../../render/svg';
+import { s, h } from '../../render/h';
 import { appendFreehandStroke } from './input';
 import {
   appendFreehandCorrection,
@@ -24,48 +24,27 @@ export function renderFreehandAttemptThumbnail(
   showCorrections: boolean,
   onOpen: () => void,
 ): HTMLButtonElement {
-  const item = document.createElement('button');
-  item.type = 'button';
-  item.className = 'freehand-history-item';
-  item.addEventListener('click', onOpen);
-
-  const svg = createSvg('svg');
-  svg.setAttribute('class', 'freehand-history-canvas');
-  svg.setAttribute('viewBox', `0 0 ${THUMB_W} ${THUMB_H}`);
-  svg.setAttribute('role', 'img');
-  svg.setAttribute(
-    'aria-label',
-    `${freehandScoreLabel(attempt.result.kind)} ${attempt.result.score.toFixed(1)}`,
-  );
-
-  const frame = createSvg('rect');
-  frame.setAttribute('x', '1');
-  frame.setAttribute('y', '1');
-  frame.setAttribute('width', String(THUMB_W - 2));
-  frame.setAttribute('height', String(THUMB_H - 2));
-  frame.setAttribute('rx', '8');
-  frame.setAttribute('class', 'freehand-history-frame');
-
   const transform = thumbnailTransform(attempt);
-  const content = createSvg('g');
-  content.setAttribute(
-    'transform',
-    `translate(${transform.offsetX.toFixed(2)} ${transform.offsetY.toFixed(2)}) scale(${transform.scale.toFixed(4)})`,
-  );
-
-  if (showCorrections) {
-    appendFreehandCorrection(content, attempt.result, true);
-  }
+  const content = s('g', {
+    transform: `translate(${transform.offsetX.toFixed(2)} ${transform.offsetY.toFixed(2)}) scale(${transform.scale.toFixed(4)})`,
+  });
+  if (showCorrections) appendFreehandCorrection(content, attempt.result, true);
   appendFreehandStroke(content, attempt.points, 'freehand-history-stroke');
 
-  svg.append(frame, content);
+  const svg = s('svg', {
+    class: 'freehand-history-canvas',
+    viewBox: `0 0 ${THUMB_W} ${THUMB_H}`,
+    role: 'img',
+    'aria-label': `${freehandScoreLabel(attempt.result.kind)} ${attempt.result.score.toFixed(1)}`,
+  }, [
+    s('rect', { x: 1, y: 1, width: THUMB_W - 2, height: THUMB_H - 2, rx: 8, class: 'freehand-history-frame' }),
+    content,
+  ]);
 
-  const score = document.createElement('p');
-  score.className = 'freehand-history-score';
-  score.textContent = attempt.result.score.toFixed(1);
-
-  item.append(svg, score);
-  return item;
+  return h('button', { type: 'button', class: 'freehand-history-item', on: { click: onOpen } }, [
+    svg,
+    h('p', { class: 'freehand-history-score' }, [attempt.result.score.toFixed(1)]),
+  ]);
 }
 
 export function renderFreehandHistoryModal(
@@ -73,40 +52,42 @@ export function renderFreehandHistoryModal(
   showCorrections: boolean,
   onClose: () => void,
 ): HTMLElement {
-  const overlay = document.createElement('div');
-  overlay.className = 'freehand-history-modal';
-  overlay.dataset.testid = 'freehand-history-modal';
-  overlay.setAttribute('role', 'dialog');
-  overlay.setAttribute('aria-modal', 'true');
-  overlay.setAttribute('aria-label', 'History attempt detail');
-
-  const panel = document.createElement('div');
-  panel.className = 'freehand-history-modal-panel';
-
-  const preview = renderAttemptPreview(attempt, showCorrections);
-
   const feedbackError = 100 - attempt.result.score;
   const feedbackHue = feedbackHueForError(feedbackError);
   const feedbackCls = feedbackBandClass(feedbackError);
+  const accent = `hsl(${feedbackHue} 55% 42%)`;
 
-  const feedback = document.createElement('p');
-  feedback.className = 'feedback-banner';
-  feedback.dataset.tone = feedbackCls;
-  feedback.style.setProperty('--result-accent', `hsl(${feedbackHue} 55% 42%)`);
-  feedback.textContent =
+  const feedback = h('p', {
+    class: 'feedback-banner',
+    dataset: { tone: feedbackCls },
+    style: { '--result-accent': accent } as unknown as Partial<CSSStyleDeclaration>,
+  }, [
     `${feedbackLabel(feedbackError)} · ` +
     `${freehandScoreLabel(attempt.result.kind)} ${attempt.result.score.toFixed(1)} · ` +
-    `Mean drift ${attempt.result.meanErrorPixels.toFixed(1)} px`;
+    `Mean drift ${attempt.result.meanErrorPixels.toFixed(1)} px`,
+  ]);
 
-  const summary = document.createElement('div');
-  summary.className = 'result-summary';
-  summary.dataset.tone = feedbackCls;
-  summary.style.setProperty('--result-accent', `hsl(${feedbackHue} 55% 42%)`);
+  const summary = h('div', {
+    class: 'result-summary',
+    dataset: { tone: feedbackCls },
+    style: { '--result-accent': accent } as unknown as Partial<CSSStyleDeclaration>,
+  });
   summary.replaceChildren(...freehandResultStats(attempt.result));
 
-  panel.append(preview, feedback, summary);
-  overlay.append(panel);
-  overlay.addEventListener('click', onClose);
+  const panel = h('div', { class: 'freehand-history-modal-panel' }, [
+    renderAttemptPreview(attempt, showCorrections),
+    feedback,
+    summary,
+  ]);
+
+  const overlay = h('div', {
+    class: 'freehand-history-modal',
+    dataset: { testid: 'freehand-history-modal' },
+    on: { click: onClose },
+  }, [panel]);
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-label', 'History attempt detail');
   return overlay;
 }
 
@@ -114,43 +95,27 @@ function renderAttemptPreview(
   attempt: FreehandAttemptSnapshot,
   showCorrections: boolean,
 ): SVGSVGElement {
-  const svg = createSvg('svg');
-  svg.setAttribute('class', 'freehand-history-modal-canvas');
-  svg.setAttribute('viewBox', '0 0 1000 620');
-  svg.setAttribute('role', 'img');
-  svg.setAttribute(
-    'aria-label',
-    `${freehandScoreLabel(attempt.result.kind)} attempt at original size`,
-  );
-
-  const frame = createSvg('rect');
-  frame.setAttribute('x', '1');
-  frame.setAttribute('y', '1');
-  frame.setAttribute('width', '998');
-  frame.setAttribute('height', '618');
-  frame.setAttribute('rx', '18');
-  frame.setAttribute('class', 'canvas-frame');
-  svg.append(frame);
-
-  const content = createSvg('g');
-  if (showCorrections) {
-    appendFreehandCorrection(content, attempt.result, false);
-  }
+  const content = s('g');
+  if (showCorrections) appendFreehandCorrection(content, attempt.result, false);
   appendFreehandStroke(content, attempt.points, 'freehand-user-stroke');
 
   if (showCorrections && isClosedFreehandResult(attempt.result)) {
-    const closureGap = createSvg('line');
-    closureGap.setAttribute('class', 'freehand-closure-gap');
-    const startTangent = createSvg('line');
-    startTangent.setAttribute('class', 'freehand-join-tangent');
-    const endTangent = createSvg('line');
-    endTangent.setAttribute('class', 'freehand-join-tangent');
+    const closureGap = s('line', { class: 'freehand-closure-gap' });
+    const startTangent = s('line', { class: 'freehand-join-tangent' });
+    const endTangent = s('line', { class: 'freehand-join-tangent' });
     showClosedShapeMarkers(attempt.points, closureGap, startTangent, endTangent);
     content.append(closureGap, startTangent, endTangent);
   }
 
-  svg.append(content);
-  return svg;
+  return s('svg', {
+    class: 'freehand-history-modal-canvas',
+    viewBox: '0 0 1000 620',
+    role: 'img',
+    'aria-label': `${freehandScoreLabel(attempt.result.kind)} attempt at original size`,
+  }, [
+    s('rect', { x: 1, y: 1, width: 998, height: 618, rx: 18, class: 'canvas-frame' }),
+    content,
+  ]);
 }
 
 function thumbnailTransform(attempt: FreehandAttemptSnapshot): {
@@ -199,11 +164,7 @@ function boundsForAttempt(attempt: FreehandAttemptSnapshot): Bounds {
     return b;
   }
   if (attempt.result.kind === 'target-circle') {
-    extendCircleBounds(
-      b,
-      attempt.result.target.center,
-      attempt.result.target.radius,
-    );
+    extendCircleBounds(b, attempt.result.target.center, attempt.result.target.radius);
     return b;
   }
   if (attempt.result.kind === 'target-ellipse') {

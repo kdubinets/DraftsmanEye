@@ -8,6 +8,7 @@ import type { ExerciseDefinition } from '../practice/catalog';
 import { getStoredProgress, filterStaleAggregates } from '../storage/progress';
 import type { ProgressStore } from '../storage/progress';
 import { pageShell, formatScore, actionButton } from '../render/components';
+import { h } from '../render/h';
 import type { AppState } from '../app/state';
 
 export function mountListScreen(
@@ -31,29 +32,16 @@ export function mountListScreen(
 }
 
 function headerBlock(onNavigate: (next: AppState) => void): HTMLElement {
-  const header = document.createElement('header');
-  header.className = 'hero';
-
-  const eyebrow = document.createElement('p');
-  eyebrow.className = 'eyebrow';
-  eyebrow.textContent = 'Draftsman Eye';
-
-  const title = document.createElement('h1');
-  title.textContent = 'Choose a drill and keep the loop short.';
-
-  const body = document.createElement('p');
-  body.className = 'hero-copy';
-  body.textContent =
-    'Practice one estimation task at a time, review the result immediately, then repeat, return to the list, or let Auto choose the next drill.';
-
-  const settingsLink = document.createElement('button');
-  settingsLink.type = 'button';
-  settingsLink.className = 'hero-settings-link';
-  settingsLink.textContent = 'Settings';
-  settingsLink.addEventListener('click', () => onNavigate({ screen: 'settings' }));
-
-  header.append(eyebrow, title, body, settingsLink);
-  return header;
+  return h('header', { class: 'hero' }, [
+    h('p', { class: 'eyebrow' }, ['Draftsman Eye']),
+    h('h1', {}, ['Choose a drill and keep the loop short.']),
+    h('p', { class: 'hero-copy' }, [
+      'Practice one estimation task at a time, review the result immediately, then repeat, return to the list, or let Auto choose the next drill.',
+    ]),
+    h('button', { type: 'button', class: 'hero-settings-link', on: { click: () => onNavigate({ screen: 'settings' }) } }, [
+      'Settings',
+    ]),
+  ]);
 }
 
 function autoCard(
@@ -61,46 +49,23 @@ function autoCard(
   progress: ProgressStore,
 ): HTMLElement {
   const { exercise: next, reason } = getAutoExercise(progress);
-
-  const section = document.createElement('section');
-  section.className = 'auto-card';
-
-  const label = document.createElement('p');
-  label.className = 'card-kicker';
-  label.textContent = 'Auto';
-
-  const title = document.createElement('h2');
-  title.textContent = 'Let the app choose the next drill.';
-
-  const suggestion = document.createElement('p');
-  suggestion.className = 'auto-suggestion';
-  suggestion.textContent = `Next up: ${next.label} — ${reason}`;
-
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'primary-action';
-  button.textContent = 'Start Auto';
-  button.addEventListener('click', () => {
-    onNavigate({ screen: 'exercise', exerciseId: next.id, source: 'auto' });
-  });
-
-  section.append(label, title, suggestion, button);
-  return section;
+  return h('section', { class: 'auto-card' }, [
+    h('p', { class: 'card-kicker' }, ['Auto']),
+    h('h2', {}, ['Let the app choose the next drill.']),
+    h('p', { class: 'auto-suggestion' }, [`Next up: ${next.label} — ${reason}`]),
+    h('button', {
+      type: 'button',
+      class: 'primary-action',
+      on: { click: () => onNavigate({ screen: 'exercise', exerciseId: next.id, source: 'auto' }) },
+    }, ['Start Auto']),
+  ]);
 }
 
 function exerciseGrid(cards: HTMLElement[]): HTMLElement {
-  const section = document.createElement('section');
-  section.className = 'exercise-section';
-
-  const heading = document.createElement('h2');
-  heading.textContent = 'Exercises';
-
-  const grid = document.createElement('div');
-  grid.className = 'exercise-grid';
-  grid.append(...cards);
-
-  section.append(heading, grid);
-  return section;
+  return h('section', { class: 'exercise-section' }, [
+    h('h2', {}, ['Exercises']),
+    h('div', { class: 'exercise-grid' }, cards),
+  ]);
 }
 
 function exerciseCard(
@@ -108,56 +73,31 @@ function exerciseCard(
   emaScore: number | undefined,
   onNavigate: (next: AppState) => void,
 ): HTMLElement {
-  const article = document.createElement('article');
-  article.className = 'exercise-card';
+  const button = h('button', {
+    type: 'button',
+    class: 'secondary-action',
+    disabled: !exercise.implemented,
+    ...(exercise.implemented
+      ? { on: { click: () => onNavigate({ screen: 'exercise', exerciseId: exercise.id, source: 'direct' }) } }
+      : {}),
+  }, [exercise.implemented ? 'Practice' : 'Coming soon']);
 
-  const family = document.createElement('p');
-  family.className = 'card-kicker';
-  family.textContent = exercise.family;
-
-  const title = document.createElement('h3');
-  title.textContent = exercise.label;
-
-  const body = document.createElement('p');
-  body.textContent = exercise.description;
-
-  const footer = document.createElement('div');
-  footer.className = 'card-footer';
-
-  const score = document.createElement('p');
-  score.className = 'score-chip';
-  score.textContent = exercise.implemented ? formatScore(emaScore) : '---';
-
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'secondary-action';
-  button.textContent = exercise.implemented ? 'Practice' : 'Coming soon';
-  button.disabled = !exercise.implemented;
-  if (exercise.implemented) {
-    button.addEventListener('click', () => {
-      onNavigate({
-        screen: 'exercise',
-        exerciseId: exercise.id,
-        source: 'direct',
-      });
-    });
-  }
-
-  footer.append(score, button);
-  article.append(family, title, body, footer);
-  return article;
+  return h('article', { class: 'exercise-card' }, [
+    h('p', { class: 'card-kicker' }, [exercise.family]),
+    h('h3', {}, [exercise.label]),
+    h('p', {}, [exercise.description]),
+    h('div', { class: 'card-footer' }, [
+      h('p', { class: 'score-chip' }, [exercise.implemented ? formatScore(emaScore) : '---']),
+      button,
+    ]),
+  ]);
 }
 
 export function primaryActionButton(
   label: string,
   onClick: () => void,
 ): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'primary-action';
-  button.textContent = label;
-  button.addEventListener('click', onClick);
-  return button;
+  return h('button', { type: 'button', class: 'primary-action', on: { click: onClick } }, [label]);
 }
 
 export { actionButton };

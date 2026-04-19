@@ -1,7 +1,7 @@
 /** Freehand exercise screen used by Freehand Control, Target Drawing, and Trace Control. */
 import type { ExerciseDefinition } from '../practice/catalog';
 import { updateStoredProgress } from '../storage/progress';
-import { createSvg } from '../render/svg';
+import { s, h } from '../render/h';
 import { pageShell, exerciseHeader, actionButton } from '../render/components';
 import {
   feedbackHueForError,
@@ -60,15 +60,10 @@ export function mountFreehandScreen(
 
   const screen = pageShell();
   const header = exerciseHeader(exercise, source);
-  const stage = document.createElement('section');
-  stage.className = 'exercise-stage freehand-stage';
+  const stage = h('section', { class: 'exercise-stage freehand-stage' });
 
-  const toolbar = document.createElement('div');
-  toolbar.className = 'freehand-toolbar';
-
-  const prompt = document.createElement('p');
-  prompt.className = 'exercise-prompt';
-  prompt.textContent = config.promptText;
+  const toolbar = h('div', { class: 'freehand-toolbar' });
+  const prompt = h('p', { class: 'exercise-prompt' }, [config.promptText]);
 
   const fullscreenBtn = actionButton('Fullscreen', () => {
     void toggleFullscreen(stage, fullscreenBtn);
@@ -81,97 +76,57 @@ export function mountFreehandScreen(
 
   toolbar.append(prompt, fullscreenBtn, backBtn);
 
-  const feedback = document.createElement('p');
-  feedback.className = 'feedback-banner';
-  feedback.textContent = config.readyText;
-
-  const summary = document.createElement('div');
-  summary.className = 'result-summary';
+  const feedback = h('p', { class: 'feedback-banner' }, [config.readyText]);
+  const summary = h('div', { class: 'result-summary' });
   summary.hidden = true;
 
-  const historySection = document.createElement('section');
-  historySection.className = 'freehand-history';
-  historySection.dataset.empty = 'true';
+  const historySection = h('section', { class: 'freehand-history', dataset: { empty: 'true' } });
 
-  const historyHeader = document.createElement('div');
-  historyHeader.className = 'freehand-history-header';
+  const correctionToggle = h('input', { type: 'checkbox', checked: true, on: { change: renderHistory } });
 
-  const historyTitle = document.createElement('h2');
-  historyTitle.textContent = 'History';
+  const historyHeader = h('div', { class: 'freehand-history-header' }, [
+    h('h2', {}, ['History']),
+    h('label', { class: 'freehand-history-toggle' }, [
+      correctionToggle,
+      h('span', {}, ['Show fitted shapes']),
+    ]),
+  ]);
 
-  const toggleLabel = document.createElement('label');
-  toggleLabel.className = 'freehand-history-toggle';
-
-  const correctionToggle = document.createElement('input');
-  correctionToggle.type = 'checkbox';
-  correctionToggle.checked = true;
-  correctionToggle.addEventListener('change', renderHistory);
-
-  const toggleText = document.createElement('span');
-  toggleText.textContent = 'Show fitted shapes';
-  toggleLabel.append(correctionToggle, toggleText);
-
-  historyHeader.append(historyTitle, toggleLabel);
-
-  const historyGrid = document.createElement('div');
-  historyGrid.className = 'freehand-history-grid';
-  historyGrid.dataset.testid = 'freehand-history';
-  historyGrid.dataset.variant = isClosedShapeExercise ? 'closed' : 'line';
-
-  const historyEmpty = document.createElement('p');
-  historyEmpty.className = 'freehand-history-empty';
-  historyEmpty.textContent = 'Completed attempts will collect here.';
+  const historyGrid = h('div', { class: 'freehand-history-grid', dataset: { testid: 'freehand-history', variant: isClosedShapeExercise ? 'closed' : 'line' } });
+  const historyEmpty = h('p', { class: 'freehand-history-empty' }, ['Completed attempts will collect here.']);
 
   historySection.append(historyHeader, historyEmpty, historyGrid);
 
-  const svg = createSvg('svg');
-  svg.setAttribute('class', 'freehand-canvas');
-  svg.setAttribute('viewBox', `0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`);
-  svg.setAttribute('role', 'img');
-  svg.setAttribute('aria-label', config.canvasLabel);
-  svg.dataset.testid = 'freehand-canvas';
-
-  const frame = createSvg('rect');
-  frame.setAttribute('x', '1');
-  frame.setAttribute('y', '1');
-  frame.setAttribute('width', String(CANVAS_WIDTH - 2));
-  frame.setAttribute('height', String(CANVAS_HEIGHT - 2));
-  frame.setAttribute('rx', '18');
-  frame.setAttribute('class', 'canvas-frame');
-
-  const targetLayer = createSvg('g');
-  targetLayer.setAttribute('class', 'freehand-target-layer');
+  const targetLayer = s('g', { class: 'freehand-target-layer' });
   renderFreehandTargetMarks(targetLayer, target);
 
-  const strokeLayer = createSvg('g');
-  strokeLayer.setAttribute('class', 'freehand-user-stroke-layer');
+  const strokeLayer = s('g', { class: 'freehand-user-stroke-layer' });
 
-  const fittedLine = createSvg('line');
-  fittedLine.setAttribute('class', 'freehand-fit-line');
+  const fittedLine = s('line', { class: 'freehand-fit-line' });
   fittedLine.style.display = 'none';
 
-  const fittedCircle = createSvg('circle');
-  fittedCircle.setAttribute('class', 'freehand-fit-circle');
+  const fittedCircle = s('circle', { class: 'freehand-fit-circle' });
   fittedCircle.style.display = 'none';
 
-  const fittedEllipse = createSvg('ellipse');
-  fittedEllipse.setAttribute('class', 'freehand-fit-ellipse');
+  const fittedEllipse = s('ellipse', { class: 'freehand-fit-ellipse' });
   fittedEllipse.style.display = 'none';
 
-  const closureGap = createSvg('line');
-  closureGap.setAttribute('class', 'freehand-closure-gap');
+  const closureGap = s('line', { class: 'freehand-closure-gap' });
   closureGap.style.display = 'none';
 
-  const startTangent = createSvg('line');
-  startTangent.setAttribute('class', 'freehand-join-tangent');
+  const startTangent = s('line', { class: 'freehand-join-tangent' });
   startTangent.style.display = 'none';
 
-  const endTangent = createSvg('line');
-  endTangent.setAttribute('class', 'freehand-join-tangent');
+  const endTangent = s('line', { class: 'freehand-join-tangent' });
   endTangent.style.display = 'none';
 
-  svg.append(
-    frame,
+  const svg = s('svg', {
+    class: 'freehand-canvas',
+    viewBox: `0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`,
+    role: 'img',
+    'aria-label': config.canvasLabel,
+  }, [
+    s('rect', { x: 1, y: 1, width: CANVAS_WIDTH - 2, height: CANVAS_HEIGHT - 2, rx: 18, class: 'canvas-frame' }),
     targetLayer,
     fittedLine,
     fittedCircle,
@@ -180,7 +135,8 @@ export function mountFreehandScreen(
     closureGap,
     startTangent,
     endTangent,
-  );
+  ]);
+  svg.dataset.testid = 'freehand-canvas';
 
   svg.addEventListener('pointerdown', (event) => {
     if (drawingPointerId !== null || result) return;
@@ -319,9 +275,7 @@ export function mountFreehandScreen(
         renderFreehandAttemptThumbnail(
           attempt,
           correctionToggle.checked,
-          () => {
-            openModal(attempt);
-          },
+          () => { openModal(attempt); },
         ),
       ),
     );
@@ -379,4 +333,3 @@ async function toggleFullscreen(
     console.error('Failed to toggle fullscreen mode.', error);
   }
 }
-

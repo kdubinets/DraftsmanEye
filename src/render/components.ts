@@ -1,59 +1,36 @@
 /** Shared DOM component builders and formatting utilities used across screens. */
 import type { ExerciseDefinition } from '../practice/catalog';
+import { h } from './h';
 
 export function pageShell(...children: HTMLElement[]): HTMLElement {
-  const main = document.createElement('main');
-  main.className = 'page-shell';
-  main.append(...children);
-  return main;
+  return h('main', { class: 'page-shell' }, children);
 }
 
 export function exerciseHeader(
   exercise: ExerciseDefinition,
   source: 'direct' | 'auto',
 ): HTMLElement {
-  const header = document.createElement('header');
-  header.className = 'exercise-header';
-
-  const eyebrow = document.createElement('p');
-  eyebrow.className = 'eyebrow';
-  eyebrow.textContent = source === 'auto' ? 'Auto Drill' : exercise.family;
-
-  const title = document.createElement('h1');
-  title.className = 'exercise-title';
-  title.textContent = exercise.label;
-
-  const body = document.createElement('p');
-  body.className = 'hero-copy';
-  body.textContent = exercise.description;
-
-  header.append(eyebrow, title, body);
-  return header;
+  return h('header', { class: 'exercise-header' }, [
+    h('p', { class: 'eyebrow' }, [source === 'auto' ? 'Auto Drill' : exercise.family]),
+    h('h1', { class: 'exercise-title' }, [exercise.label]),
+    h('p', { class: 'hero-copy' }, [exercise.description]),
+  ]);
 }
 
 export function resultStat(label: string, value: string): HTMLElement {
-  const block = document.createElement('div');
-  block.className = 'result-stat';
-  const term = document.createElement('p');
-  term.className = 'result-label';
-  term.textContent = label;
-  const detail = document.createElement('p');
-  detail.className = 'result-value';
-  detail.textContent = value;
-  block.append(term, detail);
-  return block;
+  return h('div', { class: 'result-stat' }, [
+    h('p', { class: 'result-label' }, [label]),
+    h('p', { class: 'result-value' }, [value]),
+  ]);
 }
 
 export function actionButton(
   label: string,
   onClick: () => void,
 ): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'secondary-action';
-  button.textContent = label;
-  button.addEventListener('click', onClick);
-  return button;
+  return h('button', { type: 'button', class: 'secondary-action', on: { click: onClick } }, [
+    label,
+  ]);
 }
 
 export function formatScore(score: number | undefined): string {

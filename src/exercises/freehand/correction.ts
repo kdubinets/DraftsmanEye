@@ -5,7 +5,7 @@
  */
 import { radiansToDegrees } from '../../geometry/primitives';
 import { closedShapeTangents } from '../../geometry/strokeMath';
-import { createSvg } from '../../render/svg';
+import { s } from '../../render/h';
 import type { FreehandResult, FreehandTarget, TargetLine, TargetCircle } from './types';
 
 export function isClosedFreehandResult(result: FreehandResult): boolean {
@@ -24,70 +24,38 @@ export function applyFreehandCorrectionElements(
   fittedEllipse: SVGEllipseElement,
 ): void {
   if (result.kind === 'target-line') {
-    fittedLine.setAttribute('x1', result.target.start.x.toFixed(2));
-    fittedLine.setAttribute('y1', result.target.start.y.toFixed(2));
-    fittedLine.setAttribute('x2', result.target.end.x.toFixed(2));
-    fittedLine.setAttribute('y2', result.target.end.y.toFixed(2));
+    setLineAttrs(fittedLine, result.target.start, result.target.end);
     fittedLine.classList.add('freehand-target-correction-line');
     fittedLine.style.display = '';
     return;
   }
   if (result.kind === 'line') {
     fittedLine.classList.remove('freehand-target-correction-line');
-    fittedLine.setAttribute('x1', result.fitStart.x.toFixed(2));
-    fittedLine.setAttribute('y1', result.fitStart.y.toFixed(2));
-    fittedLine.setAttribute('x2', result.fitEnd.x.toFixed(2));
-    fittedLine.setAttribute('y2', result.fitEnd.y.toFixed(2));
+    setLineAttrs(fittedLine, result.fitStart, result.fitEnd);
     fittedLine.style.display = '';
     return;
   }
   if (result.kind === 'target-circle') {
-    fittedCircle.setAttribute('cx', result.target.center.x.toFixed(2));
-    fittedCircle.setAttribute('cy', result.target.center.y.toFixed(2));
-    fittedCircle.setAttribute('r', result.target.radius.toFixed(2));
+    setCircleAttrs(fittedCircle, result.target.center, result.target.radius);
     fittedCircle.classList.add('freehand-target-correction-circle');
     fittedCircle.style.display = '';
     return;
   }
   if (result.kind === 'target-ellipse') {
-    fittedEllipse.setAttribute('cx', result.target.center.x.toFixed(2));
-    fittedEllipse.setAttribute('cy', result.target.center.y.toFixed(2));
-    fittedEllipse.setAttribute('rx', result.target.majorRadius.toFixed(2));
-    fittedEllipse.setAttribute('ry', result.target.minorRadius.toFixed(2));
-    fittedEllipse.setAttribute(
-      'transform',
-      ellipseTransform(
-        result.target.rotationRadians,
-        result.target.center.x,
-        result.target.center.y,
-      ),
-    );
+    setEllipseAttrs(fittedEllipse, result.target.center, result.target.majorRadius, result.target.minorRadius, result.target.rotationRadians);
     fittedEllipse.classList.add('freehand-target-correction-ellipse');
     fittedEllipse.style.display = '';
     return;
   }
   if (result.kind === 'circle') {
     fittedCircle.classList.remove('freehand-target-correction-circle');
-    fittedCircle.setAttribute('cx', result.center.x.toFixed(2));
-    fittedCircle.setAttribute('cy', result.center.y.toFixed(2));
-    fittedCircle.setAttribute('r', result.radius.toFixed(2));
+    setCircleAttrs(fittedCircle, result.center, result.radius);
     fittedCircle.style.display = '';
     return;
   }
   // ellipse
   fittedEllipse.classList.remove('freehand-target-correction-ellipse');
-  fittedEllipse.setAttribute('cx', result.center.x.toFixed(2));
-  fittedEllipse.setAttribute('cy', result.center.y.toFixed(2));
-  fittedEllipse.setAttribute('rx', result.majorRadius.toFixed(2));
-  fittedEllipse.setAttribute('ry', result.minorRadius.toFixed(2));
-  fittedEllipse.setAttribute(
-    'transform',
-    ellipseTransform(
-      result.rotationRadians,
-      result.center.x,
-      result.center.y,
-    ),
-  );
+  setEllipseAttrs(fittedEllipse, result.center, result.majorRadius, result.minorRadius, result.rotationRadians);
   fittedEllipse.style.display = '';
 }
 
@@ -115,10 +83,7 @@ export function showClosedShapeMarkers(
 ): void {
   const first = points[0];
   const last = points[points.length - 1];
-  closureGap.setAttribute('x1', first.x.toFixed(2));
-  closureGap.setAttribute('y1', first.y.toFixed(2));
-  closureGap.setAttribute('x2', last.x.toFixed(2));
-  closureGap.setAttribute('y2', last.y.toFixed(2));
+  setLineAttrs(closureGap, first, last);
   closureGap.style.display = '';
 
   const tangents = closedShapeTangents(points);
@@ -140,84 +105,41 @@ export function appendFreehandCorrection(
   const suffix = isHistory ? ' freehand-history-correction' : '';
 
   if (result.kind === 'target-line') {
-    const el = createSvg('line');
-    el.setAttribute(
-      'class',
-      `freehand-fit-line freehand-target-correction-line${suffix}`,
+    parent.append(
+      s('line', { class: `freehand-fit-line freehand-target-correction-line${suffix}`, x1: result.target.start.x, y1: result.target.start.y, x2: result.target.end.x, y2: result.target.end.y }),
     );
-    el.setAttribute('x1', result.target.start.x.toFixed(2));
-    el.setAttribute('y1', result.target.start.y.toFixed(2));
-    el.setAttribute('x2', result.target.end.x.toFixed(2));
-    el.setAttribute('y2', result.target.end.y.toFixed(2));
-    parent.append(el);
     appendTargetMarks(parent, result.target);
     return;
   }
   if (result.kind === 'line') {
-    const el = createSvg('line');
-    el.setAttribute('class', `freehand-fit-line${suffix}`);
-    el.setAttribute('x1', result.fitStart.x.toFixed(2));
-    el.setAttribute('y1', result.fitStart.y.toFixed(2));
-    el.setAttribute('x2', result.fitEnd.x.toFixed(2));
-    el.setAttribute('y2', result.fitEnd.y.toFixed(2));
-    parent.append(el);
+    parent.append(
+      s('line', { class: `freehand-fit-line${suffix}`, x1: result.fitStart.x, y1: result.fitStart.y, x2: result.fitEnd.x, y2: result.fitEnd.y }),
+    );
     return;
   }
   if (result.kind === 'target-circle') {
-    const el = createSvg('circle');
-    el.setAttribute(
-      'class',
-      `freehand-fit-circle freehand-target-correction-circle${suffix}`,
+    parent.append(
+      s('circle', { class: `freehand-fit-circle freehand-target-correction-circle${suffix}`, cx: result.target.center.x, cy: result.target.center.y, r: result.target.radius }),
     );
-    el.setAttribute('cx', result.target.center.x.toFixed(2));
-    el.setAttribute('cy', result.target.center.y.toFixed(2));
-    el.setAttribute('r', result.target.radius.toFixed(2));
-    parent.append(el);
     appendTargetMarks(parent, result.target);
     return;
   }
   if (result.kind === 'target-ellipse') {
-    const el = createSvg('ellipse');
-    el.setAttribute(
-      'class',
-      `freehand-fit-ellipse freehand-target-correction-ellipse${suffix}`,
+    parent.append(
+      s('ellipse', { class: `freehand-fit-ellipse freehand-target-correction-ellipse${suffix}`, cx: result.target.center.x, cy: result.target.center.y, rx: result.target.majorRadius, ry: result.target.minorRadius, transform: ellipseTransform(result.target.rotationRadians, result.target.center.x, result.target.center.y) }),
     );
-    el.setAttribute('cx', result.target.center.x.toFixed(2));
-    el.setAttribute('cy', result.target.center.y.toFixed(2));
-    el.setAttribute('rx', result.target.majorRadius.toFixed(2));
-    el.setAttribute('ry', result.target.minorRadius.toFixed(2));
-    el.setAttribute(
-      'transform',
-      ellipseTransform(
-        result.target.rotationRadians,
-        result.target.center.x,
-        result.target.center.y,
-      ),
-    );
-    parent.append(el);
     return;
   }
   if (result.kind === 'circle') {
-    const el = createSvg('circle');
-    el.setAttribute('class', `freehand-fit-circle${suffix}`);
-    el.setAttribute('cx', result.center.x.toFixed(2));
-    el.setAttribute('cy', result.center.y.toFixed(2));
-    el.setAttribute('r', result.radius.toFixed(2));
-    parent.append(el);
+    parent.append(
+      s('circle', { class: `freehand-fit-circle${suffix}`, cx: result.center.x, cy: result.center.y, r: result.radius }),
+    );
     return;
   }
   // ellipse
-  const el = createSvg('ellipse');
-  el.setAttribute('class', `freehand-fit-ellipse${suffix}`);
-  el.setAttribute('cx', result.center.x.toFixed(2));
-  el.setAttribute('cy', result.center.y.toFixed(2));
-  el.setAttribute('rx', result.majorRadius.toFixed(2));
-  el.setAttribute('ry', result.minorRadius.toFixed(2));
-  el.setAttribute(
-    'transform',
-    ellipseTransform(result.rotationRadians, result.center.x, result.center.y),
+  parent.append(
+    s('ellipse', { class: `freehand-fit-ellipse${suffix}`, cx: result.center.x, cy: result.center.y, rx: result.majorRadius, ry: result.minorRadius, transform: ellipseTransform(result.rotationRadians, result.center.x, result.center.y) }),
   );
-  parent.append(el);
 }
 
 export function renderFreehandTargetMarks(
@@ -279,38 +201,61 @@ function appendTargetMarks(
   );
 }
 
+function setLineAttrs(
+  el: SVGLineElement,
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+): void {
+  el.setAttribute('x1', a.x.toFixed(2));
+  el.setAttribute('y1', a.y.toFixed(2));
+  el.setAttribute('x2', b.x.toFixed(2));
+  el.setAttribute('y2', b.y.toFixed(2));
+}
+
+function setCircleAttrs(
+  el: SVGCircleElement,
+  center: { x: number; y: number },
+  radius: number,
+): void {
+  el.setAttribute('cx', center.x.toFixed(2));
+  el.setAttribute('cy', center.y.toFixed(2));
+  el.setAttribute('r', radius.toFixed(2));
+}
+
+function setEllipseAttrs(
+  el: SVGEllipseElement,
+  center: { x: number; y: number },
+  majorRadius: number,
+  minorRadius: number,
+  rotationRadians: number,
+): void {
+  el.setAttribute('cx', center.x.toFixed(2));
+  el.setAttribute('cy', center.y.toFixed(2));
+  el.setAttribute('rx', majorRadius.toFixed(2));
+  el.setAttribute('ry', minorRadius.toFixed(2));
+  el.setAttribute('transform', ellipseTransform(rotationRadians, center.x, center.y));
+}
+
 function setTangentMarker(
   marker: SVGLineElement,
   anchor: { x: number; y: number },
   direction: { x: number; y: number },
 ): void {
   const len = 42;
-  marker.setAttribute('x1', (anchor.x - direction.x * len).toFixed(2));
-  marker.setAttribute('y1', (anchor.y - direction.y * len).toFixed(2));
-  marker.setAttribute('x2', (anchor.x + direction.x * len).toFixed(2));
-  marker.setAttribute('y2', (anchor.y + direction.y * len).toFixed(2));
+  setLineAttrs(
+    marker,
+    { x: anchor.x - direction.x * len, y: anchor.y - direction.y * len },
+    { x: anchor.x + direction.x * len, y: anchor.y + direction.y * len },
+  );
   marker.style.display = '';
 }
 
 function createTraceLineGuide(target: TargetLine): SVGLineElement {
-  const el = createSvg('line');
-  el.setAttribute('class', 'freehand-trace-guide');
-  el.setAttribute('x1', target.start.x.toFixed(2));
-  el.setAttribute('y1', target.start.y.toFixed(2));
-  el.setAttribute('x2', target.end.x.toFixed(2));
-  el.setAttribute('y2', target.end.y.toFixed(2));
-  return el;
+  return s('line', { class: 'freehand-trace-guide', x1: target.start.x, y1: target.start.y, x2: target.end.x, y2: target.end.y });
 }
 
-function createTraceCircleGuide(
-  target: TargetCircle,
-): SVGCircleElement {
-  const el = createSvg('circle');
-  el.setAttribute('class', 'freehand-trace-guide');
-  el.setAttribute('cx', target.center.x.toFixed(2));
-  el.setAttribute('cy', target.center.y.toFixed(2));
-  el.setAttribute('r', target.radius.toFixed(2));
-  return el;
+function createTraceCircleGuide(target: TargetCircle): SVGCircleElement {
+  return s('circle', { class: 'freehand-trace-guide', cx: target.center.x, cy: target.center.y, r: target.radius });
 }
 
 function createTraceEllipseGuide(target: {
@@ -319,53 +264,24 @@ function createTraceEllipseGuide(target: {
   minorRadius: number;
   rotationRadians: number;
 }): SVGEllipseElement {
-  const el = createSvg('ellipse');
-  el.setAttribute('class', 'freehand-trace-guide');
-  el.setAttribute('cx', target.center.x.toFixed(2));
-  el.setAttribute('cy', target.center.y.toFixed(2));
-  el.setAttribute('rx', target.majorRadius.toFixed(2));
-  el.setAttribute('ry', target.minorRadius.toFixed(2));
-  el.setAttribute(
-    'transform',
-    ellipseTransform(
-      target.rotationRadians,
-      target.center.x,
-      target.center.y,
-    ),
-  );
-  return el;
+  return s('ellipse', { class: 'freehand-trace-guide', cx: target.center.x, cy: target.center.y, rx: target.majorRadius, ry: target.minorRadius, transform: ellipseTransform(target.rotationRadians, target.center.x, target.center.y) });
 }
 
 function createPlusMark(
   point: { x: number; y: number },
   className: string,
 ): SVGElement {
-  const g = createSvg('g');
-  g.setAttribute('class', className);
-  const h = createSvg('line');
-  h.setAttribute('x1', (point.x - 7).toFixed(2));
-  h.setAttribute('y1', point.y.toFixed(2));
-  h.setAttribute('x2', (point.x + 7).toFixed(2));
-  h.setAttribute('y2', point.y.toFixed(2));
-  const v = createSvg('line');
-  v.setAttribute('x1', point.x.toFixed(2));
-  v.setAttribute('y1', (point.y - 7).toFixed(2));
-  v.setAttribute('x2', point.x.toFixed(2));
-  v.setAttribute('y2', (point.y + 7).toFixed(2));
-  g.append(h, v);
-  return g;
+  return s('g', { class: className }, [
+    s('line', { x1: point.x - 7, y1: point.y, x2: point.x + 7, y2: point.y }),
+    s('line', { x1: point.x, y1: point.y - 7, x2: point.x, y2: point.y + 7 }),
+  ]);
 }
 
 function createDotMark(
   point: { x: number; y: number },
   className: string,
-): SVGElement {
-  const dot = createSvg('circle');
-  dot.setAttribute('class', className);
-  dot.setAttribute('cx', point.x.toFixed(2));
-  dot.setAttribute('cy', point.y.toFixed(2));
-  dot.setAttribute('r', '4');
-  return dot;
+): SVGCircleElement {
+  return s('circle', { class: className, cx: point.x, cy: point.y, r: 4 });
 }
 
 function ellipseTransform(

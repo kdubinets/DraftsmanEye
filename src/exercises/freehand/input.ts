@@ -1,8 +1,11 @@
 /** Pointer event reading, stroke point accumulation, and stroke SVG rendering. */
 import { distanceBetween, clampNumber } from '../../geometry/primitives';
-import { createSvg, localSvgPoint } from '../../render/svg';
+import { s } from '../../render/h';
+import { localSvgPoint } from '../../render/svg';
 import { getSettings } from '../../storage/settings';
 import type { FreehandPoint } from './types';
+
+export { localSvgPoint } from '../../render/svg';
 
 /** Numeric stroke rendering constants; not user-facing. */
 export const FREEHAND_CONFIG = {
@@ -90,32 +93,25 @@ export function appendFreehandStroke(
   }
 
   if (!usesSegmentedStroke()) {
-    const path = createSvg('path');
-    path.setAttribute('class', className);
-    path.setAttribute('d', freehandPath(points));
+    const path = s('path', { class: className, d: freehandPath(points) });
     parent.append(path);
     return;
   }
 
   for (let i = 1; i < points.length; i += 1) {
-    const s = points[i - 1];
-    const e = points[i];
-    if (s.x === e.x && s.y === e.y) continue;
-    const seg = createSvg('line');
-    seg.setAttribute('class', className);
-    seg.setAttribute('x1', s.x.toFixed(2));
-    seg.setAttribute('y1', s.y.toFixed(2));
-    seg.setAttribute('x2', e.x.toFixed(2));
-    seg.setAttribute('y2', e.y.toFixed(2));
-    seg.style.strokeWidth = `${segmentStrokeWidth(s, e).toFixed(2)}px`;
-    seg.style.stroke = segmentStrokeColor(s, e);
+    const start = points[i - 1];
+    const end = points[i];
+    if (start.x === end.x && start.y === end.y) continue;
+    const seg = s('line', { class: className, x1: start.x, y1: start.y, x2: end.x, y2: end.y });
+    seg.style.strokeWidth = `${segmentStrokeWidth(start, end).toFixed(2)}px`;
+    seg.style.stroke = segmentStrokeColor(start, end);
     parent.append(seg);
   }
 }
 
 function usesSegmentedStroke(): boolean {
-  const s = getSettings();
-  return s.visualizePressureWidth || s.visualizeSpeedColor;
+  const settings = getSettings();
+  return settings.visualizePressureWidth || settings.visualizeSpeedColor;
 }
 
 function segmentStrokeWidth(

@@ -3,6 +3,7 @@
  * Kept separate from correction.ts so the history modal and live screen can both import
  * without pulling in SVG rendering.
  */
+import { h } from '../../render/h';
 import type { FreehandResult } from './types';
 
 export function freehandScoreLabel(kind: FreehandResult['kind']): string {
@@ -77,14 +78,8 @@ export function freehandResultStats(result: FreehandResult): HTMLElement[] {
 }
 
 function stat(label: string, value: string): HTMLElement {
-  const block = document.createElement('div');
-  block.className = 'result-stat';
-  const term = document.createElement('p');
-  term.className = 'result-label';
-  term.textContent = label;
-  const detail = document.createElement('p');
-  detail.className = 'result-value';
-  detail.textContent = value;
-  block.append(term, detail);
-  return block;
+  return h('div', { class: 'result-stat' }, [
+    h('p', { class: 'result-label' }, [label]),
+    h('p', { class: 'result-value' }, [value]),
+  ]);
 }
