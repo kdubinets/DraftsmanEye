@@ -1,16 +1,11 @@
-/**
- * Pointer event reading, stroke point accumulation, and stroke SVG rendering.
- * The FREEHAND_CONFIG constants are candidates for a future user-facing settings screen;
- * they are kept here as a const until the settings store (PR 6) is in place.
- */
+/** Pointer event reading, stroke point accumulation, and stroke SVG rendering. */
 import { distanceBetween, clampNumber } from '../../geometry/primitives';
 import { createSvg, localSvgPoint } from '../../render/svg';
+import { getSettings } from '../../storage/settings';
 import type { FreehandPoint } from './types';
 
+/** Numeric stroke rendering constants; not user-facing. */
 export const FREEHAND_CONFIG = {
-  allowTouchDrawing: false,
-  visualizePressureWidth: true,
-  visualizeSpeedColor: true,
   minPressureStrokeWidth: 3.25,
   maxPressureStrokeWidth: 8,
   defaultStrokeWidth: 5,
@@ -23,7 +18,7 @@ export const CANVAS_WIDTH = 1000;
 export const CANVAS_HEIGHT = 620;
 
 export function canStartFreehandStroke(event: PointerEvent): boolean {
-  return FREEHAND_CONFIG.allowTouchDrawing || event.pointerType !== 'touch';
+  return getSettings().allowTouchDrawing || event.pointerType !== 'touch';
 }
 
 export function freehandPointsFromPointerEvent(
@@ -119,16 +114,15 @@ export function appendFreehandStroke(
 }
 
 function usesSegmentedStroke(): boolean {
-  return (
-    FREEHAND_CONFIG.visualizePressureWidth || FREEHAND_CONFIG.visualizeSpeedColor
-  );
+  const s = getSettings();
+  return s.visualizePressureWidth || s.visualizeSpeedColor;
 }
 
 function segmentStrokeWidth(
   start: FreehandPoint,
   end: FreehandPoint,
 ): number {
-  if (!FREEHAND_CONFIG.visualizePressureWidth) {
+  if (!getSettings().visualizePressureWidth) {
     return FREEHAND_CONFIG.defaultStrokeWidth;
   }
   const p = meaningfulPressure(start, end);
@@ -163,7 +157,7 @@ function segmentStrokeColor(
   start: FreehandPoint,
   end: FreehandPoint,
 ): string {
-  if (!FREEHAND_CONFIG.visualizeSpeedColor) {
+  if (!getSettings().visualizeSpeedColor) {
     return '#34261b';
   }
   const elapsed = Math.max((end.time - start.time) / 1000, 0.001);
