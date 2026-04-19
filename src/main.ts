@@ -9,7 +9,9 @@ import {
   getExerciseById,
   type ExerciseDefinition,
   type ExerciseId,
+  type FreehandExerciseDefinition,
   type LineAxis,
+  type SingleMarkExerciseDefinition,
   type SingleMarkTrial,
   type SingleMarkTrialResult,
   type TrialLine,
@@ -35,10 +37,12 @@ if (!root) {
 const appRoot = root;
 
 let state: AppState = { screen: 'list' };
+let renderVersion = 0;
 
 renderApp();
 
 function renderApp(): void {
+  renderVersion += 1;
   appRoot.replaceChildren();
 
   if (state.screen === 'list') {
@@ -47,7 +51,12 @@ function renderApp(): void {
   }
 
   const exercise = getExerciseById(state.exerciseId);
-  appRoot.append(renderExerciseScreen(exercise, state.source));
+  if (exercise.kind === 'freehand-line') {
+    appRoot.append(renderFreehandLineExerciseScreen(exercise, state.source));
+    return;
+  }
+
+  appRoot.append(renderSingleMarkExerciseScreen(exercise, state.source));
 }
 
 function renderListScreen(): HTMLElement {
@@ -64,8 +73,8 @@ function renderListScreen(): HTMLElement {
   );
 }
 
-function renderExerciseScreen(
-  exercise: ExerciseDefinition,
+function renderSingleMarkExerciseScreen(
+  exercise: SingleMarkExerciseDefinition,
   source: 'direct' | 'auto',
 ): HTMLElement {
   const trial = exercise.createTrial();
@@ -179,6 +188,204 @@ function renderExerciseScreen(
     backButton.hidden = false;
     autoButton.hidden = false;
     rerenderScene();
+  }
+}
+
+type FreehandPoint = {
+  x: number;
+  y: number;
+  time: number;
+  pressure: number;
+  pointerType: string;
+};
+
+type FreehandLineResult = {
+  score: number;
+  meanErrorPixels: number;
+  maxErrorPixels: number;
+  strokeLengthPixels: number;
+  pointCount: number;
+  fitStart: { x: number; y: number };
+  fitEnd: { x: number; y: number };
+};
+
+function renderFreehandLineExerciseScreen(
+  exercise: FreehandExerciseDefinition,
+  source: 'direct' | 'auto',
+): HTMLElement {
+  const currentRender = renderVersion;
+  let points: FreehandPoint[] = [];
+  let drawingPointerId: number | null = null;
+  let result: FreehandLineResult | null = null;
+  let resetTimer: number | null = null;
+
+  const screen = pageShell();
+  const header = exerciseHeader(exercise, source);
+  const stage = document.createElement('section');
+  stage.className = 'exercise-stage freehand-stage';
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'freehand-toolbar';
+
+  const prompt = document.createElement('p');
+  prompt.className = 'exercise-prompt';
+  prompt.textContent = 'Draw one straight line in the field.';
+
+  const fullscreenButton = actionButton('Fullscreen', () => {
+    void toggleFreehandFullscreen(stage, fullscreenButton);
+  });
+  fullscreenButton.classList.add('freehand-fullscreen-action');
+
+  const backButton = actionButton('Back to List', () => {
+    if (resetTimer !== null) {
+      window.clearTimeout(resetTimer);
+    }
+    state = { screen: 'list' };
+    renderApp();
+  });
+
+  toolbar.append(prompt, fullscreenButton, backButton);
+
+  const feedback = document.createElement('p');
+  feedback.className = 'feedback-banner';
+  feedback.textContent = 'Use Pencil, touch, or mouse to draw one line.';
+
+  const summary = document.createElement('div');
+  summary.className = 'result-summary';
+  summary.hidden = true;
+
+  const svg = createSvg('svg');
+  svg.setAttribute('class', 'freehand-canvas');
+  svg.setAttribute('viewBox', '0 0 1000 620');
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', 'Straight line drawing field');
+  svg.dataset.testid = 'freehand-canvas';
+
+  const frame = createSvg('rect');
+  frame.setAttribute('x', '1');
+  frame.setAttribute('y', '1');
+  frame.setAttribute('width', '998');
+  frame.setAttribute('height', '618');
+  frame.setAttribute('rx', '18');
+  frame.setAttribute('class', 'canvas-frame');
+
+  const userStroke = createSvg('path');
+  userStroke.setAttribute('class', 'freehand-user-stroke');
+
+  const fittedLine = createSvg('line');
+  fittedLine.setAttribute('class', 'freehand-fit-line');
+  fittedLine.style.display = 'none';
+
+  svg.append(frame, userStroke, fittedLine);
+
+  svg.addEventListener('pointerdown', (event) => {
+    if (drawingPointerId !== null || result) {
+      return;
+    }
+
+    const point = freehandPointFromEvent(svg, event);
+    if (!point) {
+      return;
+    }
+
+    drawingPointerId = event.pointerId;
+    points = [point];
+    userStroke.setAttribute('d', freehandPath(points));
+    svg.setPointerCapture(event.pointerId);
+    feedback.textContent = 'Keep the stroke continuous, then lift.';
+  });
+
+  svg.addEventListener('pointermove', (event) => {
+    if (drawingPointerId !== event.pointerId || result) {
+      return;
+    }
+
+    const nextPoints = freehandPointsFromPointerEvent(svg, event);
+    if (nextPoints.length === 0) {
+      return;
+    }
+
+    points.push(...nextPoints);
+    userStroke.setAttribute('d', freehandPath(points));
+  });
+
+  const finishStroke = (event: PointerEvent): void => {
+    if (drawingPointerId !== event.pointerId || result) {
+      return;
+    }
+
+    const nextPoints = freehandPointsFromPointerEvent(svg, event);
+    points.push(...nextPoints);
+    drawingPointerId = null;
+    if (svg.hasPointerCapture(event.pointerId)) {
+      svg.releasePointerCapture(event.pointerId);
+    }
+    revealFreehandResult();
+  };
+
+  svg.addEventListener('pointerup', finishStroke);
+  svg.addEventListener('pointercancel', finishStroke);
+
+  stage.append(toolbar, svg, feedback, summary);
+  screen.append(header, stage);
+  return screen;
+
+  function revealFreehandResult(): void {
+    const nextResult = scoreFreehandLine(points);
+    if (!nextResult) {
+      points = [];
+      userStroke.removeAttribute('d');
+      feedback.textContent = 'Stroke was too short. Draw a longer line.';
+      return;
+    }
+
+    result = nextResult;
+    updateStoredProgress(exercise.id, result.score);
+
+    fittedLine.setAttribute('x1', result.fitStart.x.toFixed(2));
+    fittedLine.setAttribute('y1', result.fitStart.y.toFixed(2));
+    fittedLine.setAttribute('x2', result.fitEnd.x.toFixed(2));
+    fittedLine.setAttribute('y2', result.fitEnd.y.toFixed(2));
+    fittedLine.style.display = '';
+
+    const feedbackHue = feedbackHueForError(100 - result.score);
+    const feedbackClass = feedbackBandClass(100 - result.score);
+    feedback.dataset.tone = feedbackClass;
+    summary.dataset.tone = feedbackClass;
+    feedback.style.setProperty(
+      '--result-accent',
+      `hsl(${feedbackHue} 55% 42%)`,
+    );
+    summary.style.setProperty('--result-accent', `hsl(${feedbackHue} 55% 42%)`);
+
+    feedback.textContent =
+      `${feedbackLabel(100 - result.score)} · ` +
+      `Straightness ${result.score.toFixed(1)} · ` +
+      `Mean drift ${result.meanErrorPixels.toFixed(1)} px`;
+
+    summary.hidden = false;
+    summary.replaceChildren(
+      resultStat('Score', result.score.toFixed(1)),
+      resultStat('Mean drift', `${result.meanErrorPixels.toFixed(1)} px`),
+      resultStat('Max drift', `${result.maxErrorPixels.toFixed(1)} px`),
+      resultStat('Length', `${Math.round(result.strokeLengthPixels)} px`),
+      resultStat('Samples', String(result.pointCount)),
+    );
+
+    resetTimer = window.setTimeout(() => {
+      if (renderVersion !== currentRender) {
+        return;
+      }
+      points = [];
+      result = null;
+      resetTimer = null;
+      userStroke.removeAttribute('d');
+      fittedLine.style.display = 'none';
+      summary.hidden = true;
+      feedback.removeAttribute('data-tone');
+      summary.removeAttribute('data-tone');
+      feedback.textContent = 'Draw one straight line in the field.';
+    }, 1500);
   }
 }
 
@@ -318,6 +525,167 @@ function exerciseHeader(
 
   header.append(eyebrow, title, body);
   return header;
+}
+
+function freehandPointsFromPointerEvent(
+  svg: SVGSVGElement,
+  event: PointerEvent,
+): FreehandPoint[] {
+  const eventWithCoalesced = event as PointerEvent & {
+    getCoalescedEvents?: () => PointerEvent[];
+  };
+  const sourceEvents = eventWithCoalesced.getCoalescedEvents?.() ?? [event];
+  const points: FreehandPoint[] = [];
+
+  for (const sourceEvent of sourceEvents) {
+    const point = freehandPointFromEvent(svg, sourceEvent);
+    if (point) {
+      points.push(point);
+    }
+  }
+
+  return points;
+}
+
+function freehandPointFromEvent(
+  svg: SVGSVGElement,
+  event: PointerEvent,
+): FreehandPoint | null {
+  const localPoint = localSvgPoint(svg, event.clientX, event.clientY);
+  if (!localPoint) {
+    return null;
+  }
+
+  return {
+    x: clampNumber(localPoint.x, 0, 1000),
+    y: clampNumber(localPoint.y, 0, 620),
+    time: event.timeStamp,
+    pressure: event.pressure,
+    pointerType: event.pointerType,
+  };
+}
+
+function freehandPath(points: FreehandPoint[]): string {
+  if (points.length === 0) {
+    return '';
+  }
+
+  const [firstPoint, ...rest] = points;
+  return [
+    `M ${firstPoint.x.toFixed(2)} ${firstPoint.y.toFixed(2)}`,
+    ...rest.map((point) => `L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`),
+  ].join(' ');
+}
+
+function scoreFreehandLine(
+  points: FreehandPoint[],
+): FreehandLineResult | null {
+  if (points.length < 4) {
+    return null;
+  }
+
+  let strokeLengthPixels = 0;
+  for (let index = 1; index < points.length; index += 1) {
+    strokeLengthPixels += distanceBetween(points[index - 1], points[index]);
+  }
+
+  if (strokeLengthPixels < 80) {
+    return null;
+  }
+
+  const centroid = points.reduce(
+    (sum, point) => ({ x: sum.x + point.x, y: sum.y + point.y }),
+    { x: 0, y: 0 },
+  );
+  centroid.x /= points.length;
+  centroid.y /= points.length;
+
+  let xx = 0;
+  let xy = 0;
+  let yy = 0;
+  for (const point of points) {
+    const dx = point.x - centroid.x;
+    const dy = point.y - centroid.y;
+    xx += dx * dx;
+    xy += dx * dy;
+    yy += dy * dy;
+  }
+
+  // Principal-axis fit handles any stroke angle without privileging x or y.
+  const angle = 0.5 * Math.atan2(2 * xy, xx - yy);
+  const direction = { x: Math.cos(angle), y: Math.sin(angle) };
+  let minProjection = Number.POSITIVE_INFINITY;
+  let maxProjection = Number.NEGATIVE_INFINITY;
+  let totalErrorPixels = 0;
+  let maxErrorPixels = 0;
+
+  for (const point of points) {
+    const dx = point.x - centroid.x;
+    const dy = point.y - centroid.y;
+    const projection = dx * direction.x + dy * direction.y;
+    minProjection = Math.min(minProjection, projection);
+    maxProjection = Math.max(maxProjection, projection);
+
+    const perpendicularDistance = Math.abs(dx * direction.y - dy * direction.x);
+    totalErrorPixels += perpendicularDistance;
+    maxErrorPixels = Math.max(maxErrorPixels, perpendicularDistance);
+  }
+
+  const fittedLength = maxProjection - minProjection;
+  if (fittedLength < 80) {
+    return null;
+  }
+
+  const meanErrorPixels = totalErrorPixels / points.length;
+  const normalizedMeanError = meanErrorPixels / fittedLength;
+  const normalizedMaxError = maxErrorPixels / fittedLength;
+  const score = clampNumber(
+    100 - (normalizedMeanError * 1600 + normalizedMaxError * 250),
+    0,
+    100,
+  );
+
+  return {
+    score,
+    meanErrorPixels,
+    maxErrorPixels,
+    strokeLengthPixels,
+    pointCount: points.length,
+    fitStart: {
+      x: centroid.x + direction.x * minProjection,
+      y: centroid.y + direction.y * minProjection,
+    },
+    fitEnd: {
+      x: centroid.x + direction.x * maxProjection,
+      y: centroid.y + direction.y * maxProjection,
+    },
+  };
+}
+
+async function toggleFreehandFullscreen(
+  stage: HTMLElement,
+  button: HTMLButtonElement,
+): Promise<void> {
+  const isMaximized = stage.classList.contains('is-maximized');
+
+  try {
+    if (isMaximized) {
+      stage.classList.remove('is-maximized');
+      button.textContent = 'Fullscreen';
+      if (document.fullscreenElement === stage) {
+        await document.exitFullscreen();
+      }
+      return;
+    }
+
+    stage.classList.add('is-maximized');
+    button.textContent = 'Exit Fullscreen';
+    if (!document.fullscreenElement && stage.requestFullscreen) {
+      await stage.requestFullscreen();
+    }
+  } catch (error) {
+    console.error('Failed to toggle fullscreen mode.', error);
+  }
 }
 
 function renderTrialSvg(
@@ -617,4 +985,15 @@ function feedbackLabel(relativeErrorPercent: number): string {
   }
 
   return 'Off target';
+}
+
+function distanceBetween(
+  firstPoint: { x: number; y: number },
+  secondPoint: { x: number; y: number },
+): number {
+  return Math.hypot(secondPoint.x - firstPoint.x, secondPoint.y - firstPoint.y);
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }

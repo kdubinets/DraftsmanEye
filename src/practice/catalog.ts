@@ -4,6 +4,7 @@
 import type { StoredProgress } from '../storage/progress';
 
 export type ExerciseId =
+  | 'freehand-straight-line'
   | 'division-horizontal-halves'
   | 'division-horizontal-thirds'
   | 'division-horizontal-quarters'
@@ -59,11 +60,28 @@ export type SingleMarkTrialResult = {
   directionLabel: string;
 };
 
-export type ExerciseDefinition = ExerciseBase & {
+export type SingleMarkExerciseDefinition = ExerciseBase & {
+  kind: 'single-mark';
   createTrial: () => SingleMarkTrial;
 };
 
+export type FreehandExerciseDefinition = ExerciseBase & {
+  kind: 'freehand-line';
+};
+
+export type ExerciseDefinition =
+  | SingleMarkExerciseDefinition
+  | FreehandExerciseDefinition;
+
 export const EXERCISES: ExerciseDefinition[] = [
+  {
+    id: 'freehand-straight-line',
+    family: 'Freehand Control',
+    label: 'Straight Line',
+    description: 'Draw one deliberate line and compare it with its best fit.',
+    implemented: true,
+    kind: 'freehand-line',
+  },
   divisionExercise('division-horizontal-halves', 'horizontal', 2),
   divisionExercise('division-horizontal-thirds', 'horizontal', 3),
   divisionExercise('division-horizontal-quarters', 'horizontal', 4),
@@ -177,7 +195,7 @@ function divisionExercise(
   >,
   axis: LineAxis,
   denominator: 2 | 3 | 4 | 5,
-): ExerciseDefinition {
+): SingleMarkExerciseDefinition {
   const orientationLabel = axis === 'horizontal' ? 'Horizontal' : 'Vertical';
   const fractionLabel = denominatorLabel(denominator);
 
@@ -187,6 +205,7 @@ function divisionExercise(
     label: `${orientationLabel} ${fractionLabel}`,
     description: `Divide a ${axis} line into ${denominator} equal parts.`,
     implemented: true,
+    kind: 'single-mark',
     createTrial: () =>
       createDivisionTrial(
         axis,
@@ -259,13 +278,14 @@ function placeholderExercise(
   family: string,
   label: string,
   description: string,
-): ExerciseDefinition {
+): SingleMarkExerciseDefinition {
   return {
     id,
     family,
     label,
     description,
     implemented: false,
+    kind: 'single-mark',
     createTrial: () => ({
       label,
       prompt: 'This drill is not implemented yet.',

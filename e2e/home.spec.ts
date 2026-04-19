@@ -11,6 +11,9 @@ test('home page lists drills and auto entry point', async ({ page }) => {
     page.getByRole('heading', { level: 3, name: 'Horizontal Halves' }),
   ).toBeVisible();
   await expect(
+    page.getByRole('heading', { level: 3, name: 'Straight Line' }),
+  ).toBeVisible();
+  await expect(
     page.getByRole('heading', { level: 3, name: 'Horizontal Thirds' }),
   ).toBeVisible();
   await expect(
@@ -43,7 +46,7 @@ test('home page lists drills and auto entry point', async ({ page }) => {
       name: 'Double Vertical on Horizontal',
     }),
   ).toBeVisible();
-  await expect(page.getByText('No score yet')).toHaveCount(8);
+  await expect(page.getByText('No score yet')).toHaveCount(9);
   await expect(page.getByRole('button', { name: 'Comming' })).toHaveCount(8);
   await expect(
     page
@@ -56,6 +59,53 @@ test('home page lists drills and auto entry point', async ({ page }) => {
       })
       .getByRole('button', { name: 'Comming' }),
   ).toBeDisabled();
+});
+
+test('straight line drill scores a drawn stroke and auto-clears', async ({
+  page,
+}) => {
+  await page.goto('/');
+
+  await page
+    .getByRole('article')
+    .filter({
+      has: page.getByRole('heading', { level: 3, name: 'Straight Line' }),
+    })
+    .getByRole('button', { name: 'Practice' })
+    .click();
+
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Straight Line' }),
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Fullscreen' })).toBeVisible();
+
+  const canvasBox = await page
+    .locator('[data-testid="freehand-canvas"]')
+    .boundingBox();
+  if (!canvasBox) {
+    throw new Error('Expected freehand canvas to have a bounding box.');
+  }
+
+  await page.mouse.move(canvasBox.x + 120, canvasBox.y + 220);
+  await page.mouse.down();
+  await page.mouse.move(canvasBox.x + 280, canvasBox.y + 221);
+  await page.mouse.move(canvasBox.x + 440, canvasBox.y + 219);
+  await page.mouse.move(canvasBox.x + 600, canvasBox.y + 222);
+  await page.mouse.up();
+
+  await expect(page.getByText(/Straightness \d+\.\d/)).toBeVisible();
+  await expect(page.locator('.freehand-fit-line')).toBeVisible();
+
+  await expect(
+    page.getByText(/Draw one straight line in the field/i),
+  ).toBeVisible({
+    timeout: 2500,
+  });
+
+  await page.getByRole('button', { name: 'Back to List' }).click();
+  await expect(
+    page.locator('.score-chip').filter({ hasText: /^\d+\.\d$/ }),
+  ).toHaveCount(1);
 });
 
 test('horizontal halves drill can be completed and updates score on return', async ({
