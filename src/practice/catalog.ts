@@ -241,31 +241,67 @@ export function getExerciseById(exerciseId: ExerciseId): ExerciseDefinition {
   return exercise;
 }
 
-export function getAutoExercise(progress: ProgressStore): ExerciseDefinition {
+export type AutoResult = {
+  exercise: ExerciseDefinition;
+  reason: string;
+};
+
+/**
+ * Selects the next exercise using a scored heuristic:
+ *   weaknessBonus  – higher for drills with a lower EMA (unplayed drills treated as EMA=0)
+ *   recencyBonus   – higher for drills not practiced recently (full bonus if never played)
+ *   jitter         – small deterministic per-exercise nudge to break ties without RNG state
+ *
+ * The drill with the highest combined score is returned alongside a one-line reason
+ * so the UI can explain the pick rather than appearing opaque.
+ */
+export function getAutoExercise(progress: ProgressStore): AutoResult {
   const implementedExercises = EXERCISES.filter((exercise) => exercise.implemented);
-  let selected = implementedExercises[0];
-  let lowestScore = Number.POSITIVE_INFINITY;
-  let lowestAttempts = Number.POSITIVE_INFINITY;
 
-  for (const exercise of implementedExercises) {
+  const now = Date.now();
+  // Recency half-life: full bonus decays to half after this many milliseconds.
+  const RECENCY_HALF_LIFE_MS = 24 * 60 * 60 * 1000; // 1 day
+
+  let best = implementedExercises[0];
+  let bestScore = -Infinity;
+  let bestWeakness = 0;
+  let bestRecency = 0;
+
+  for (let i = 0; i < implementedExercises.length; i++) {
+    const exercise = implementedExercises[i];
     const entry = progress.aggregates[exercise.id];
-    const attempts = entry?.attempts ?? 0;
     const ema = entry?.ema ?? 0;
+    const lastPracticedAt = entry?.lastPracticedAt ?? 0;
 
-    if (attempts < lowestAttempts) {
-      lowestAttempts = attempts;
-      lowestScore = ema;
-      selected = exercise;
-      continue;
-    }
+    const weaknessBonus = 100 - ema;
 
-    if (attempts === lowestAttempts && ema < lowestScore) {
-      lowestScore = ema;
-      selected = exercise;
+    // Exponential decay: unplayed drills (lastPracticedAt=0) get full 100 bonus.
+    const msSince = lastPracticedAt === 0 ? Infinity : now - lastPracticedAt;
+    const recencyBonus = msSince === Infinity ? 100 : 100 * Math.pow(0.5, msSince / RECENCY_HALF_LIFE_MS);
+
+    // Deterministic per-position jitter ±5 so equal-scoring drills don't always
+    // resolve in registry order. Uses index parity rather than RNG to stay testable.
+    const jitter = (i % 3) * 2 - 2; // -2, 0, 2 cycling
+
+    const total = weaknessBonus + recencyBonus + jitter;
+
+    if (total > bestScore) {
+      bestScore = total;
+      best = exercise;
+      bestWeakness = weaknessBonus;
+      bestRecency = recencyBonus;
     }
   }
 
-  return selected;
+  const reason = autoReason(bestWeakness, bestRecency);
+  return { exercise: best, reason };
+}
+
+function autoReason(weaknessBonus: number, recencyBonus: number): string {
+  // Recency bonus >90 means never or very rarely practiced.
+  if (recencyBonus > 90) return 'Least practiced drill';
+  if (weaknessBonus >= recencyBonus) return 'Weakest recent score';
+  return 'Not practiced recently';
 }
 
 function divisionExercise(

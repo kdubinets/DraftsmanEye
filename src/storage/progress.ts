@@ -82,6 +82,23 @@ export function updateStoredProgress(
   return next;
 }
 
+/**
+ * Drops aggregate entries whose keys are not in knownIds.
+ * Call this after loading to evict stale entries for removed drills.
+ */
+export function filterStaleAggregates(
+  store: ProgressStore,
+  knownIds: ReadonlySet<string>,
+): ProgressStore {
+  const filtered: ProgressStore['aggregates'] = {};
+  for (const [id, agg] of Object.entries(store.aggregates)) {
+    if (knownIds.has(id) && agg !== undefined) {
+      filtered[id as keyof typeof store.aggregates] = agg;
+    }
+  }
+  return { ...store, aggregates: filtered };
+}
+
 function isProgressStore(value: unknown): value is ProgressStore {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const v = value as Record<string, unknown>;

@@ -29,14 +29,13 @@ describe('EXERCISES registry', () => {
 describe('getAutoExercise', () => {
   it('with empty progress returns a deterministic first pick', () => {
     const first = getAutoExercise(emptyProgress());
-    // Call twice — must return the same id
     const second = getAutoExercise(emptyProgress());
-    expect(first.id).toBe(second.id);
+    expect(first.exercise.id).toBe(second.exercise.id);
   });
 
   it('only returns implemented drills', () => {
-    const result = getAutoExercise(emptyProgress());
-    expect(result.implemented).toBe(true);
+    const { exercise } = getAutoExercise(emptyProgress());
+    expect(exercise.implemented).toBe(true);
   });
 
   it('never returns an unimplemented drill even if given low-score progress for it', () => {
@@ -50,37 +49,43 @@ describe('getAutoExercise', () => {
         [notImplemented.id]: { ema: 0, attempts: 0, lastPracticedAt: 0 },
       },
     };
-    const result = getAutoExercise(progress);
-    expect(result.implemented).toBe(true);
-    expect(result.id).not.toBe(notImplemented.id);
+    const { exercise } = getAutoExercise(progress);
+    expect(exercise.implemented).toBe(true);
+    expect(exercise.id).not.toBe(notImplemented.id);
   });
 
-  it('least-practiced drill wins over lowest-score when attempts differ', () => {
+  it('picks a never-played drill over a recently-played one with a higher score', () => {
     const implemented = EXERCISES.filter((e) => e.implemented);
-    // Give all drills 5 attempts with score 50 except the last one, which has 0 attempts
+    const recentMs = Date.now() - 5 * 60 * 1000; // 5 min ago
     const aggregates: ProgressStore['aggregates'] = {};
     for (const ex of implemented.slice(0, -1)) {
-      aggregates[ex.id] = { ema: 50, attempts: 5, lastPracticedAt: 0 };
+      aggregates[ex.id] = { ema: 90, attempts: 5, lastPracticedAt: recentMs };
     }
-    const leastPracticed = implemented[implemented.length - 1];
-
+    // Last drill has never been played — no entry
+    const neverPlayed = implemented[implemented.length - 1];
     const progress: ProgressStore = { version: 2, attempts: [], aggregates };
-    const result = getAutoExercise(progress);
-    expect(result.id).toBe(leastPracticed.id);
+    const { exercise } = getAutoExercise(progress);
+    expect(exercise.id).toBe(neverPlayed.id);
   });
 
-  it('with equal attempts, picks the drill with lower ema score', () => {
+  it('picks the drill with the lowest EMA when all were practiced equally long ago', () => {
     const implemented = EXERCISES.filter((e) => e.implemented);
-    // Give all drills equal 2 attempts except one which has ema=10
+    const oldMs = Date.now() - 30 * 24 * 60 * 60 * 1000; // 30 days ago
     const aggregates: ProgressStore['aggregates'] = {};
     for (const ex of implemented) {
-      aggregates[ex.id] = { ema: 80, attempts: 2, lastPracticedAt: 0 };
+      aggregates[ex.id] = { ema: 80, attempts: 5, lastPracticedAt: oldMs };
     }
     const weakDrill = implemented[3];
-    aggregates[weakDrill.id] = { ema: 10, attempts: 2, lastPracticedAt: 0 };
+    aggregates[weakDrill.id] = { ema: 10, attempts: 5, lastPracticedAt: oldMs };
 
     const progress: ProgressStore = { version: 2, attempts: [], aggregates };
-    const result = getAutoExercise(progress);
-    expect(result.id).toBe(weakDrill.id);
+    const { exercise } = getAutoExercise(progress);
+    expect(exercise.id).toBe(weakDrill.id);
+  });
+
+  it('returns a non-empty reason string', () => {
+    const { reason } = getAutoExercise(emptyProgress());
+    expect(typeof reason).toBe('string');
+    expect(reason.length).toBeGreaterThan(0);
   });
 });

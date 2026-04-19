@@ -10,7 +10,7 @@ const localStorageMock = {
 };
 vi.stubGlobal('window', { localStorage: localStorageMock });
 
-import { getStoredProgress, updateStoredProgress } from './progress';
+import { getStoredProgress, updateStoredProgress, filterStaleAggregates } from './progress';
 
 const STORAGE_KEY = 'draftsman-eye.progress.v2';
 
@@ -124,5 +124,31 @@ describe('updateStoredProgress', () => {
     expect(rec.signedError).toBe(-3);
     expect(rec.timestamp).toBeGreaterThanOrEqual(before);
     expect(rec.timestamp).toBeLessThanOrEqual(after);
+  });
+});
+
+describe('filterStaleAggregates', () => {
+  it('retains entries whose ids are in the known set', () => {
+    const store = updateStoredProgress('freehand-straight-line', 80, 0);
+    const result = filterStaleAggregates(store, new Set(['freehand-straight-line']));
+    expect(result.aggregates['freehand-straight-line']).toBeDefined();
+  });
+
+  it('drops entries whose ids are not in the known set', () => {
+    const store = updateStoredProgress('freehand-straight-line', 80, 0);
+    const result = filterStaleAggregates(store, new Set(['freehand-circle']));
+    expect(result.aggregates['freehand-straight-line']).toBeUndefined();
+  });
+
+  it('does not modify the attempts ring buffer', () => {
+    const store = updateStoredProgress('freehand-straight-line', 80, 0);
+    const result = filterStaleAggregates(store, new Set());
+    expect(result.attempts).toHaveLength(1);
+  });
+
+  it('returns empty aggregates when known set is empty', () => {
+    const store = updateStoredProgress('freehand-straight-line', 80, 0);
+    const result = filterStaleAggregates(store, new Set());
+    expect(Object.keys(result.aggregates)).toHaveLength(0);
   });
 });

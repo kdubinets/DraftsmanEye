@@ -5,7 +5,7 @@
  */
 import { EXERCISES, getAutoExercise } from '../practice/catalog';
 import type { ExerciseDefinition } from '../practice/catalog';
-import { getStoredProgress } from '../storage/progress';
+import { getStoredProgress, filterStaleAggregates } from '../storage/progress';
 import type { ProgressStore } from '../storage/progress';
 import { pageShell, formatScore, actionButton } from '../render/components';
 import type { AppState } from '../app/state';
@@ -14,7 +14,8 @@ export function mountListScreen(
   root: HTMLElement,
   onNavigate: (next: AppState) => void,
 ): () => void {
-  const progress = getStoredProgress();
+  const knownIds = new Set(EXERCISES.map((e) => e.id));
+  const progress = filterStaleAggregates(getStoredProgress(), knownIds);
   root.append(
     pageShell(
       headerBlock(),
@@ -53,6 +54,8 @@ function autoCard(
   onNavigate: (next: AppState) => void,
   progress: ProgressStore,
 ): HTMLElement {
+  const { exercise: next, reason } = getAutoExercise(progress);
+
   const section = document.createElement('section');
   section.className = 'auto-card';
 
@@ -63,20 +66,19 @@ function autoCard(
   const title = document.createElement('h2');
   title.textContent = 'Let the app choose the next drill.';
 
-  const body = document.createElement('p');
-  body.textContent =
-    'Auto mode uses stored performance data to pick weaker or less-established drills first.';
+  const suggestion = document.createElement('p');
+  suggestion.className = 'auto-suggestion';
+  suggestion.textContent = `Next up: ${next.label} — ${reason}`;
 
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'primary-action';
   button.textContent = 'Start Auto';
   button.addEventListener('click', () => {
-    const next = getAutoExercise(progress);
     onNavigate({ screen: 'exercise', exerciseId: next.id, source: 'auto' });
   });
 
-  section.append(label, title, body, button);
+  section.append(label, title, suggestion, button);
   return section;
 }
 

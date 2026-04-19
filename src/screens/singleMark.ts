@@ -62,7 +62,7 @@ export function mountSingleMarkScreen(
   backBtn.hidden = true;
 
   const autoBtn = actionButton('Auto Next', () => {
-    const next = getAutoExercise(getStoredProgress());
+    const { exercise: next } = getAutoExercise(getStoredProgress());
     onNavigate({ screen: 'exercise', exerciseId: next.id, source: 'auto' });
   });
   autoBtn.hidden = true;
