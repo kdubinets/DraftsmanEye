@@ -269,6 +269,143 @@ button {
   vector-effect: non-scaling-stroke;
 }
 
+.freehand-history {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.freehand-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.freehand-history h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.freehand-history-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.freehand-history-toggle input {
+  inline-size: 1rem;
+  block-size: 1rem;
+  accent-color: var(--accent);
+}
+
+.freehand-history-empty {
+  margin: 0.8rem 0 0;
+  color: var(--muted);
+}
+
+.freehand-history[data-empty='false'] .freehand-history-empty {
+  display: none;
+}
+
+.freehand-history-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 0.7rem;
+  margin-top: 0.8rem;
+}
+
+.freehand-history-grid[data-variant='closed'] {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.freehand-history-item {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  gap: 0.35rem;
+  text-align: inherit;
+}
+
+.freehand-history-item:hover .freehand-history-frame,
+.freehand-history-item:focus-visible .freehand-history-frame {
+  stroke: rgba(122, 77, 34, 0.42);
+}
+
+.freehand-history-item:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 52%, transparent);
+  outline-offset: 3px;
+}
+
+.freehand-history-canvas {
+  width: 100%;
+  aspect-ratio: 15 / 11;
+  display: block;
+}
+
+.freehand-history-frame {
+  fill: rgba(255, 251, 245, 0.72);
+  stroke: rgba(77, 58, 37, 0.12);
+  stroke-width: 1.5;
+}
+
+.freehand-history-stroke {
+  fill: none;
+  stroke: #34261b;
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.freehand-history-correction {
+  stroke-width: 2;
+  opacity: 0.72;
+}
+
+.freehand-history-score {
+  margin: 0;
+  justify-self: end;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.freehand-history-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(31, 26, 23, 0.34);
+}
+
+.freehand-history-modal-panel {
+  width: min(100%, 1050px);
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+  padding: 1rem;
+  border: 1px solid rgba(77, 58, 37, 0.18);
+  border-radius: 18px;
+  background: rgba(255, 251, 245, 0.88);
+  backdrop-filter: blur(5px);
+  box-shadow: 0 22px 70px rgba(31, 26, 23, 0.24);
+}
+
+.freehand-history-modal-canvas {
+  width: 100%;
+  height: min(62vh, 620px);
+  display: block;
+  cursor: zoom-out;
+}
+
 .exercise-canvas[data-axis='vertical'] {
   height: min(68vh, 640px);
   min-height: 520px;
@@ -451,6 +588,19 @@ button {
   .freehand-canvas {
     height: min(58vh, 620px);
     min-height: 360px;
+  }
+
+  .freehand-history-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .freehand-history-grid {
+    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  }
+
+  .freehand-history-grid[data-variant='closed'] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .exercise-canvas[data-axis='vertical'] {

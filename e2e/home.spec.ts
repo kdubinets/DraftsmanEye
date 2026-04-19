@@ -111,11 +111,37 @@ test('ellipse drill scores a drawn stroke and auto-clears', async ({ page }) => 
   await page.mouse.up();
 
   await expect(page.getByText(/Ellipse fit \d+\.\d/)).toBeVisible();
-  await expect(page.locator('.freehand-fit-ellipse')).toBeVisible();
+  await expect(
+    page.getByTestId('freehand-canvas').locator('.freehand-fit-ellipse'),
+  ).toBeVisible();
   await expect(page.locator('.freehand-closure-gap')).toBeVisible();
   await expect(page.locator('.freehand-join-tangent')).toHaveCount(2);
   await expect(page.getByText('Join')).toBeVisible();
   await expect(page.getByText(/\d+ deg/)).toBeVisible();
+  await expect(page.locator('.freehand-history-item')).toHaveCount(1);
+  await expect(
+    page.locator('.freehand-history-item .freehand-fit-ellipse'),
+  ).toBeVisible();
+
+  await page.locator('.freehand-history-item').click();
+  await expect(page.getByTestId('freehand-history-modal')).toBeVisible();
+  await expect(page.locator('.freehand-history-modal-canvas')).toBeVisible();
+  await expect(
+    page
+      .getByTestId('freehand-history-modal')
+      .locator('.freehand-fit-ellipse'),
+  ).toBeVisible();
+  await expect(
+    page.getByTestId('freehand-history-modal').getByText('Score'),
+  ).toBeVisible();
+  await page.getByTestId('freehand-history-modal').getByText('Score').click();
+  await expect(page.getByTestId('freehand-history-modal')).toHaveCount(0);
+
+  await page.getByLabel('Show fitted shapes').uncheck();
+  await expect(
+    page.locator('.freehand-history-item .freehand-fit-ellipse'),
+  ).toHaveCount(0);
+  await expect(page.locator('.freehand-history-stroke')).toBeVisible();
 
   await expect(page.getByText(/Draw one ellipse in the field/i)).toBeVisible({
     timeout: 2500,
@@ -165,11 +191,14 @@ test('circle drill scores a drawn stroke and auto-clears', async ({ page }) => {
   await page.mouse.up();
 
   await expect(page.getByText(/Roundness \d+\.\d/)).toBeVisible();
-  await expect(page.locator('.freehand-fit-circle')).toBeVisible();
+  await expect(
+    page.getByTestId('freehand-canvas').locator('.freehand-fit-circle'),
+  ).toBeVisible();
   await expect(page.locator('.freehand-closure-gap')).toBeVisible();
   await expect(page.locator('.freehand-join-tangent')).toHaveCount(2);
   await expect(page.getByText('Join')).toBeVisible();
   await expect(page.getByText(/\d+ deg/)).toBeVisible();
+  await expect(page.locator('.freehand-history-item')).toHaveCount(1);
 
   await expect(page.getByText(/Draw one circle in the field/i)).toBeVisible({
     timeout: 2500,
@@ -214,8 +243,14 @@ test('straight line drill scores a drawn stroke and auto-clears', async ({
   await page.mouse.up();
 
   await expect(page.getByText(/Straightness \d+\.\d/)).toBeVisible();
-  await expect(page.locator('.freehand-fit-line')).toBeVisible();
+  await expect(
+    page.getByTestId('freehand-canvas').locator('.freehand-fit-line'),
+  ).toBeVisible();
   await expect(page.locator('.freehand-closure-gap')).toBeHidden();
+  await expect(page.locator('.freehand-history-item')).toHaveCount(1);
+  await expect(
+    page.locator('.freehand-history-item .freehand-fit-line'),
+  ).toBeVisible();
 
   await expect(
     page.getByText(/Draw one straight line in the field/i),

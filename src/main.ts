@@ -252,6 +252,12 @@ type FreehandResult =
   | FreehandCircleResult
   | FreehandEllipseResult;
 
+type FreehandAttemptSnapshot = {
+  id: number;
+  points: FreehandPoint[];
+  result: FreehandResult;
+};
+
 function renderFreehandExerciseScreen(
   exercise: FreehandExerciseDefinition,
   source: 'direct' | 'auto',
@@ -261,6 +267,9 @@ function renderFreehandExerciseScreen(
   let drawingPointerId: number | null = null;
   let result: FreehandResult | null = null;
   let resetTimer: number | null = null;
+  let nextAttemptId = 1;
+  const attempts: FreehandAttemptSnapshot[] = [];
+  const maxAttempts = 36;
   const isCircleExercise = exercise.kind === 'freehand-circle';
   const isEllipseExercise = exercise.kind === 'freehand-ellipse';
 
@@ -298,6 +307,41 @@ function renderFreehandExerciseScreen(
   const summary = document.createElement('div');
   summary.className = 'result-summary';
   summary.hidden = true;
+
+  const historySection = document.createElement('section');
+  historySection.className = 'freehand-history';
+  historySection.dataset.empty = 'true';
+
+  const historyHeader = document.createElement('div');
+  historyHeader.className = 'freehand-history-header';
+
+  const historyTitle = document.createElement('h2');
+  historyTitle.textContent = 'History';
+
+  const correctionToggleLabel = document.createElement('label');
+  correctionToggleLabel.className = 'freehand-history-toggle';
+
+  const correctionToggle = document.createElement('input');
+  correctionToggle.type = 'checkbox';
+  correctionToggle.checked = true;
+  correctionToggle.addEventListener('change', renderHistory);
+
+  const correctionToggleText = document.createElement('span');
+  correctionToggleText.textContent = 'Show fitted shapes';
+
+  correctionToggleLabel.append(correctionToggle, correctionToggleText);
+  historyHeader.append(historyTitle, correctionToggleLabel);
+
+  const historyGrid = document.createElement('div');
+  historyGrid.className = 'freehand-history-grid';
+  historyGrid.dataset.testid = 'freehand-history';
+  historyGrid.dataset.variant = isCircleExercise || isEllipseExercise ? 'closed' : 'line';
+
+  const historyEmpty = document.createElement('p');
+  historyEmpty.className = 'freehand-history-empty';
+  historyEmpty.textContent = 'Completed attempts will collect here.';
+
+  historySection.append(historyHeader, historyEmpty, historyGrid);
 
   const svg = createSvg('svg');
   svg.setAttribute('class', 'freehand-canvas');
@@ -408,7 +452,7 @@ function renderFreehandExerciseScreen(
   svg.addEventListener('pointercancel', finishStroke);
 
   stage.append(toolbar, svg, feedback, summary);
-  screen.append(header, stage);
+  screen.append(header, stage, historySection);
   return screen;
 
   function revealFreehandResult(): void {
@@ -422,38 +466,32 @@ function renderFreehandExerciseScreen(
 
     result = nextResult;
     updateStoredProgress(exercise.id, result.score);
+    attempts.unshift({
+      id: nextAttemptId,
+      points: points.map((point) => ({ ...point })),
+      result,
+    });
+    nextAttemptId += 1;
+    if (attempts.length > maxAttempts) {
+      attempts.length = maxAttempts;
+    }
+    renderHistory();
 
-    if (result.kind === 'line') {
-      fittedLine.setAttribute('x1', result.fitStart.x.toFixed(2));
-      fittedLine.setAttribute('y1', result.fitStart.y.toFixed(2));
-      fittedLine.setAttribute('x2', result.fitEnd.x.toFixed(2));
-      fittedLine.setAttribute('y2', result.fitEnd.y.toFixed(2));
-      fittedLine.style.display = '';
-      fittedCircle.style.display = 'none';
-      fittedEllipse.style.display = 'none';
-      closureGap.style.display = 'none';
-      startTangent.style.display = 'none';
-      endTangent.style.display = 'none';
-    } else {
-      if (result.kind === 'circle') {
-        fittedCircle.setAttribute('cx', result.center.x.toFixed(2));
-        fittedCircle.setAttribute('cy', result.center.y.toFixed(2));
-        fittedCircle.setAttribute('r', result.radius.toFixed(2));
-        fittedCircle.style.display = '';
-        fittedEllipse.style.display = 'none';
-      } else {
-        fittedEllipse.setAttribute('cx', result.center.x.toFixed(2));
-        fittedEllipse.setAttribute('cy', result.center.y.toFixed(2));
-        fittedEllipse.setAttribute('rx', result.majorRadius.toFixed(2));
-        fittedEllipse.setAttribute('ry', result.minorRadius.toFixed(2));
-        fittedEllipse.setAttribute(
-          'transform',
-          `rotate(${radiansToDegrees(result.rotationRadians).toFixed(2)} ${result.center.x.toFixed(2)} ${result.center.y.toFixed(2)})`,
-        );
-        fittedEllipse.style.display = '';
-        fittedCircle.style.display = 'none';
-      }
-      fittedLine.style.display = 'none';
+    hideFreehandCorrectionElements(
+      fittedLine,
+      fittedCircle,
+      fittedEllipse,
+      closureGap,
+      startTangent,
+      endTangent,
+    );
+    applyFreehandCorrectionElements(
+      result,
+      fittedLine,
+      fittedCircle,
+      fittedEllipse,
+    );
+    if (result.kind !== 'line') {
       showClosedShapeMarkers(points, closureGap, startTangent, endTangent);
     }
 
@@ -473,31 +511,8 @@ function renderFreehandExerciseScreen(
       `Mean drift ${result.meanErrorPixels.toFixed(1)} px`;
 
     const resultStats = [
-      resultStat('Score', result.score.toFixed(1)),
-      resultStat('Mean drift', `${result.meanErrorPixels.toFixed(1)} px`),
-      resultStat('Max drift', `${result.maxErrorPixels.toFixed(1)} px`),
-      resultStat('Length', `${Math.round(result.strokeLengthPixels)} px`),
-      resultStat('Samples', String(result.pointCount)),
+      ...freehandResultStats(result),
     ];
-    if (result.kind === 'circle') {
-      resultStats.splice(
-        3,
-        0,
-        resultStat('Radius', `${Math.round(result.radius)} px`),
-        resultStat('Closure', `${Math.round(result.closureGapPixels)} px`),
-        resultStat('Join', `${Math.round(result.joinAngleDegrees)} deg`),
-      );
-    } else if (result.kind === 'ellipse') {
-      resultStats.splice(
-        3,
-        0,
-        resultStat('Major', `${Math.round(result.majorRadius)} px`),
-        resultStat('Minor', `${Math.round(result.minorRadius)} px`),
-        resultStat('Closure', `${Math.round(result.closureGapPixels)} px`),
-        resultStat('Join', `${Math.round(result.joinAngleDegrees)} deg`),
-      );
-    }
-
     summary.hidden = false;
     summary.replaceChildren(...resultStats);
 
@@ -509,17 +524,52 @@ function renderFreehandExerciseScreen(
       result = null;
       resetTimer = null;
       userStroke.removeAttribute('d');
-      fittedLine.style.display = 'none';
-      fittedCircle.style.display = 'none';
-      fittedEllipse.style.display = 'none';
-      closureGap.style.display = 'none';
-      startTangent.style.display = 'none';
-      endTangent.style.display = 'none';
+      hideFreehandCorrectionElements(
+        fittedLine,
+        fittedCircle,
+        fittedEllipse,
+        closureGap,
+        startTangent,
+        endTangent,
+      );
       summary.hidden = true;
       feedback.removeAttribute('data-tone');
       summary.removeAttribute('data-tone');
       feedback.textContent = freehandPromptText(exercise.kind);
     }, 1500);
+  }
+
+  function renderHistory(): void {
+    historySection.dataset.empty = attempts.length === 0 ? 'true' : 'false';
+    historyGrid.replaceChildren(
+      ...attempts.map((attempt) =>
+        renderFreehandAttemptThumbnail(attempt, correctionToggle.checked, () => {
+          openHistoryAttempt(attempt);
+        }),
+      ),
+    );
+  }
+
+  function openHistoryAttempt(attempt: FreehandAttemptSnapshot): void {
+    const modal = renderFreehandHistoryModal(
+      attempt,
+      correctionToggle.checked,
+      closeModal,
+    );
+
+    function closeModal(): void {
+      document.removeEventListener('keydown', closeOnEscape);
+      modal.remove();
+    }
+
+    function closeOnEscape(event: KeyboardEvent): void {
+      if (event.key === 'Escape') {
+        closeModal();
+      }
+    }
+
+    document.addEventListener('keydown', closeOnEscape);
+    appRoot.append(modal);
   }
 }
 
@@ -755,6 +805,324 @@ function setTangentMarker(
   marker.setAttribute('x2', (anchor.x + direction.x * length).toFixed(2));
   marker.setAttribute('y2', (anchor.y + direction.y * length).toFixed(2));
   marker.style.display = '';
+}
+
+function hideFreehandCorrectionElements(
+  fittedLine: SVGLineElement,
+  fittedCircle: SVGCircleElement,
+  fittedEllipse: SVGEllipseElement,
+  closureGap: SVGLineElement,
+  startTangent: SVGLineElement,
+  endTangent: SVGLineElement,
+): void {
+  fittedLine.style.display = 'none';
+  fittedCircle.style.display = 'none';
+  fittedEllipse.style.display = 'none';
+  closureGap.style.display = 'none';
+  startTangent.style.display = 'none';
+  endTangent.style.display = 'none';
+}
+
+function applyFreehandCorrectionElements(
+  result: FreehandResult,
+  fittedLine: SVGLineElement,
+  fittedCircle: SVGCircleElement,
+  fittedEllipse: SVGEllipseElement,
+): void {
+  if (result.kind === 'line') {
+    fittedLine.setAttribute('x1', result.fitStart.x.toFixed(2));
+    fittedLine.setAttribute('y1', result.fitStart.y.toFixed(2));
+    fittedLine.setAttribute('x2', result.fitEnd.x.toFixed(2));
+    fittedLine.setAttribute('y2', result.fitEnd.y.toFixed(2));
+    fittedLine.style.display = '';
+    return;
+  }
+
+  if (result.kind === 'circle') {
+    fittedCircle.setAttribute('cx', result.center.x.toFixed(2));
+    fittedCircle.setAttribute('cy', result.center.y.toFixed(2));
+    fittedCircle.setAttribute('r', result.radius.toFixed(2));
+    fittedCircle.style.display = '';
+    return;
+  }
+
+  fittedEllipse.setAttribute('cx', result.center.x.toFixed(2));
+  fittedEllipse.setAttribute('cy', result.center.y.toFixed(2));
+  fittedEllipse.setAttribute('rx', result.majorRadius.toFixed(2));
+  fittedEllipse.setAttribute('ry', result.minorRadius.toFixed(2));
+  fittedEllipse.setAttribute(
+    'transform',
+    `rotate(${radiansToDegrees(result.rotationRadians).toFixed(2)} ${result.center.x.toFixed(2)} ${result.center.y.toFixed(2)})`,
+  );
+  fittedEllipse.style.display = '';
+}
+
+function renderFreehandAttemptThumbnail(
+  attempt: FreehandAttemptSnapshot,
+  showCorrections: boolean,
+  onOpen: () => void,
+): HTMLButtonElement {
+  const item = document.createElement('button');
+  item.type = 'button';
+  item.className = 'freehand-history-item';
+  item.addEventListener('click', onOpen);
+
+  const svg = createSvg('svg');
+  svg.setAttribute('class', 'freehand-history-canvas');
+  svg.setAttribute('viewBox', '0 0 180 132');
+  svg.setAttribute('role', 'img');
+  svg.setAttribute(
+    'aria-label',
+    `${freehandScoreLabel(attempt.result.kind)} ${attempt.result.score.toFixed(1)}`,
+  );
+
+  const frame = createSvg('rect');
+  frame.setAttribute('x', '1');
+  frame.setAttribute('y', '1');
+  frame.setAttribute('width', '178');
+  frame.setAttribute('height', '130');
+  frame.setAttribute('rx', '8');
+  frame.setAttribute('class', 'freehand-history-frame');
+
+  const transform = thumbnailTransformForAttempt(attempt);
+  const content = createSvg('g');
+  content.setAttribute(
+    'transform',
+    `translate(${transform.offsetX.toFixed(2)} ${transform.offsetY.toFixed(2)}) scale(${transform.scale.toFixed(4)})`,
+  );
+
+  if (showCorrections) {
+    appendFreehandCorrection(content, attempt.result, true);
+  }
+
+  const stroke = createSvg('path');
+  stroke.setAttribute('class', 'freehand-history-stroke');
+  stroke.setAttribute('d', freehandPath(attempt.points));
+  content.append(stroke);
+
+  svg.append(frame, content);
+
+  const score = document.createElement('p');
+  score.className = 'freehand-history-score';
+  score.textContent = attempt.result.score.toFixed(1);
+
+  item.append(svg, score);
+  return item;
+}
+
+function renderFreehandHistoryModal(
+  attempt: FreehandAttemptSnapshot,
+  showCorrections: boolean,
+  onClose: () => void,
+): HTMLElement {
+  const overlay = document.createElement('div');
+  overlay.className = 'freehand-history-modal';
+  overlay.dataset.testid = 'freehand-history-modal';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-label', 'History attempt detail');
+
+  const panel = document.createElement('div');
+  panel.className = 'freehand-history-modal-panel';
+
+  const preview = renderFreehandAttemptPreview(attempt, showCorrections);
+
+  const feedback = document.createElement('p');
+  feedback.className = 'feedback-banner';
+  const feedbackHue = feedbackHueForError(100 - attempt.result.score);
+  const feedbackClass = feedbackBandClass(100 - attempt.result.score);
+  feedback.dataset.tone = feedbackClass;
+  feedback.style.setProperty('--result-accent', `hsl(${feedbackHue} 55% 42%)`);
+  feedback.textContent =
+    `${feedbackLabel(100 - attempt.result.score)} · ` +
+    `${freehandScoreLabel(attempt.result.kind)} ${attempt.result.score.toFixed(1)} · ` +
+    `Mean drift ${attempt.result.meanErrorPixels.toFixed(1)} px`;
+
+  const summary = document.createElement('div');
+  summary.className = 'result-summary';
+  summary.dataset.tone = feedbackClass;
+  summary.style.setProperty('--result-accent', `hsl(${feedbackHue} 55% 42%)`);
+  summary.replaceChildren(...freehandResultStats(attempt.result));
+
+  panel.append(preview, feedback, summary);
+  overlay.append(panel);
+  overlay.addEventListener('click', onClose);
+  return overlay;
+}
+
+function renderFreehandAttemptPreview(
+  attempt: FreehandAttemptSnapshot,
+  showCorrections: boolean,
+): SVGSVGElement {
+  const svg = createSvg('svg');
+  svg.setAttribute('class', 'freehand-history-modal-canvas');
+  svg.setAttribute('viewBox', '0 0 1000 620');
+  svg.setAttribute('role', 'img');
+  svg.setAttribute(
+    'aria-label',
+    `${freehandScoreLabel(attempt.result.kind)} attempt at original size`,
+  );
+
+  const frame = createSvg('rect');
+  frame.setAttribute('x', '1');
+  frame.setAttribute('y', '1');
+  frame.setAttribute('width', '998');
+  frame.setAttribute('height', '618');
+  frame.setAttribute('rx', '18');
+  frame.setAttribute('class', 'canvas-frame');
+  svg.append(frame);
+
+  const content = createSvg('g');
+  if (showCorrections) {
+    appendFreehandCorrection(content, attempt.result, false);
+  }
+
+  const stroke = createSvg('path');
+  stroke.setAttribute('class', 'freehand-user-stroke');
+  stroke.setAttribute('d', freehandPath(attempt.points));
+  content.append(stroke);
+
+  if (showCorrections && attempt.result.kind !== 'line') {
+    const closureGap = createSvg('line');
+    closureGap.setAttribute('class', 'freehand-closure-gap');
+    const startTangent = createSvg('line');
+    startTangent.setAttribute('class', 'freehand-join-tangent');
+    const endTangent = createSvg('line');
+    endTangent.setAttribute('class', 'freehand-join-tangent');
+    showClosedShapeMarkers(attempt.points, closureGap, startTangent, endTangent);
+    content.append(closureGap, startTangent, endTangent);
+  }
+
+  svg.append(content);
+  return svg;
+}
+
+function appendFreehandCorrection(
+  parent: SVGGElement,
+  result: FreehandResult,
+  isHistory: boolean,
+): void {
+  const classSuffix = isHistory ? ' freehand-history-correction' : '';
+
+  if (result.kind === 'line') {
+    const fittedLine = createSvg('line');
+    fittedLine.setAttribute('class', `freehand-fit-line${classSuffix}`);
+    fittedLine.setAttribute('x1', result.fitStart.x.toFixed(2));
+    fittedLine.setAttribute('y1', result.fitStart.y.toFixed(2));
+    fittedLine.setAttribute('x2', result.fitEnd.x.toFixed(2));
+    fittedLine.setAttribute('y2', result.fitEnd.y.toFixed(2));
+    parent.append(fittedLine);
+    return;
+  }
+
+  if (result.kind === 'circle') {
+    const fittedCircle = createSvg('circle');
+    fittedCircle.setAttribute('class', `freehand-fit-circle${classSuffix}`);
+    fittedCircle.setAttribute('cx', result.center.x.toFixed(2));
+    fittedCircle.setAttribute('cy', result.center.y.toFixed(2));
+    fittedCircle.setAttribute('r', result.radius.toFixed(2));
+    parent.append(fittedCircle);
+    return;
+  }
+
+  const fittedEllipse = createSvg('ellipse');
+  fittedEllipse.setAttribute('class', `freehand-fit-ellipse${classSuffix}`);
+  fittedEllipse.setAttribute('cx', result.center.x.toFixed(2));
+  fittedEllipse.setAttribute('cy', result.center.y.toFixed(2));
+  fittedEllipse.setAttribute('rx', result.majorRadius.toFixed(2));
+  fittedEllipse.setAttribute('ry', result.minorRadius.toFixed(2));
+  fittedEllipse.setAttribute(
+    'transform',
+    `rotate(${radiansToDegrees(result.rotationRadians).toFixed(2)} ${result.center.x.toFixed(2)} ${result.center.y.toFixed(2)})`,
+  );
+  parent.append(fittedEllipse);
+}
+
+function thumbnailTransformForAttempt(attempt: FreehandAttemptSnapshot): {
+  offsetX: number;
+  offsetY: number;
+  scale: number;
+} {
+  const bounds = boundsForAttempt(attempt);
+  const width = Math.max(bounds.maxX - bounds.minX, 1);
+  const height = Math.max(bounds.maxY - bounds.minY, 1);
+  const padding = 14;
+  const scale = Math.min((180 - padding * 2) / width, (132 - padding * 2) / height);
+  const offsetX = padding + (180 - padding * 2 - width * scale) / 2 - bounds.minX * scale;
+  const offsetY = padding + (132 - padding * 2 - height * scale) / 2 - bounds.minY * scale;
+
+  return { offsetX, offsetY, scale };
+}
+
+function boundsForAttempt(attempt: FreehandAttemptSnapshot): {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+} {
+  const bounds = attempt.points.reduce(
+    (nextBounds, point) => ({
+      minX: Math.min(nextBounds.minX, point.x),
+      minY: Math.min(nextBounds.minY, point.y),
+      maxX: Math.max(nextBounds.maxX, point.x),
+      maxY: Math.max(nextBounds.maxY, point.y),
+    }),
+    {
+      minX: Number.POSITIVE_INFINITY,
+      minY: Number.POSITIVE_INFINITY,
+      maxX: Number.NEGATIVE_INFINITY,
+      maxY: Number.NEGATIVE_INFINITY,
+    },
+  );
+
+  if (attempt.result.kind === 'line') {
+    includePointInBounds(bounds, attempt.result.fitStart);
+    includePointInBounds(bounds, attempt.result.fitEnd);
+    return bounds;
+  }
+
+  if (attempt.result.kind === 'circle') {
+    includePointInBounds(bounds, {
+      x: attempt.result.center.x - attempt.result.radius,
+      y: attempt.result.center.y - attempt.result.radius,
+    });
+    includePointInBounds(bounds, {
+      x: attempt.result.center.x + attempt.result.radius,
+      y: attempt.result.center.y + attempt.result.radius,
+    });
+    return bounds;
+  }
+
+  includeRotatedEllipseBounds(bounds, attempt.result);
+  return bounds;
+}
+
+function includePointInBounds(
+  bounds: { minX: number; minY: number; maxX: number; maxY: number },
+  point: { x: number; y: number },
+): void {
+  bounds.minX = Math.min(bounds.minX, point.x);
+  bounds.minY = Math.min(bounds.minY, point.y);
+  bounds.maxX = Math.max(bounds.maxX, point.x);
+  bounds.maxY = Math.max(bounds.maxY, point.y);
+}
+
+function includeRotatedEllipseBounds(
+  bounds: { minX: number; minY: number; maxX: number; maxY: number },
+  ellipse: FreehandEllipseResult,
+): void {
+  const cos = Math.cos(ellipse.rotationRadians);
+  const sin = Math.sin(ellipse.rotationRadians);
+  const halfWidth = Math.hypot(ellipse.majorRadius * cos, ellipse.minorRadius * sin);
+  const halfHeight = Math.hypot(ellipse.majorRadius * sin, ellipse.minorRadius * cos);
+  includePointInBounds(bounds, {
+    x: ellipse.center.x - halfWidth,
+    y: ellipse.center.y - halfHeight,
+  });
+  includePointInBounds(bounds, {
+    x: ellipse.center.x + halfWidth,
+    y: ellipse.center.y + halfHeight,
+  });
 }
 
 function freehandPointsFromPointerEvent(
@@ -1684,6 +2052,37 @@ function resultStat(label: string, value: string): HTMLElement {
 
   block.append(term, detail);
   return block;
+}
+
+function freehandResultStats(result: FreehandResult): HTMLElement[] {
+  const stats = [
+    resultStat('Score', result.score.toFixed(1)),
+    resultStat('Mean drift', `${result.meanErrorPixels.toFixed(1)} px`),
+    resultStat('Max drift', `${result.maxErrorPixels.toFixed(1)} px`),
+    resultStat('Length', `${Math.round(result.strokeLengthPixels)} px`),
+    resultStat('Samples', String(result.pointCount)),
+  ];
+
+  if (result.kind === 'circle') {
+    stats.splice(
+      3,
+      0,
+      resultStat('Radius', `${Math.round(result.radius)} px`),
+      resultStat('Closure', `${Math.round(result.closureGapPixels)} px`),
+      resultStat('Join', `${Math.round(result.joinAngleDegrees)} deg`),
+    );
+  } else if (result.kind === 'ellipse') {
+    stats.splice(
+      3,
+      0,
+      resultStat('Major', `${Math.round(result.majorRadius)} px`),
+      resultStat('Minor', `${Math.round(result.minorRadius)} px`),
+      resultStat('Closure', `${Math.round(result.closureGapPixels)} px`),
+      resultStat('Join', `${Math.round(result.joinAngleDegrees)} deg`),
+    );
+  }
+
+  return stats;
 }
 
 function actionButton(label: string, onClick: () => void): HTMLButtonElement {
