@@ -234,7 +234,7 @@ button {
 }
 
 .freehand-fit-line {
-  stroke: rgba(47, 125, 93, 0.48);
+  stroke: #18b75a;
   stroke-width: 2;
   stroke-linecap: round;
   vector-effect: non-scaling-stroke;
@@ -242,14 +242,14 @@ button {
 
 .freehand-fit-circle {
   fill: none;
-  stroke: rgba(47, 125, 93, 0.48);
+  stroke: #18b75a;
   stroke-width: 2;
   vector-effect: non-scaling-stroke;
 }
 
 .freehand-fit-ellipse {
   fill: none;
-  stroke: rgba(47, 125, 93, 0.48);
+  stroke: #18b75a;
   stroke-width: 2;
   vector-effect: non-scaling-stroke;
 }

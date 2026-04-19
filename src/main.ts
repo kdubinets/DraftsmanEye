@@ -36,6 +36,12 @@ if (!root) {
 
 const appRoot = root;
 
+const CONFIG = {
+  freehand: {
+    allowTouchDrawing: false,
+  },
+} as const;
+
 let state: AppState = { screen: 'list' };
 let renderVersion = 0;
 
@@ -475,6 +481,11 @@ function renderFreehandExerciseScreen(
       return;
     }
 
+    if (!canStartFreehandStroke(event)) {
+      feedback.textContent = 'Use Apple Pencil or mouse to draw.';
+      return;
+    }
+
     const point = freehandPointFromEvent(svg, event);
     if (!point) {
       return;
@@ -641,6 +652,10 @@ function renderFreehandExerciseScreen(
     document.addEventListener('keydown', closeOnEscape);
     appRoot.append(modal);
   }
+}
+
+function canStartFreehandStroke(event: PointerEvent): boolean {
+  return CONFIG.freehand.allowTouchDrawing || event.pointerType !== 'touch';
 }
 
 function pageShell(...children: HTMLElement[]): HTMLElement {

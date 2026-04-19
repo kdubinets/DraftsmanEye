@@ -107,8 +107,10 @@ test('target line drill scores a stroke connecting two marks', async ({ page }) 
     .getByTestId('freehand-canvas')
     .locator('.freehand-target-mark');
   await expect(marks).toHaveCount(2);
-  const start = await targetPlusCenter(marks.nth(0));
-  const end = await targetPlusCenter(marks.nth(1));
+  const [start, end] = await svgPointsToClient(page, [
+    await targetPlusCenter(marks.nth(0)),
+    await targetPlusCenter(marks.nth(1)),
+  ]);
 
   await page.mouse.move(start.x, start.y);
   await page.mouse.down();
@@ -537,6 +539,28 @@ test('straight line drill scores a drawn stroke and auto-clears', async ({
   if (!canvasBox) {
     throw new Error('Expected freehand canvas to have a bounding box.');
   }
+
+  const canvas = page.getByTestId('freehand-canvas');
+  await canvas.dispatchEvent('pointerdown', {
+    pointerId: 41,
+    pointerType: 'touch',
+    clientX: canvasBox.x + 120,
+    clientY: canvasBox.y + 180,
+  });
+  await canvas.dispatchEvent('pointermove', {
+    pointerId: 41,
+    pointerType: 'touch',
+    clientX: canvasBox.x + 300,
+    clientY: canvasBox.y + 180,
+  });
+  await canvas.dispatchEvent('pointerup', {
+    pointerId: 41,
+    pointerType: 'touch',
+    clientX: canvasBox.x + 300,
+    clientY: canvasBox.y + 180,
+  });
+  await expect(page.locator('.freehand-user-stroke')).not.toHaveAttribute('d');
+  await expect(page.getByText('Use Apple Pencil or mouse to draw.')).toBeVisible();
 
   await page.mouse.move(canvasBox.x + 120, canvasBox.y + 220);
   await page.mouse.down();
