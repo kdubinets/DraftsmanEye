@@ -70,7 +70,9 @@ npm run dev
 npm run build
 npm run lint
 npm run format
-npm test
+npm test        # Playwright E2E tests
+npm run unit    # vitest unit tests (geometry, scoring, storage, catalog)
+npm run typecheck  # tsc --noEmit, faster than a full build
 ```
 
 If the repository has not yet been scaffolded far enough for a command to exist, say so explicitly instead of guessing.
@@ -164,6 +166,7 @@ Run before every commit when the relevant commands exist:
 ```bash
 npm run lint
 npm run build
+npm run unit
 ```
 
 Run before reporting a behavior change as complete:
@@ -222,8 +225,28 @@ There is no need for a global toast or notification system in the MVP unless the
 
 Default test stance: E2E for user-visible flows, unit tests for geometry and scoring.
 
-- **E2E (Playwright):** exercise flow, feedback display, statistics tracking, navigation
-- **Unit (vitest):** geometry fitting (`fitLine`, `fitCircle`, `fitEllipse`), scoring functions, band thresholds — these are non-trivial math with no observable UI surface; pin current outputs as golden values before any refactor
+- **E2E (Playwright):** exercise flow, feedback display, statistics tracking, navigation — run with `npm test`
+- **Unit (vitest):** geometry fitting (`fitLine`, `fitCircle`, `fitEllipse`), scoring functions, band thresholds, storage, catalog — run with `npm run unit`
+
+Unit tests live alongside their source files as `*.test.ts`. Current coverage:
+
+| Module | File |
+|--------|------|
+| Linear algebra solvers | `src/geometry/linearAlgebra.test.ts` |
+| `fitLine` | `src/geometry/fitLine.test.ts` |
+| `fitCircle` | `src/geometry/fitCircle.test.ts` |
+| `fitEllipse` | `src/geometry/fitEllipse.test.ts` |
+| Feedback bands | `src/scoring/bands.test.ts` |
+| Line scoring (golden values) | `src/scoring/line.test.ts` |
+| Circle scoring (golden values) | `src/scoring/circle.test.ts` |
+| Ellipse scoring (golden values) | `src/scoring/ellipse.test.ts` |
+| Progress storage | `src/storage/progress.test.ts` |
+| Exercise catalog / Auto selector | `src/practice/catalog.test.ts` |
+
+**Before any refactor or weight re-tuning**, run `npm run unit` to confirm existing golden-value snapshots still match. If scoring weights change intentionally, update the inline snapshots with `npm run unit -- --update-snapshots`.
+
+The scoring golden values reflect real scorer behavior including the join-angle penalty — even a perfect geometric circle or ellipse will score below 100 due to that penalty. This is expected and captured in the snapshots.
+
 - Test confusing or boundary-case inputs before polishing happy paths
 
 When writing tests, ask:

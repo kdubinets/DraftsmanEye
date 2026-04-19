@@ -8,6 +8,7 @@
  *   W_ANGLE    0.65 → each degree of angle deviation costs 0.65 pts
  */
 import { distanceBetween, clampNumber, lineAngleDifferenceDegrees } from '../geometry/primitives';
+import { fitLine } from '../geometry/fitLine';
 import type { FreehandPoint } from '../exercises/freehand/types';
 import type {
   FreehandLineResult,
@@ -33,53 +34,20 @@ export function scoreFreehandLine(
     return null;
   }
 
-  const centroid = points.reduce(
-    (sum, p) => ({ x: sum.x + p.x, y: sum.y + p.y }),
-    { x: 0, y: 0 },
-  );
-  centroid.x /= points.length;
-  centroid.y /= points.length;
-
-  let xx = 0,
-    xy = 0,
-    yy = 0;
-  for (const p of points) {
-    const dx = p.x - centroid.x;
-    const dy = p.y - centroid.y;
-    xx += dx * dx;
-    xy += dx * dy;
-    yy += dy * dy;
+  const fit = fitLine(points);
+  if (!fit) {
+    return null;
   }
 
-  // Principal-axis fit: handles any stroke angle without privileging x or y.
-  const angle = 0.5 * Math.atan2(2 * xy, xx - yy);
-  const dir = { x: Math.cos(angle), y: Math.sin(angle) };
-  let minProj = Infinity,
-    maxProj = -Infinity,
-    totalErr = 0,
-    maxErr = 0;
-
-  for (const p of points) {
-    const dx = p.x - centroid.x;
-    const dy = p.y - centroid.y;
-    const proj = dx * dir.x + dy * dir.y;
-    minProj = Math.min(minProj, proj);
-    maxProj = Math.max(maxProj, proj);
-    const perp = Math.abs(dx * dir.y - dy * dir.x);
-    totalErr += perp;
-    maxErr = Math.max(maxErr, perp);
-  }
-
-  const fittedLength = maxProj - minProj;
+  const fittedLength = distanceBetween(fit.fitStart, fit.fitEnd);
   if (fittedLength < 80) {
     return null;
   }
 
-  const meanErrorPixels = totalErr / points.length;
   const score = clampNumber(
     100 -
-      (W_MEAN * (meanErrorPixels / fittedLength) +
-        W_MAX * (maxErr / fittedLength)),
+      (W_MEAN * (fit.meanErrorPixels / fittedLength) +
+        W_MAX * (fit.maxErrorPixels / fittedLength)),
     0,
     100,
   );
@@ -87,18 +55,12 @@ export function scoreFreehandLine(
   return {
     kind: 'line',
     score,
-    meanErrorPixels,
-    maxErrorPixels: maxErr,
+    meanErrorPixels: fit.meanErrorPixels,
+    maxErrorPixels: fit.maxErrorPixels,
     strokeLengthPixels,
     pointCount: points.length,
-    fitStart: {
-      x: centroid.x + dir.x * minProj,
-      y: centroid.y + dir.y * minProj,
-    },
-    fitEnd: {
-      x: centroid.x + dir.x * maxProj,
-      y: centroid.y + dir.y * maxProj,
-    },
+    fitStart: fit.fitStart,
+    fitEnd: fit.fitEnd,
   };
 }
 
