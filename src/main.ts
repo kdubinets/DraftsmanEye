@@ -229,6 +229,7 @@ type FreehandCircleResult = {
   center: { x: number; y: number };
   radius: number;
   closureGapPixels: number;
+  joinAngleDegrees: number;
 };
 
 type FreehandEllipseResult = {
@@ -243,6 +244,7 @@ type FreehandEllipseResult = {
   minorRadius: number;
   rotationRadians: number;
   closureGapPixels: number;
+  joinAngleDegrees: number;
 };
 
 type FreehandResult =
@@ -334,7 +336,28 @@ function renderFreehandExerciseScreen(
   fittedEllipse.setAttribute('class', 'freehand-fit-ellipse');
   fittedEllipse.style.display = 'none';
 
-  svg.append(frame, userStroke, fittedLine, fittedCircle, fittedEllipse);
+  const closureGap = createSvg('line');
+  closureGap.setAttribute('class', 'freehand-closure-gap');
+  closureGap.style.display = 'none';
+
+  const startTangent = createSvg('line');
+  startTangent.setAttribute('class', 'freehand-join-tangent');
+  startTangent.style.display = 'none';
+
+  const endTangent = createSvg('line');
+  endTangent.setAttribute('class', 'freehand-join-tangent');
+  endTangent.style.display = 'none';
+
+  svg.append(
+    frame,
+    fittedLine,
+    fittedCircle,
+    fittedEllipse,
+    userStroke,
+    closureGap,
+    startTangent,
+    endTangent,
+  );
 
   svg.addEventListener('pointerdown', (event) => {
     if (drawingPointerId !== null || result) {
@@ -408,6 +431,9 @@ function renderFreehandExerciseScreen(
       fittedLine.style.display = '';
       fittedCircle.style.display = 'none';
       fittedEllipse.style.display = 'none';
+      closureGap.style.display = 'none';
+      startTangent.style.display = 'none';
+      endTangent.style.display = 'none';
     } else {
       if (result.kind === 'circle') {
         fittedCircle.setAttribute('cx', result.center.x.toFixed(2));
@@ -428,6 +454,7 @@ function renderFreehandExerciseScreen(
         fittedCircle.style.display = 'none';
       }
       fittedLine.style.display = 'none';
+      showClosedShapeMarkers(points, closureGap, startTangent, endTangent);
     }
 
     const feedbackHue = feedbackHueForError(100 - result.score);
@@ -458,6 +485,7 @@ function renderFreehandExerciseScreen(
         0,
         resultStat('Radius', `${Math.round(result.radius)} px`),
         resultStat('Closure', `${Math.round(result.closureGapPixels)} px`),
+        resultStat('Join', `${Math.round(result.joinAngleDegrees)} deg`),
       );
     } else if (result.kind === 'ellipse') {
       resultStats.splice(
@@ -466,6 +494,7 @@ function renderFreehandExerciseScreen(
         resultStat('Major', `${Math.round(result.majorRadius)} px`),
         resultStat('Minor', `${Math.round(result.minorRadius)} px`),
         resultStat('Closure', `${Math.round(result.closureGapPixels)} px`),
+        resultStat('Join', `${Math.round(result.joinAngleDegrees)} deg`),
       );
     }
 
@@ -483,6 +512,9 @@ function renderFreehandExerciseScreen(
       fittedLine.style.display = 'none';
       fittedCircle.style.display = 'none';
       fittedEllipse.style.display = 'none';
+      closureGap.style.display = 'none';
+      startTangent.style.display = 'none';
+      endTangent.style.display = 'none';
       summary.hidden = true;
       feedback.removeAttribute('data-tone');
       summary.removeAttribute('data-tone');
@@ -687,6 +719,44 @@ function scoreFreehandStroke(
   }
 }
 
+function showClosedShapeMarkers(
+  points: FreehandPoint[],
+  closureGap: SVGLineElement,
+  startTangent: SVGLineElement,
+  endTangent: SVGLineElement,
+): void {
+  const firstPoint = points[0];
+  const lastPoint = points[points.length - 1];
+  closureGap.setAttribute('x1', firstPoint.x.toFixed(2));
+  closureGap.setAttribute('y1', firstPoint.y.toFixed(2));
+  closureGap.setAttribute('x2', lastPoint.x.toFixed(2));
+  closureGap.setAttribute('y2', lastPoint.y.toFixed(2));
+  closureGap.style.display = '';
+
+  const tangents = closedShapeTangents(points);
+  if (!tangents) {
+    startTangent.style.display = 'none';
+    endTangent.style.display = 'none';
+    return;
+  }
+
+  setTangentMarker(startTangent, firstPoint, tangents.start);
+  setTangentMarker(endTangent, lastPoint, tangents.end);
+}
+
+function setTangentMarker(
+  marker: SVGLineElement,
+  anchor: FreehandPoint,
+  direction: { x: number; y: number },
+): void {
+  const length = 42;
+  marker.setAttribute('x1', (anchor.x - direction.x * length).toFixed(2));
+  marker.setAttribute('y1', (anchor.y - direction.y * length).toFixed(2));
+  marker.setAttribute('x2', (anchor.x + direction.x * length).toFixed(2));
+  marker.setAttribute('y2', (anchor.y + direction.y * length).toFixed(2));
+  marker.style.display = '';
+}
+
 function freehandPointsFromPointerEvent(
   svg: SVGSVGElement,
   event: PointerEvent,
@@ -857,6 +927,7 @@ function scoreFreehandCircle(
 
   const meanErrorPixels = totalErrorPixels / points.length;
   const closureGapPixels = distanceBetween(points[0], points[points.length - 1]);
+  const joinAngleDegrees = closedShapeJoinAngleDegrees(points) ?? 180;
   const normalizedMeanError = meanErrorPixels / fit.radius;
   const normalizedMaxError = maxErrorPixels / fit.radius;
   const normalizedClosureGap = closureGapPixels / (Math.PI * 2 * fit.radius);
@@ -864,7 +935,8 @@ function scoreFreehandCircle(
     100 -
       (normalizedMeanError * 1200 +
         normalizedMaxError * 180 +
-        normalizedClosureGap * 420),
+        normalizedClosureGap * 420 +
+        joinAngleDegrees * 0.35),
     0,
     100,
   );
@@ -879,6 +951,7 @@ function scoreFreehandCircle(
     center: fit.center,
     radius: fit.radius,
     closureGapPixels,
+    joinAngleDegrees,
   };
 }
 
@@ -974,6 +1047,7 @@ function scoreFreehandEllipse(
 
   const meanErrorPixels = totalErrorPixels / points.length;
   const closureGapPixels = distanceBetween(points[0], points[points.length - 1]);
+  const joinAngleDegrees = closedShapeJoinAngleDegrees(points) ?? 180;
   const referenceRadius = Math.sqrt(fit.majorRadius * fit.minorRadius);
   const normalizedMeanError = meanErrorPixels / referenceRadius;
   const normalizedMaxError = maxErrorPixels / referenceRadius;
@@ -983,7 +1057,8 @@ function scoreFreehandEllipse(
     100 -
       (normalizedMeanError * 1250 +
         normalizedMaxError * 180 +
-        normalizedClosureGap * 420),
+        normalizedClosureGap * 420 +
+        joinAngleDegrees * 0.35),
     0,
     100,
   );
@@ -1000,6 +1075,7 @@ function scoreFreehandEllipse(
     minorRadius: fit.minorRadius,
     rotationRadians: fit.rotationRadians,
     closureGapPixels,
+    joinAngleDegrees,
   };
 }
 
@@ -1144,6 +1220,119 @@ function ellipseCircumferenceApproximation(ellipse: {
     (ellipse.majorRadius + ellipse.minorRadius) *
     (1 + (3 * h) / (10 + Math.sqrt(4 - 3 * h)))
   );
+}
+
+function closedShapeJoinAngleDegrees(points: FreehandPoint[]): number | null {
+  const tangents = closedShapeTangents(points);
+  if (!tangents) {
+    return null;
+  }
+
+  const dot =
+    tangents.start.x * tangents.end.x + tangents.start.y * tangents.end.y;
+  return radiansToDegrees(Math.acos(clampNumber(dot, -1, 1)));
+}
+
+function closedShapeTangents(
+  points: FreehandPoint[],
+): { start: { x: number; y: number }; end: { x: number; y: number } } | null {
+  if (points.length < 6) {
+    return null;
+  }
+
+  const sampleDistance = 36;
+  const startSample = pointAtDistanceFromStart(points, sampleDistance);
+  const endSample = pointAtDistanceFromEnd(points, sampleDistance);
+  if (!startSample || !endSample) {
+    return null;
+  }
+
+  const start = normalizedVector(points[0], startSample);
+  const end = normalizedVector(endSample, points[points.length - 1]);
+  if (!start || !end) {
+    return null;
+  }
+
+  return { start, end };
+}
+
+function pointAtDistanceFromStart(
+  points: FreehandPoint[],
+  targetDistance: number,
+): FreehandPoint | null {
+  let walkedDistance = 0;
+
+  for (let index = 1; index < points.length; index += 1) {
+    const previousPoint = points[index - 1];
+    const nextPoint = points[index];
+    const segmentLength = distanceBetween(previousPoint, nextPoint);
+    if (segmentLength === 0) {
+      continue;
+    }
+
+    if (walkedDistance + segmentLength >= targetDistance) {
+      const ratio = (targetDistance - walkedDistance) / segmentLength;
+      return interpolatedPoint(previousPoint, nextPoint, ratio);
+    }
+
+    walkedDistance += segmentLength;
+  }
+
+  return null;
+}
+
+function pointAtDistanceFromEnd(
+  points: FreehandPoint[],
+  targetDistance: number,
+): FreehandPoint | null {
+  let walkedDistance = 0;
+
+  for (let index = points.length - 2; index >= 0; index -= 1) {
+    const previousPoint = points[index];
+    const nextPoint = points[index + 1];
+    const segmentLength = distanceBetween(previousPoint, nextPoint);
+    if (segmentLength === 0) {
+      continue;
+    }
+
+    if (walkedDistance + segmentLength >= targetDistance) {
+      const ratio = 1 - (targetDistance - walkedDistance) / segmentLength;
+      return interpolatedPoint(previousPoint, nextPoint, ratio);
+    }
+
+    walkedDistance += segmentLength;
+  }
+
+  return null;
+}
+
+function interpolatedPoint(
+  firstPoint: FreehandPoint,
+  secondPoint: FreehandPoint,
+  ratio: number,
+): FreehandPoint {
+  return {
+    x: firstPoint.x + (secondPoint.x - firstPoint.x) * ratio,
+    y: firstPoint.y + (secondPoint.y - firstPoint.y) * ratio,
+    time: firstPoint.time + (secondPoint.time - firstPoint.time) * ratio,
+    pressure:
+      firstPoint.pressure + (secondPoint.pressure - firstPoint.pressure) * ratio,
+    pointerType: firstPoint.pointerType,
+  };
+}
+
+function normalizedVector(
+  firstPoint: { x: number; y: number },
+  secondPoint: { x: number; y: number },
+): { x: number; y: number } | null {
+  const dx = secondPoint.x - firstPoint.x;
+  const dy = secondPoint.y - firstPoint.y;
+  const length = Math.hypot(dx, dy);
+  if (length === 0) {
+    return null;
+  }
+
+  return { x: dx / length, y: dy / length };
 }
 
 function eigenvectorAngle(

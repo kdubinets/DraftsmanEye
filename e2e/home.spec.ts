@@ -99,7 +99,7 @@ test('ellipse drill scores a drawn stroke and auto-clears', async ({ page }) => 
 
   await page.mouse.move(centerX + majorRadius * cos, centerY + majorRadius * sin);
   await page.mouse.down();
-  for (let index = 1; index <= 48; index += 1) {
+  for (let index = 1; index <= 46; index += 1) {
     const angle = (Math.PI * 2 * index) / 48;
     const localX = Math.cos(angle) * majorRadius;
     const localY = Math.sin(angle) * minorRadius;
@@ -112,6 +112,10 @@ test('ellipse drill scores a drawn stroke and auto-clears', async ({ page }) => 
 
   await expect(page.getByText(/Ellipse fit \d+\.\d/)).toBeVisible();
   await expect(page.locator('.freehand-fit-ellipse')).toBeVisible();
+  await expect(page.locator('.freehand-closure-gap')).toBeVisible();
+  await expect(page.locator('.freehand-join-tangent')).toHaveCount(2);
+  await expect(page.getByText('Join')).toBeVisible();
+  await expect(page.getByText(/\d+ deg/)).toBeVisible();
 
   await expect(page.getByText(/Draw one ellipse in the field/i)).toBeVisible({
     timeout: 2500,
@@ -151,7 +155,7 @@ test('circle drill scores a drawn stroke and auto-clears', async ({ page }) => {
 
   await page.mouse.move(centerX + radius, centerY);
   await page.mouse.down();
-  for (let index = 1; index <= 36; index += 1) {
+  for (let index = 1; index <= 34; index += 1) {
     const angle = (Math.PI * 2 * index) / 36;
     await page.mouse.move(
       centerX + Math.cos(angle) * radius,
@@ -162,6 +166,10 @@ test('circle drill scores a drawn stroke and auto-clears', async ({ page }) => {
 
   await expect(page.getByText(/Roundness \d+\.\d/)).toBeVisible();
   await expect(page.locator('.freehand-fit-circle')).toBeVisible();
+  await expect(page.locator('.freehand-closure-gap')).toBeVisible();
+  await expect(page.locator('.freehand-join-tangent')).toHaveCount(2);
+  await expect(page.getByText('Join')).toBeVisible();
+  await expect(page.getByText(/\d+ deg/)).toBeVisible();
 
   await expect(page.getByText(/Draw one circle in the field/i)).toBeVisible({
     timeout: 2500,
@@ -207,6 +215,7 @@ test('straight line drill scores a drawn stroke and auto-clears', async ({
 
   await expect(page.getByText(/Straightness \d+\.\d/)).toBeVisible();
   await expect(page.locator('.freehand-fit-line')).toBeVisible();
+  await expect(page.locator('.freehand-closure-gap')).toBeHidden();
 
   await expect(
     page.getByText(/Draw one straight line in the field/i),
