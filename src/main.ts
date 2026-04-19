@@ -34,6 +34,12 @@ function navigate(next: AppState): void {
 
   const exercise = getExerciseById(state.exerciseId);
 
+  if (!exercise.implemented) {
+    console.error(`Exercise "${state.exerciseId}" is not implemented; falling back to list.`);
+    navigate({ screen: 'list' });
+    return;
+  }
+
   const { source } = state;
 
   if (exercise.kind === 'single-mark') {

@@ -38,8 +38,8 @@ describe('fitCircle', () => {
   it('does not produce NaN or throw on near-collinear points', () => {
     // Points nearly along y=0 — ill-conditioned for circle fitting
     const pts = Array.from({ length: 20 }, (_, i) => ({ x: i * 10, y: i * 0.01 }));
-    let result: ReturnType<typeof fitCircle> = undefined as any;
-    expect(() => { result = fitCircle(pts); }).not.toThrow();
+    expect(() => fitCircle(pts)).not.toThrow();
+    const result = fitCircle(pts);
     if (result !== null) {
       expect(Number.isFinite(result.center.x)).toBe(true);
       expect(Number.isFinite(result.center.y)).toBe(true);

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { EXERCISES, getExerciseById, getAutoExercise } from './catalog';
+import type { ExerciseId } from './catalog';
 import type { ProgressStore } from '../storage/progress';
 
 function emptyProgress(): ProgressStore {
@@ -15,7 +16,7 @@ describe('EXERCISES registry', () => {
   });
 
   it('getExerciseById throws for unknown id', () => {
-    expect(() => getExerciseById('not-a-real-id' as any)).toThrow();
+    expect(() => getExerciseById('not-a-real-id' as ExerciseId)).toThrow();
   });
 
   it('no duplicate ids', () => {

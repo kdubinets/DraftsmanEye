@@ -37,7 +37,6 @@ type ExerciseBase = {
   family: string;
   label: string;
   description: string;
-  implemented: boolean;
 };
 
 export type SingleMarkTrial = {
@@ -69,11 +68,13 @@ export type SingleMarkTrialResult = {
 };
 
 export type SingleMarkExerciseDefinition = ExerciseBase & {
+  implemented: true;
   kind: 'single-mark';
   createTrial: () => SingleMarkTrial;
 };
 
 export type FreehandExerciseDefinition = ExerciseBase & {
+  implemented: true;
   kind:
     | 'freehand-line'
     | 'freehand-circle'
@@ -86,9 +87,14 @@ export type FreehandExerciseDefinition = ExerciseBase & {
     | 'trace-ellipse';
 };
 
+export type UnimplementedExerciseDefinition = ExerciseBase & {
+  implemented: false;
+};
+
 export type ExerciseDefinition =
   | SingleMarkExerciseDefinition
-  | FreehandExerciseDefinition;
+  | FreehandExerciseDefinition
+  | UnimplementedExerciseDefinition;
 
 export const EXERCISES: ExerciseDefinition[] = [
   {
@@ -359,28 +365,13 @@ function placeholderExercise(
   family: string,
   label: string,
   description: string,
-): SingleMarkExerciseDefinition {
+): UnimplementedExerciseDefinition {
   return {
     id,
     family,
     label,
     description,
     implemented: false,
-    kind: 'single-mark',
-    createTrial: () => ({
-      label,
-      prompt: 'This drill is not implemented yet.',
-      viewport: { width: 760, height: 320 },
-      line: {
-        axis: 'horizontal',
-        anchorX: 0,
-        anchorY: 160,
-        startScalar: 180,
-        endScalar: 580,
-      },
-      scoreSelection: (placedScalar) =>
-        scoreSelection(placedScalar, 380, 400, 'horizontal'),
-    }),
   };
 }
 
