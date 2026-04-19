@@ -54,7 +54,10 @@ function renderApp(): void {
   if (
     exercise.kind === 'freehand-line' ||
     exercise.kind === 'freehand-circle' ||
-    exercise.kind === 'freehand-ellipse'
+    exercise.kind === 'freehand-ellipse' ||
+    exercise.kind === 'target-line-two-points' ||
+    exercise.kind === 'target-circle-center-point' ||
+    exercise.kind === 'target-circle-three-points'
   ) {
     appRoot.append(renderFreehandExerciseScreen(exercise, state.source));
     return;
@@ -219,6 +222,14 @@ type FreehandLineResult = {
   fitEnd: { x: number; y: number };
 };
 
+type FreehandTargetLineResult = Omit<FreehandLineResult, 'kind'> & {
+  kind: 'target-line';
+  target: TargetLine;
+  startErrorPixels: number;
+  endErrorPixels: number;
+  angleErrorDegrees: number;
+};
+
 type FreehandCircleResult = {
   kind: 'circle';
   score: number;
@@ -230,6 +241,13 @@ type FreehandCircleResult = {
   radius: number;
   closureGapPixels: number;
   joinAngleDegrees: number;
+};
+
+type FreehandTargetCircleResult = Omit<FreehandCircleResult, 'kind'> & {
+  kind: 'target-circle';
+  target: TargetCircle;
+  centerErrorPixels: number;
+  radiusErrorPixels: number;
 };
 
 type FreehandEllipseResult = {
@@ -249,13 +267,32 @@ type FreehandEllipseResult = {
 
 type FreehandResult =
   | FreehandLineResult
+  | FreehandTargetLineResult
   | FreehandCircleResult
+  | FreehandTargetCircleResult
   | FreehandEllipseResult;
+
+type FreehandTarget = TargetLine | TargetCircle;
+
+type TargetLine = {
+  kind: 'line';
+  start: { x: number; y: number };
+  end: { x: number; y: number };
+};
+
+type TargetCircle = {
+  kind: 'circle';
+  center: { x: number; y: number };
+  radius: number;
+  marks: { x: number; y: number }[];
+  showCenter: boolean;
+};
 
 type FreehandAttemptSnapshot = {
   id: number;
   points: FreehandPoint[];
   result: FreehandResult;
+  target: FreehandTarget | null;
 };
 
 function renderFreehandExerciseScreen(
@@ -268,10 +305,16 @@ function renderFreehandExerciseScreen(
   let result: FreehandResult | null = null;
   let resetTimer: number | null = null;
   let nextAttemptId = 1;
+  let target = createFreehandTarget(exercise.kind);
   const attempts: FreehandAttemptSnapshot[] = [];
   const maxAttempts = 36;
   const isCircleExercise = exercise.kind === 'freehand-circle';
   const isEllipseExercise = exercise.kind === 'freehand-ellipse';
+  const isClosedShapeExercise =
+    isCircleExercise ||
+    isEllipseExercise ||
+    exercise.kind === 'target-circle-center-point' ||
+    exercise.kind === 'target-circle-three-points';
 
   const screen = pageShell();
   const header = exerciseHeader(exercise, source);
@@ -335,7 +378,7 @@ function renderFreehandExerciseScreen(
   const historyGrid = document.createElement('div');
   historyGrid.className = 'freehand-history-grid';
   historyGrid.dataset.testid = 'freehand-history';
-  historyGrid.dataset.variant = isCircleExercise || isEllipseExercise ? 'closed' : 'line';
+  historyGrid.dataset.variant = isClosedShapeExercise ? 'closed' : 'line';
 
   const historyEmpty = document.createElement('p');
   historyEmpty.className = 'freehand-history-empty';
@@ -347,14 +390,7 @@ function renderFreehandExerciseScreen(
   svg.setAttribute('class', 'freehand-canvas');
   svg.setAttribute('viewBox', '0 0 1000 620');
   svg.setAttribute('role', 'img');
-  svg.setAttribute(
-    'aria-label',
-    isCircleExercise
-      ? 'Circle drawing field'
-      : isEllipseExercise
-        ? 'Ellipse drawing field'
-        : 'Straight line drawing field',
-  );
+  svg.setAttribute('aria-label', freehandCanvasLabel(exercise.kind));
   svg.dataset.testid = 'freehand-canvas';
 
   const frame = createSvg('rect');
@@ -364,6 +400,10 @@ function renderFreehandExerciseScreen(
   frame.setAttribute('height', '618');
   frame.setAttribute('rx', '18');
   frame.setAttribute('class', 'canvas-frame');
+
+  const targetLayer = createSvg('g');
+  targetLayer.setAttribute('class', 'freehand-target-layer');
+  renderFreehandTargetMarks(targetLayer, target);
 
   const userStroke = createSvg('path');
   userStroke.setAttribute('class', 'freehand-user-stroke');
@@ -394,6 +434,7 @@ function renderFreehandExerciseScreen(
 
   svg.append(
     frame,
+    targetLayer,
     fittedLine,
     fittedCircle,
     fittedEllipse,
@@ -456,7 +497,7 @@ function renderFreehandExerciseScreen(
   return screen;
 
   function revealFreehandResult(): void {
-    const nextResult = scoreFreehandStroke(exercise.kind, points);
+    const nextResult = scoreFreehandStroke(exercise.kind, points, target);
     if (!nextResult) {
       points = [];
       userStroke.removeAttribute('d');
@@ -470,6 +511,7 @@ function renderFreehandExerciseScreen(
       id: nextAttemptId,
       points: points.map((point) => ({ ...point })),
       result,
+      target,
     });
     nextAttemptId += 1;
     if (attempts.length > maxAttempts) {
@@ -491,7 +533,7 @@ function renderFreehandExerciseScreen(
       fittedCircle,
       fittedEllipse,
     );
-    if (result.kind !== 'line') {
+    if (isClosedFreehandResult(result)) {
       showClosedShapeMarkers(points, closureGap, startTangent, endTangent);
     }
 
@@ -522,8 +564,10 @@ function renderFreehandExerciseScreen(
       }
       points = [];
       result = null;
+      target = createFreehandTarget(exercise.kind);
       resetTimer = null;
       userStroke.removeAttribute('d');
+      renderFreehandTargetMarks(targetLayer, target);
       hideFreehandCorrectionElements(
         fittedLine,
         fittedCircle,
@@ -717,6 +761,12 @@ function freehandPromptText(kind: FreehandExerciseDefinition['kind']): string {
       return 'Draw one circle in the field.';
     case 'freehand-ellipse':
       return 'Draw one ellipse in the field.';
+    case 'target-line-two-points':
+      return 'Draw one straight line connecting the two marks.';
+    case 'target-circle-center-point':
+      return 'Draw a circle using the center and radius point.';
+    case 'target-circle-three-points':
+      return 'Draw a circle through the three marks.';
     case 'freehand-line':
       return 'Draw one straight line in the field.';
   }
@@ -728,8 +778,28 @@ function freehandReadyText(kind: FreehandExerciseDefinition['kind']): string {
       return 'Use Pencil, touch, or mouse to draw one circle.';
     case 'freehand-ellipse':
       return 'Use Pencil, touch, or mouse to draw one ellipse.';
+    case 'target-line-two-points':
+      return 'Use Pencil, touch, or mouse to connect the two marks.';
+    case 'target-circle-center-point':
+      return 'Use Pencil, touch, or mouse to draw the target circle.';
+    case 'target-circle-three-points':
+      return 'Use Pencil, touch, or mouse to pass through the three marks.';
     case 'freehand-line':
       return 'Use Pencil, touch, or mouse to draw one line.';
+  }
+}
+
+function freehandCanvasLabel(kind: FreehandExerciseDefinition['kind']): string {
+  switch (kind) {
+    case 'freehand-circle':
+    case 'target-circle-center-point':
+    case 'target-circle-three-points':
+      return 'Circle drawing field';
+    case 'freehand-ellipse':
+      return 'Ellipse drawing field';
+    case 'freehand-line':
+    case 'target-line-two-points':
+      return 'Straight line drawing field';
   }
 }
 
@@ -739,6 +809,11 @@ function freehandRetryText(kind: FreehandExerciseDefinition['kind']): string {
       return 'Stroke was too short. Draw a larger circle.';
     case 'freehand-ellipse':
       return 'Stroke was too short. Draw a larger ellipse.';
+    case 'target-line-two-points':
+      return 'Stroke was too short. Connect the two marks.';
+    case 'target-circle-center-point':
+    case 'target-circle-three-points':
+      return 'Stroke was too short. Draw a larger circle.';
     case 'freehand-line':
       return 'Stroke was too short. Draw a longer line.';
   }
@@ -748,25 +823,279 @@ function freehandScoreLabel(kind: FreehandResult['kind']): string {
   switch (kind) {
     case 'circle':
       return 'Roundness';
+    case 'target-circle':
+      return 'Target circle';
     case 'ellipse':
       return 'Ellipse fit';
+    case 'target-line':
+      return 'Target line';
     case 'line':
       return 'Straightness';
   }
 }
 
+function isClosedFreehandResult(result: FreehandResult): boolean {
+  return (
+    result.kind === 'circle' ||
+    result.kind === 'ellipse' ||
+    result.kind === 'target-circle'
+  );
+}
+
 function scoreFreehandStroke(
   kind: FreehandExerciseDefinition['kind'],
   points: FreehandPoint[],
+  target: FreehandTarget | null,
 ): FreehandResult | null {
   switch (kind) {
     case 'freehand-circle':
       return scoreFreehandCircle(points);
     case 'freehand-ellipse':
       return scoreFreehandEllipse(points);
+    case 'target-line-two-points':
+      return target?.kind === 'line' ? scoreTargetLine(points, target) : null;
+    case 'target-circle-center-point':
+    case 'target-circle-three-points':
+      return target?.kind === 'circle' ? scoreTargetCircle(points, target) : null;
     case 'freehand-line':
       return scoreFreehandLine(points);
   }
+}
+
+function createFreehandTarget(
+  kind: FreehandExerciseDefinition['kind'],
+): FreehandTarget | null {
+  switch (kind) {
+    case 'target-line-two-points':
+      return createTargetLine();
+    case 'target-circle-center-point':
+      return createTargetCircle(1);
+    case 'target-circle-three-points':
+      return createTargetCircle(3);
+    case 'freehand-circle':
+    case 'freehand-ellipse':
+    case 'freehand-line':
+      return null;
+  }
+}
+
+function createTargetLine(): TargetLine {
+  const length = randomRange(340, 520);
+  const angle = randomRange(-0.45, 0.45);
+  const center = {
+    x: randomRange(320, 680),
+    y: randomRange(210, 410),
+  };
+  const half = length / 2;
+
+  return {
+    kind: 'line',
+    start: {
+      x: center.x - Math.cos(angle) * half,
+      y: center.y - Math.sin(angle) * half,
+    },
+    end: {
+      x: center.x + Math.cos(angle) * half,
+      y: center.y + Math.sin(angle) * half,
+    },
+  };
+}
+
+function createTargetCircle(markCount: 1 | 3): TargetCircle {
+  const radius = randomRange(100, 170);
+  const center = {
+    x: randomRange(260 + radius, 740 - radius),
+    y: randomRange(120 + radius, 500 - radius),
+  };
+  const startAngle = randomRange(0, Math.PI * 2);
+  const marks =
+    markCount === 1
+      ? [pointOnCircle(center, radius, startAngle)]
+      : [0, 1, 2].map((index) =>
+          pointOnCircle(
+            center,
+            radius,
+            startAngle + index * ((Math.PI * 2) / 3) + randomRange(-0.24, 0.24),
+          ),
+        );
+
+  return { kind: 'circle', center, radius, marks, showCenter: markCount === 1 };
+}
+
+function renderFreehandTargetMarks(
+  targetLayer: SVGGElement,
+  target: FreehandTarget | null,
+): void {
+  targetLayer.replaceChildren();
+  if (!target) {
+    return;
+  }
+
+  appendFreehandTargetMarks(targetLayer, target);
+}
+
+function appendFreehandTargetMarks(
+  targetLayer: SVGGElement,
+  target: FreehandTarget,
+): void {
+
+  if (target.kind === 'line') {
+    targetLayer.append(
+      createTargetPlusMark(target.start, 'freehand-target-mark'),
+      createTargetPlusMark(target.end, 'freehand-target-mark'),
+    );
+    return;
+  }
+
+  if (target.showCenter) {
+    targetLayer.append(createTargetDotMark(target.center, 'freehand-target-center'));
+  }
+  targetLayer.append(
+    ...target.marks.map((mark) =>
+      createTargetPlusMark(mark, 'freehand-target-mark'),
+    ),
+  );
+}
+
+function createTargetPlusMark(
+  point: { x: number; y: number },
+  className: string,
+): SVGElement {
+  const group = createSvg('g');
+  group.setAttribute('class', className);
+
+  const horizontal = createSvg('line');
+  horizontal.setAttribute('x1', (point.x - 7).toFixed(2));
+  horizontal.setAttribute('y1', point.y.toFixed(2));
+  horizontal.setAttribute('x2', (point.x + 7).toFixed(2));
+  horizontal.setAttribute('y2', point.y.toFixed(2));
+
+  const vertical = createSvg('line');
+  vertical.setAttribute('x1', point.x.toFixed(2));
+  vertical.setAttribute('y1', (point.y - 7).toFixed(2));
+  vertical.setAttribute('x2', point.x.toFixed(2));
+  vertical.setAttribute('y2', (point.y + 7).toFixed(2));
+
+  group.append(horizontal, vertical);
+  return group;
+}
+
+function createTargetDotMark(
+  point: { x: number; y: number },
+  className: string,
+): SVGElement {
+  const dot = createSvg('circle');
+  dot.setAttribute('class', className);
+  dot.setAttribute('cx', point.x.toFixed(2));
+  dot.setAttribute('cy', point.y.toFixed(2));
+  dot.setAttribute('r', '4');
+  return dot;
+}
+
+function scoreTargetLine(
+  points: FreehandPoint[],
+  target: TargetLine,
+): FreehandTargetLineResult | null {
+  const lineResult = scoreFreehandLine(points);
+  if (!lineResult) {
+    return null;
+  }
+
+  const targetLength = distanceBetween(target.start, target.end);
+  const forwardStartError = distanceBetween(points[0], target.start);
+  const forwardEndError = distanceBetween(points[points.length - 1], target.end);
+  const reverseStartError = distanceBetween(points[0], target.end);
+  const reverseEndError = distanceBetween(points[points.length - 1], target.start);
+  const useForward =
+    forwardStartError + forwardEndError <= reverseStartError + reverseEndError;
+  const startErrorPixels = useForward ? forwardStartError : reverseEndError;
+  const endErrorPixels = useForward ? forwardEndError : reverseStartError;
+  const angleErrorDegrees = lineAngleDifferenceDegrees(
+    target.start,
+    target.end,
+    lineResult.fitStart,
+    lineResult.fitEnd,
+  );
+  const endpointPenalty =
+    ((startErrorPixels + endErrorPixels) / targetLength) * 120;
+  const anglePenalty = angleErrorDegrees * 0.65;
+  const score = clampNumber(
+    lineResult.score - endpointPenalty - anglePenalty,
+    0,
+    100,
+  );
+
+  return {
+    ...lineResult,
+    kind: 'target-line',
+    score,
+    target,
+    startErrorPixels,
+    endErrorPixels,
+    angleErrorDegrees,
+  };
+}
+
+function scoreTargetCircle(
+  points: FreehandPoint[],
+  target: TargetCircle,
+): FreehandTargetCircleResult | null {
+  const fit = fitCircle(points);
+  if (!fit || points.length < 12) {
+    return null;
+  }
+
+  let strokeLengthPixels = 0;
+  let totalErrorPixels = 0;
+  let maxErrorPixels = 0;
+  for (let index = 0; index < points.length; index += 1) {
+    if (index > 0) {
+      strokeLengthPixels += distanceBetween(points[index - 1], points[index]);
+    }
+    const radialError = Math.abs(distanceBetween(points[index], target.center) - target.radius);
+    totalErrorPixels += radialError;
+    maxErrorPixels = Math.max(maxErrorPixels, radialError);
+  }
+
+  if (strokeLengthPixels < 180) {
+    return null;
+  }
+
+  const meanErrorPixels = totalErrorPixels / points.length;
+  const closureGapPixels = distanceBetween(points[0], points[points.length - 1]);
+  const joinAngleDegrees = closedShapeJoinAngleDegrees(points) ?? 180;
+  const centerErrorPixels = distanceBetween(fit.center, target.center);
+  const radiusErrorPixels = Math.abs(fit.radius - target.radius);
+  const normalizedMeanError = meanErrorPixels / target.radius;
+  const normalizedMaxError = maxErrorPixels / target.radius;
+  const normalizedClosureGap = closureGapPixels / (Math.PI * 2 * target.radius);
+  const score = clampNumber(
+    100 -
+      (normalizedMeanError * 1150 +
+        normalizedMaxError * 160 +
+        (centerErrorPixels / target.radius) * 180 +
+        (radiusErrorPixels / target.radius) * 160 +
+        normalizedClosureGap * 360 +
+        joinAngleDegrees * 0.3),
+    0,
+    100,
+  );
+
+  return {
+    kind: 'target-circle',
+    score,
+    meanErrorPixels,
+    maxErrorPixels,
+    strokeLengthPixels,
+    pointCount: points.length,
+    center: fit.center,
+    radius: fit.radius,
+    closureGapPixels,
+    joinAngleDegrees,
+    target,
+    centerErrorPixels,
+    radiusErrorPixels,
+  };
 }
 
 function showClosedShapeMarkers(
@@ -829,7 +1158,18 @@ function applyFreehandCorrectionElements(
   fittedCircle: SVGCircleElement,
   fittedEllipse: SVGEllipseElement,
 ): void {
+  if (result.kind === 'target-line') {
+    fittedLine.setAttribute('x1', result.target.start.x.toFixed(2));
+    fittedLine.setAttribute('y1', result.target.start.y.toFixed(2));
+    fittedLine.setAttribute('x2', result.target.end.x.toFixed(2));
+    fittedLine.setAttribute('y2', result.target.end.y.toFixed(2));
+    fittedLine.classList.add('freehand-target-correction-line');
+    fittedLine.style.display = '';
+    return;
+  }
+
   if (result.kind === 'line') {
+    fittedLine.classList.remove('freehand-target-correction-line');
     fittedLine.setAttribute('x1', result.fitStart.x.toFixed(2));
     fittedLine.setAttribute('y1', result.fitStart.y.toFixed(2));
     fittedLine.setAttribute('x2', result.fitEnd.x.toFixed(2));
@@ -838,7 +1178,17 @@ function applyFreehandCorrectionElements(
     return;
   }
 
+  if (result.kind === 'target-circle') {
+    fittedCircle.setAttribute('cx', result.target.center.x.toFixed(2));
+    fittedCircle.setAttribute('cy', result.target.center.y.toFixed(2));
+    fittedCircle.setAttribute('r', result.target.radius.toFixed(2));
+    fittedCircle.classList.add('freehand-target-correction-circle');
+    fittedCircle.style.display = '';
+    return;
+  }
+
   if (result.kind === 'circle') {
+    fittedCircle.classList.remove('freehand-target-correction-circle');
     fittedCircle.setAttribute('cx', result.center.x.toFixed(2));
     fittedCircle.setAttribute('cy', result.center.y.toFixed(2));
     fittedCircle.setAttribute('r', result.radius.toFixed(2));
@@ -982,7 +1332,7 @@ function renderFreehandAttemptPreview(
   stroke.setAttribute('d', freehandPath(attempt.points));
   content.append(stroke);
 
-  if (showCorrections && attempt.result.kind !== 'line') {
+  if (showCorrections && isClosedFreehandResult(attempt.result)) {
     const closureGap = createSvg('line');
     closureGap.setAttribute('class', 'freehand-closure-gap');
     const startTangent = createSvg('line');
@@ -1004,6 +1354,21 @@ function appendFreehandCorrection(
 ): void {
   const classSuffix = isHistory ? ' freehand-history-correction' : '';
 
+  if (result.kind === 'target-line') {
+    const targetLine = createSvg('line');
+    targetLine.setAttribute(
+      'class',
+      `freehand-fit-line freehand-target-correction-line${classSuffix}`,
+    );
+    targetLine.setAttribute('x1', result.target.start.x.toFixed(2));
+    targetLine.setAttribute('y1', result.target.start.y.toFixed(2));
+    targetLine.setAttribute('x2', result.target.end.x.toFixed(2));
+    targetLine.setAttribute('y2', result.target.end.y.toFixed(2));
+    parent.append(targetLine);
+    appendFreehandTargetMarks(parent, result.target);
+    return;
+  }
+
   if (result.kind === 'line') {
     const fittedLine = createSvg('line');
     fittedLine.setAttribute('class', `freehand-fit-line${classSuffix}`);
@@ -1012,6 +1377,20 @@ function appendFreehandCorrection(
     fittedLine.setAttribute('x2', result.fitEnd.x.toFixed(2));
     fittedLine.setAttribute('y2', result.fitEnd.y.toFixed(2));
     parent.append(fittedLine);
+    return;
+  }
+
+  if (result.kind === 'target-circle') {
+    const targetCircle = createSvg('circle');
+    targetCircle.setAttribute(
+      'class',
+      `freehand-fit-circle freehand-target-correction-circle${classSuffix}`,
+    );
+    targetCircle.setAttribute('cx', result.target.center.x.toFixed(2));
+    targetCircle.setAttribute('cy', result.target.center.y.toFixed(2));
+    targetCircle.setAttribute('r', result.target.radius.toFixed(2));
+    parent.append(targetCircle);
+    appendFreehandTargetMarks(parent, result.target);
     return;
   }
 
@@ -1081,6 +1460,12 @@ function boundsForAttempt(attempt: FreehandAttemptSnapshot): {
     return bounds;
   }
 
+  if (attempt.result.kind === 'target-line') {
+    includePointInBounds(bounds, attempt.result.target.start);
+    includePointInBounds(bounds, attempt.result.target.end);
+    return bounds;
+  }
+
   if (attempt.result.kind === 'circle') {
     includePointInBounds(bounds, {
       x: attempt.result.center.x - attempt.result.radius,
@@ -1089,6 +1474,18 @@ function boundsForAttempt(attempt: FreehandAttemptSnapshot): {
     includePointInBounds(bounds, {
       x: attempt.result.center.x + attempt.result.radius,
       y: attempt.result.center.y + attempt.result.radius,
+    });
+    return bounds;
+  }
+
+  if (attempt.result.kind === 'target-circle') {
+    includePointInBounds(bounds, {
+      x: attempt.result.target.center.x - attempt.result.target.radius,
+      y: attempt.result.target.center.y - attempt.result.target.radius,
+    });
+    includePointInBounds(bounds, {
+      x: attempt.result.target.center.x + attempt.result.target.radius,
+      y: attempt.result.target.center.y + attempt.result.target.radius,
     });
     return bounds;
   }
@@ -2071,6 +2468,15 @@ function freehandResultStats(result: FreehandResult): HTMLElement[] {
       resultStat('Closure', `${Math.round(result.closureGapPixels)} px`),
       resultStat('Join', `${Math.round(result.joinAngleDegrees)} deg`),
     );
+  } else if (result.kind === 'target-circle') {
+    stats.splice(
+      3,
+      0,
+      resultStat('Center miss', `${Math.round(result.centerErrorPixels)} px`),
+      resultStat('Radius miss', `${Math.round(result.radiusErrorPixels)} px`),
+      resultStat('Closure', `${Math.round(result.closureGapPixels)} px`),
+      resultStat('Join', `${Math.round(result.joinAngleDegrees)} deg`),
+    );
   } else if (result.kind === 'ellipse') {
     stats.splice(
       3,
@@ -2079,6 +2485,14 @@ function freehandResultStats(result: FreehandResult): HTMLElement[] {
       resultStat('Minor', `${Math.round(result.minorRadius)} px`),
       resultStat('Closure', `${Math.round(result.closureGapPixels)} px`),
       resultStat('Join', `${Math.round(result.joinAngleDegrees)} deg`),
+    );
+  } else if (result.kind === 'target-line') {
+    stats.splice(
+      3,
+      0,
+      resultStat('Start miss', `${Math.round(result.startErrorPixels)} px`),
+      resultStat('End miss', `${Math.round(result.endErrorPixels)} px`),
+      resultStat('Angle miss', `${Math.round(result.angleErrorDegrees)} deg`),
     );
   }
 
@@ -2168,4 +2582,31 @@ function clampNumber(value: number, min: number, max: number): number {
 
 function radiansToDegrees(value: number): number {
   return (value * 180) / Math.PI;
+}
+
+function randomRange(min: number, max: number): number {
+  return min + Math.random() * (max - min);
+}
+
+function pointOnCircle(
+  center: { x: number; y: number },
+  radius: number,
+  angle: number,
+): { x: number; y: number } {
+  return {
+    x: center.x + Math.cos(angle) * radius,
+    y: center.y + Math.sin(angle) * radius,
+  };
+}
+
+function lineAngleDifferenceDegrees(
+  firstStart: { x: number; y: number },
+  firstEnd: { x: number; y: number },
+  secondStart: { x: number; y: number },
+  secondEnd: { x: number; y: number },
+): number {
+  const firstAngle = Math.atan2(firstEnd.y - firstStart.y, firstEnd.x - firstStart.x);
+  const secondAngle = Math.atan2(secondEnd.y - secondStart.y, secondEnd.x - secondStart.x);
+  const rawDifference = Math.abs(radiansToDegrees(firstAngle - secondAngle)) % 180;
+  return rawDifference > 90 ? 180 - rawDifference : rawDifference;
 }

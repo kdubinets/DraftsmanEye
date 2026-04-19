@@ -7,6 +7,9 @@ export type ExerciseId =
   | 'freehand-straight-line'
   | 'freehand-circle'
   | 'freehand-ellipse'
+  | 'target-line-two-points'
+  | 'target-circle-center-point'
+  | 'target-circle-three-points'
   | 'division-horizontal-halves'
   | 'division-horizontal-thirds'
   | 'division-horizontal-quarters'
@@ -68,7 +71,13 @@ export type SingleMarkExerciseDefinition = ExerciseBase & {
 };
 
 export type FreehandExerciseDefinition = ExerciseBase & {
-  kind: 'freehand-line' | 'freehand-circle' | 'freehand-ellipse';
+  kind:
+    | 'freehand-line'
+    | 'freehand-circle'
+    | 'freehand-ellipse'
+    | 'target-line-two-points'
+    | 'target-circle-center-point'
+    | 'target-circle-three-points';
 };
 
 export type ExerciseDefinition =
@@ -99,6 +108,30 @@ export const EXERCISES: ExerciseDefinition[] = [
     description: 'Draw one deliberate ellipse and compare it with its best fit.',
     implemented: true,
     kind: 'freehand-ellipse',
+  },
+  {
+    id: 'target-line-two-points',
+    family: 'Target Drawing',
+    label: 'Line Through Two Points',
+    description: 'Draw a straight line connecting the shown endpoint marks.',
+    implemented: true,
+    kind: 'target-line-two-points',
+  },
+  {
+    id: 'target-circle-center-point',
+    family: 'Target Drawing',
+    label: 'Circle From Center',
+    description: 'Draw a circle from the shown center and radius point.',
+    implemented: true,
+    kind: 'target-circle-center-point',
+  },
+  {
+    id: 'target-circle-three-points',
+    family: 'Target Drawing',
+    label: 'Circle Through Three Points',
+    description: 'Draw a circle passing through the three shown points.',
+    implemented: true,
+    kind: 'target-circle-three-points',
   },
   divisionExercise('division-horizontal-halves', 'horizontal', 2),
   divisionExercise('division-horizontal-thirds', 'horizontal', 3),

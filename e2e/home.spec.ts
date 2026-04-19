@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 
 test('home page lists drills and auto entry point', async ({ page }) => {
   await page.goto('/');
@@ -14,10 +14,19 @@ test('home page lists drills and auto entry point', async ({ page }) => {
     page.getByRole('heading', { level: 3, name: 'Straight Line' }),
   ).toBeVisible();
   await expect(
-    page.getByRole('heading', { level: 3, name: 'Circle' }),
+    page.getByRole('heading', { level: 3, name: 'Circle', exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole('heading', { level: 3, name: 'Ellipse' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('heading', { level: 3, name: 'Line Through Two Points' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('heading', { level: 3, name: 'Circle From Center' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('heading', { level: 3, name: 'Circle Through Three Points' }),
   ).toBeVisible();
   await expect(
     page.getByRole('heading', { level: 3, name: 'Horizontal Thirds' }),
@@ -52,7 +61,7 @@ test('home page lists drills and auto entry point', async ({ page }) => {
       name: 'Double Vertical on Horizontal',
     }),
   ).toBeVisible();
-  await expect(page.getByText('No score yet')).toHaveCount(11);
+  await expect(page.getByText('No score yet')).toHaveCount(14);
   await expect(page.getByRole('button', { name: 'Comming' })).toHaveCount(8);
   await expect(
     page
@@ -65,6 +74,126 @@ test('home page lists drills and auto entry point', async ({ page }) => {
       })
       .getByRole('button', { name: 'Comming' }),
   ).toBeDisabled();
+});
+
+test('target line drill scores a stroke connecting two marks', async ({ page }) => {
+  await page.goto('/');
+
+  await page
+    .getByRole('article')
+    .filter({
+      has: page.getByRole('heading', {
+        level: 3,
+        name: 'Line Through Two Points',
+      }),
+    })
+    .getByRole('button', { name: 'Practice' })
+    .click();
+
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Line Through Two Points' }),
+  ).toBeVisible();
+
+  const marks = page
+    .getByTestId('freehand-canvas')
+    .locator('.freehand-target-mark');
+  await expect(marks).toHaveCount(2);
+  const start = await targetPlusCenter(marks.nth(0));
+  const end = await targetPlusCenter(marks.nth(1));
+
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  for (let index = 1; index <= 8; index += 1) {
+    const ratio = index / 8;
+    await page.mouse.move(
+      start.x + (end.x - start.x) * ratio,
+      start.y + (end.y - start.y) * ratio,
+    );
+  }
+  await page.mouse.up();
+
+  await expect(page.getByText(/Target line \d+\.\d/)).toBeVisible();
+  await expect(page.getByText('Start miss')).toBeVisible();
+  await expect(
+    page.getByTestId('freehand-canvas').locator('.freehand-target-correction-line'),
+  ).toBeVisible();
+  await expect(page.locator('.freehand-history-item')).toHaveCount(1);
+});
+
+test('target circle drill scores a circle from center and radius point', async ({
+  page,
+}) => {
+  await page.goto('/');
+
+  await page
+    .getByRole('article')
+    .filter({
+      has: page.getByRole('heading', { level: 3, name: 'Circle From Center' }),
+    })
+    .getByRole('button', { name: 'Practice' })
+    .click();
+
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Circle From Center' }),
+  ).toBeVisible();
+
+  const canvas = page.getByTestId('freehand-canvas');
+  const center = await locatorCenter(canvas.locator('.freehand-target-center'));
+  const radiusPoint = await targetPlusCenter(
+    canvas.locator('.freehand-target-mark').first(),
+  );
+  const radius = Math.hypot(radiusPoint.x - center.x, radiusPoint.y - center.y);
+
+  await drawCircle(page, center, radius, 40);
+
+  await expect(page.getByText(/Target circle \d+\.\d/)).toBeVisible();
+  await expect(page.getByText('Center miss')).toBeVisible();
+  await expect(
+    canvas.locator('.freehand-target-correction-circle'),
+  ).toBeVisible();
+  await expect(page.locator('.freehand-history-item')).toHaveCount(1);
+});
+
+test('target circle drill scores a circle through three points', async ({
+  page,
+}) => {
+  await page.goto('/');
+
+  await page
+    .getByRole('article')
+    .filter({
+      has: page.getByRole('heading', {
+        level: 3,
+        name: 'Circle Through Three Points',
+      }),
+    })
+    .getByRole('button', { name: 'Practice' })
+    .click();
+
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Circle Through Three Points' }),
+  ).toBeVisible();
+
+  const marks = page
+    .getByTestId('freehand-canvas')
+    .locator('.freehand-target-mark');
+  await expect(marks).toHaveCount(3);
+  await expect(
+    page.getByTestId('freehand-canvas').locator('.freehand-target-center'),
+  ).toHaveCount(0);
+  const first = await targetPlusCenter(marks.nth(0));
+  const second = await targetPlusCenter(marks.nth(1));
+  const third = await targetPlusCenter(marks.nth(2));
+  const circle = circleThroughPoints(first, second, third);
+
+  await drawCircle(page, circle.center, circle.radius, 40);
+
+  await expect(page.getByText(/Target circle \d+\.\d/)).toBeVisible();
+  await expect(page.getByText('Radius miss')).toBeVisible();
+  await expect(
+    page.getByTestId('freehand-canvas').locator('.freehand-target-correction-circle'),
+  ).toBeVisible();
+  await expect(page.locator('.freehand-history-item')).toHaveCount(1);
 });
 
 test('ellipse drill scores a drawn stroke and auto-clears', async ({ page }) => {
@@ -159,7 +288,11 @@ test('circle drill scores a drawn stroke and auto-clears', async ({ page }) => {
   await page
     .getByRole('article')
     .filter({
-      has: page.getByRole('heading', { level: 3, name: 'Circle' }),
+      has: page.getByRole('heading', {
+        level: 3,
+        name: 'Circle',
+        exact: true,
+      }),
     })
     .getByRole('button', { name: 'Practice' })
     .click();
@@ -356,3 +489,90 @@ test('vertical thirds drill can be completed', async ({ page }) => {
   }
   expect(resultLineBox.x).toBeCloseTo(lineXBeforeResult, 1);
 });
+
+async function locatorCenter(locator: Locator): Promise<{
+  x: number;
+  y: number;
+}> {
+  const box = await locator.boundingBox();
+  if (!box) {
+    throw new Error('Expected locator to have a bounding box.');
+  }
+
+  return {
+    x: box.x + box.width / 2,
+    y: box.y + box.height / 2,
+  };
+}
+
+async function targetPlusCenter(locator: Locator): Promise<{
+  x: number;
+  y: number;
+}> {
+  const horizontal = locator.locator('line').first();
+  const x1 = Number(await horizontal.getAttribute('x1'));
+  const x2 = Number(await horizontal.getAttribute('x2'));
+  const y = Number(await horizontal.getAttribute('y1'));
+  if (!Number.isFinite(x1) || !Number.isFinite(x2) || !Number.isFinite(y)) {
+    throw new Error('Expected target plus mark to expose line coordinates.');
+  }
+
+  return {
+    x: (x1 + x2) / 2,
+    y,
+  };
+}
+
+async function drawCircle(
+  page: Page,
+  center: { x: number; y: number },
+  radius: number,
+  steps: number,
+): Promise<void> {
+  await page.mouse.move(center.x + radius, center.y);
+  await page.mouse.down();
+  for (let index = 1; index <= steps; index += 1) {
+    const angle = (Math.PI * 2 * index) / steps;
+    await page.mouse.move(
+      center.x + Math.cos(angle) * radius,
+      center.y + Math.sin(angle) * radius,
+    );
+  }
+  await page.mouse.up();
+}
+
+function circleThroughPoints(
+  first: { x: number; y: number },
+  second: { x: number; y: number },
+  third: { x: number; y: number },
+): { center: { x: number; y: number }; radius: number } {
+  const determinant =
+    2 *
+    (first.x * (second.y - third.y) +
+      second.x * (third.y - first.y) +
+      third.x * (first.y - second.y));
+  if (Math.abs(determinant) < 0.001) {
+    throw new Error('Expected target points to define a circle.');
+  }
+
+  const firstSquared = first.x * first.x + first.y * first.y;
+  const secondSquared = second.x * second.x + second.y * second.y;
+  const thirdSquared = third.x * third.x + third.y * third.y;
+  const center = {
+    x:
+      (firstSquared * (second.y - third.y) +
+        secondSquared * (third.y - first.y) +
+        thirdSquared * (first.y - second.y)) /
+      determinant,
+    y:
+      (firstSquared * (third.x - second.x) +
+        secondSquared * (first.x - third.x) +
+        thirdSquared * (second.x - first.x)) /
+      determinant,
+  };
+
+  return {
+    center,
+    radius: Math.hypot(first.x - center.x, first.y - center.y),
+  };
+}
