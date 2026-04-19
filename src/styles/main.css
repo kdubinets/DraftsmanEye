@@ -240,6 +240,13 @@ button {
   vector-effect: non-scaling-stroke;
 }
 
+.freehand-fit-circle {
+  fill: none;
+  stroke: #2f7d5d;
+  stroke-width: 3.5;
+  vector-effect: non-scaling-stroke;
+}
+
 .exercise-canvas[data-axis='vertical'] {
   height: min(68vh, 640px);
   min-height: 520px;

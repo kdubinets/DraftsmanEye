@@ -51,12 +51,17 @@ function renderApp(): void {
   }
 
   const exercise = getExerciseById(state.exerciseId);
-  if (exercise.kind === 'freehand-line') {
-    appRoot.append(renderFreehandLineExerciseScreen(exercise, state.source));
+  if (exercise.kind === 'freehand-line' || exercise.kind === 'freehand-circle') {
+    appRoot.append(renderFreehandExerciseScreen(exercise, state.source));
     return;
   }
 
-  appRoot.append(renderSingleMarkExerciseScreen(exercise, state.source));
+  if (exercise.kind === 'single-mark') {
+    appRoot.append(renderSingleMarkExerciseScreen(exercise, state.source));
+    return;
+  }
+
+  throw new Error(`Unsupported exercise kind: ${String(exercise)}`);
 }
 
 function renderListScreen(): HTMLElement {
@@ -200,6 +205,7 @@ type FreehandPoint = {
 };
 
 type FreehandLineResult = {
+  kind: 'line';
   score: number;
   meanErrorPixels: number;
   maxErrorPixels: number;
@@ -209,15 +215,30 @@ type FreehandLineResult = {
   fitEnd: { x: number; y: number };
 };
 
-function renderFreehandLineExerciseScreen(
+type FreehandCircleResult = {
+  kind: 'circle';
+  score: number;
+  meanErrorPixels: number;
+  maxErrorPixels: number;
+  strokeLengthPixels: number;
+  pointCount: number;
+  center: { x: number; y: number };
+  radius: number;
+  closureGapPixels: number;
+};
+
+type FreehandResult = FreehandLineResult | FreehandCircleResult;
+
+function renderFreehandExerciseScreen(
   exercise: FreehandExerciseDefinition,
   source: 'direct' | 'auto',
 ): HTMLElement {
   const currentRender = renderVersion;
   let points: FreehandPoint[] = [];
   let drawingPointerId: number | null = null;
-  let result: FreehandLineResult | null = null;
+  let result: FreehandResult | null = null;
   let resetTimer: number | null = null;
+  const isCircleExercise = exercise.kind === 'freehand-circle';
 
   const screen = pageShell();
   const header = exerciseHeader(exercise, source);
@@ -229,7 +250,9 @@ function renderFreehandLineExerciseScreen(
 
   const prompt = document.createElement('p');
   prompt.className = 'exercise-prompt';
-  prompt.textContent = 'Draw one straight line in the field.';
+  prompt.textContent = isCircleExercise
+    ? 'Draw one circle in the field.'
+    : 'Draw one straight line in the field.';
 
   const fullscreenButton = actionButton('Fullscreen', () => {
     void toggleFreehandFullscreen(stage, fullscreenButton);
@@ -248,7 +271,9 @@ function renderFreehandLineExerciseScreen(
 
   const feedback = document.createElement('p');
   feedback.className = 'feedback-banner';
-  feedback.textContent = 'Use Pencil, touch, or mouse to draw one line.';
+  feedback.textContent = isCircleExercise
+    ? 'Use Pencil, touch, or mouse to draw one circle.'
+    : 'Use Pencil, touch, or mouse to draw one line.';
 
   const summary = document.createElement('div');
   summary.className = 'result-summary';
@@ -258,7 +283,10 @@ function renderFreehandLineExerciseScreen(
   svg.setAttribute('class', 'freehand-canvas');
   svg.setAttribute('viewBox', '0 0 1000 620');
   svg.setAttribute('role', 'img');
-  svg.setAttribute('aria-label', 'Straight line drawing field');
+  svg.setAttribute(
+    'aria-label',
+    isCircleExercise ? 'Circle drawing field' : 'Straight line drawing field',
+  );
   svg.dataset.testid = 'freehand-canvas';
 
   const frame = createSvg('rect');
@@ -276,7 +304,11 @@ function renderFreehandLineExerciseScreen(
   fittedLine.setAttribute('class', 'freehand-fit-line');
   fittedLine.style.display = 'none';
 
-  svg.append(frame, userStroke, fittedLine);
+  const fittedCircle = createSvg('circle');
+  fittedCircle.setAttribute('class', 'freehand-fit-circle');
+  fittedCircle.style.display = 'none';
+
+  svg.append(frame, userStroke, fittedLine, fittedCircle);
 
   svg.addEventListener('pointerdown', (event) => {
     if (drawingPointerId !== null || result) {
@@ -331,22 +363,35 @@ function renderFreehandLineExerciseScreen(
   return screen;
 
   function revealFreehandResult(): void {
-    const nextResult = scoreFreehandLine(points);
+    const nextResult = isCircleExercise
+      ? scoreFreehandCircle(points)
+      : scoreFreehandLine(points);
     if (!nextResult) {
       points = [];
       userStroke.removeAttribute('d');
-      feedback.textContent = 'Stroke was too short. Draw a longer line.';
+      feedback.textContent = isCircleExercise
+        ? 'Stroke was too short. Draw a larger circle.'
+        : 'Stroke was too short. Draw a longer line.';
       return;
     }
 
     result = nextResult;
     updateStoredProgress(exercise.id, result.score);
 
-    fittedLine.setAttribute('x1', result.fitStart.x.toFixed(2));
-    fittedLine.setAttribute('y1', result.fitStart.y.toFixed(2));
-    fittedLine.setAttribute('x2', result.fitEnd.x.toFixed(2));
-    fittedLine.setAttribute('y2', result.fitEnd.y.toFixed(2));
-    fittedLine.style.display = '';
+    if (result.kind === 'line') {
+      fittedLine.setAttribute('x1', result.fitStart.x.toFixed(2));
+      fittedLine.setAttribute('y1', result.fitStart.y.toFixed(2));
+      fittedLine.setAttribute('x2', result.fitEnd.x.toFixed(2));
+      fittedLine.setAttribute('y2', result.fitEnd.y.toFixed(2));
+      fittedLine.style.display = '';
+      fittedCircle.style.display = 'none';
+    } else {
+      fittedCircle.setAttribute('cx', result.center.x.toFixed(2));
+      fittedCircle.setAttribute('cy', result.center.y.toFixed(2));
+      fittedCircle.setAttribute('r', result.radius.toFixed(2));
+      fittedCircle.style.display = '';
+      fittedLine.style.display = 'none';
+    }
 
     const feedbackHue = feedbackHueForError(100 - result.score);
     const feedbackClass = feedbackBandClass(100 - result.score);
@@ -360,17 +405,27 @@ function renderFreehandLineExerciseScreen(
 
     feedback.textContent =
       `${feedbackLabel(100 - result.score)} · ` +
-      `Straightness ${result.score.toFixed(1)} · ` +
+      `${result.kind === 'circle' ? 'Roundness' : 'Straightness'} ${result.score.toFixed(1)} · ` +
       `Mean drift ${result.meanErrorPixels.toFixed(1)} px`;
 
-    summary.hidden = false;
-    summary.replaceChildren(
+    const resultStats = [
       resultStat('Score', result.score.toFixed(1)),
       resultStat('Mean drift', `${result.meanErrorPixels.toFixed(1)} px`),
       resultStat('Max drift', `${result.maxErrorPixels.toFixed(1)} px`),
       resultStat('Length', `${Math.round(result.strokeLengthPixels)} px`),
       resultStat('Samples', String(result.pointCount)),
-    );
+    ];
+    if (result.kind === 'circle') {
+      resultStats.splice(
+        3,
+        0,
+        resultStat('Radius', `${Math.round(result.radius)} px`),
+        resultStat('Closure', `${Math.round(result.closureGapPixels)} px`),
+      );
+    }
+
+    summary.hidden = false;
+    summary.replaceChildren(...resultStats);
 
     resetTimer = window.setTimeout(() => {
       if (renderVersion !== currentRender) {
@@ -381,10 +436,13 @@ function renderFreehandLineExerciseScreen(
       resetTimer = null;
       userStroke.removeAttribute('d');
       fittedLine.style.display = 'none';
+      fittedCircle.style.display = 'none';
       summary.hidden = true;
       feedback.removeAttribute('data-tone');
       summary.removeAttribute('data-tone');
-      feedback.textContent = 'Draw one straight line in the field.';
+      feedback.textContent = isCircleExercise
+        ? 'Draw one circle in the field.'
+        : 'Draw one straight line in the field.';
     }, 1500);
   }
 }
@@ -646,6 +704,7 @@ function scoreFreehandLine(
   );
 
   return {
+    kind: 'line',
     score,
     meanErrorPixels,
     maxErrorPixels,
@@ -660,6 +719,157 @@ function scoreFreehandLine(
       y: centroid.y + direction.y * maxProjection,
     },
   };
+}
+
+function scoreFreehandCircle(
+  points: FreehandPoint[],
+): FreehandCircleResult | null {
+  if (points.length < 12) {
+    return null;
+  }
+
+  let strokeLengthPixels = 0;
+  for (let index = 1; index < points.length; index += 1) {
+    strokeLengthPixels += distanceBetween(points[index - 1], points[index]);
+  }
+
+  if (strokeLengthPixels < 180) {
+    return null;
+  }
+
+  const fit = fitCircle(points);
+  if (!fit || fit.radius < 35 || fit.radius > 420) {
+    return null;
+  }
+
+  let totalErrorPixels = 0;
+  let maxErrorPixels = 0;
+  for (const point of points) {
+    const radiusAtPoint = distanceBetween(point, fit.center);
+    const radialError = Math.abs(radiusAtPoint - fit.radius);
+    totalErrorPixels += radialError;
+    maxErrorPixels = Math.max(maxErrorPixels, radialError);
+  }
+
+  const meanErrorPixels = totalErrorPixels / points.length;
+  const closureGapPixels = distanceBetween(points[0], points[points.length - 1]);
+  const normalizedMeanError = meanErrorPixels / fit.radius;
+  const normalizedMaxError = maxErrorPixels / fit.radius;
+  const normalizedClosureGap = closureGapPixels / (Math.PI * 2 * fit.radius);
+  const score = clampNumber(
+    100 -
+      (normalizedMeanError * 1200 +
+        normalizedMaxError * 180 +
+        normalizedClosureGap * 420),
+    0,
+    100,
+  );
+
+  return {
+    kind: 'circle',
+    score,
+    meanErrorPixels,
+    maxErrorPixels,
+    strokeLengthPixels,
+    pointCount: points.length,
+    center: fit.center,
+    radius: fit.radius,
+    closureGapPixels,
+  };
+}
+
+function fitCircle(
+  points: FreehandPoint[],
+): { center: { x: number; y: number }; radius: number } | null {
+  let sumX = 0;
+  let sumY = 0;
+  let sumXX = 0;
+  let sumYY = 0;
+  let sumXY = 0;
+  let sumXXXPlusXYY = 0;
+  let sumXXYPlusYYY = 0;
+  let sumSquaredRadius = 0;
+
+  for (const point of points) {
+    const xx = point.x * point.x;
+    const yy = point.y * point.y;
+    const squaredRadius = xx + yy;
+
+    sumX += point.x;
+    sumY += point.y;
+    sumXX += xx;
+    sumYY += yy;
+    sumXY += point.x * point.y;
+    sumXXXPlusXYY += point.x * squaredRadius;
+    sumXXYPlusYYY += point.y * squaredRadius;
+    sumSquaredRadius += squaredRadius;
+  }
+
+  const solution = solveThreeByThree(
+    [
+      [sumXX, sumXY, sumX],
+      [sumXY, sumYY, sumY],
+      [sumX, sumY, points.length],
+    ],
+    [-sumXXXPlusXYY, -sumXXYPlusYYY, -sumSquaredRadius],
+  );
+  if (!solution) {
+    return null;
+  }
+
+  const [linearX, linearY, constant] = solution;
+  const center = { x: -linearX / 2, y: -linearY / 2 };
+  const radiusSquared =
+    center.x * center.x + center.y * center.y - constant;
+
+  if (!Number.isFinite(radiusSquared) || radiusSquared <= 0) {
+    return null;
+  }
+
+  return {
+    center,
+    radius: Math.sqrt(radiusSquared),
+  };
+}
+
+function solveThreeByThree(
+  coefficients: [[number, number, number], [number, number, number], [number, number, number]],
+  constants: [number, number, number],
+): [number, number, number] | null {
+  const matrix = coefficients.map((row, index) => [...row, constants[index]]);
+
+  for (let column = 0; column < 3; column += 1) {
+    let pivotRow = column;
+    for (let row = column + 1; row < 3; row += 1) {
+      if (Math.abs(matrix[row][column]) > Math.abs(matrix[pivotRow][column])) {
+        pivotRow = row;
+      }
+    }
+
+    const pivot = matrix[pivotRow][column];
+    if (Math.abs(pivot) < 1e-9) {
+      return null;
+    }
+
+    [matrix[column], matrix[pivotRow]] = [matrix[pivotRow], matrix[column]];
+
+    for (let entry = column; entry < 4; entry += 1) {
+      matrix[column][entry] /= pivot;
+    }
+
+    for (let row = 0; row < 3; row += 1) {
+      if (row === column) {
+        continue;
+      }
+
+      const factor = matrix[row][column];
+      for (let entry = column; entry < 4; entry += 1) {
+        matrix[row][entry] -= factor * matrix[column][entry];
+      }
+    }
+  }
+
+  return [matrix[0][3], matrix[1][3], matrix[2][3]];
 }
 
 async function toggleFreehandFullscreen(

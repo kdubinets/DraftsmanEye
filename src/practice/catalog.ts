@@ -5,6 +5,7 @@ import type { StoredProgress } from '../storage/progress';
 
 export type ExerciseId =
   | 'freehand-straight-line'
+  | 'freehand-circle'
   | 'division-horizontal-halves'
   | 'division-horizontal-thirds'
   | 'division-horizontal-quarters'
@@ -66,7 +67,7 @@ export type SingleMarkExerciseDefinition = ExerciseBase & {
 };
 
 export type FreehandExerciseDefinition = ExerciseBase & {
-  kind: 'freehand-line';
+  kind: 'freehand-line' | 'freehand-circle';
 };
 
 export type ExerciseDefinition =
@@ -81,6 +82,14 @@ export const EXERCISES: ExerciseDefinition[] = [
     description: 'Draw one deliberate line and compare it with its best fit.',
     implemented: true,
     kind: 'freehand-line',
+  },
+  {
+    id: 'freehand-circle',
+    family: 'Freehand Control',
+    label: 'Circle',
+    description: 'Draw one deliberate circle and compare it with its best fit.',
+    implemented: true,
+    kind: 'freehand-circle',
   },
   divisionExercise('division-horizontal-halves', 'horizontal', 2),
   divisionExercise('division-horizontal-thirds', 'horizontal', 3),

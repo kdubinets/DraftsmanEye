@@ -14,6 +14,9 @@ test('home page lists drills and auto entry point', async ({ page }) => {
     page.getByRole('heading', { level: 3, name: 'Straight Line' }),
   ).toBeVisible();
   await expect(
+    page.getByRole('heading', { level: 3, name: 'Circle' }),
+  ).toBeVisible();
+  await expect(
     page.getByRole('heading', { level: 3, name: 'Horizontal Thirds' }),
   ).toBeVisible();
   await expect(
@@ -46,7 +49,7 @@ test('home page lists drills and auto entry point', async ({ page }) => {
       name: 'Double Vertical on Horizontal',
     }),
   ).toBeVisible();
-  await expect(page.getByText('No score yet')).toHaveCount(9);
+  await expect(page.getByText('No score yet')).toHaveCount(10);
   await expect(page.getByRole('button', { name: 'Comming' })).toHaveCount(8);
   await expect(
     page
@@ -59,6 +62,56 @@ test('home page lists drills and auto entry point', async ({ page }) => {
       })
       .getByRole('button', { name: 'Comming' }),
   ).toBeDisabled();
+});
+
+test('circle drill scores a drawn stroke and auto-clears', async ({ page }) => {
+  await page.goto('/');
+
+  await page
+    .getByRole('article')
+    .filter({
+      has: page.getByRole('heading', { level: 3, name: 'Circle' }),
+    })
+    .getByRole('button', { name: 'Practice' })
+    .click();
+
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Circle' }),
+  ).toBeVisible();
+
+  const canvasBox = await page
+    .locator('[data-testid="freehand-canvas"]')
+    .boundingBox();
+  if (!canvasBox) {
+    throw new Error('Expected freehand canvas to have a bounding box.');
+  }
+
+  const centerX = canvasBox.x + canvasBox.width / 2;
+  const centerY = canvasBox.y + canvasBox.height / 2;
+  const radius = Math.min(canvasBox.width, canvasBox.height) * 0.24;
+
+  await page.mouse.move(centerX + radius, centerY);
+  await page.mouse.down();
+  for (let index = 1; index <= 36; index += 1) {
+    const angle = (Math.PI * 2 * index) / 36;
+    await page.mouse.move(
+      centerX + Math.cos(angle) * radius,
+      centerY + Math.sin(angle) * radius,
+    );
+  }
+  await page.mouse.up();
+
+  await expect(page.getByText(/Roundness \d+\.\d/)).toBeVisible();
+  await expect(page.locator('.freehand-fit-circle')).toBeVisible();
+
+  await expect(page.getByText(/Draw one circle in the field/i)).toBeVisible({
+    timeout: 2500,
+  });
+
+  await page.getByRole('button', { name: 'Back to List' }).click();
+  await expect(
+    page.locator('.score-chip').filter({ hasText: /^\d+\.\d$/ }),
+  ).toHaveCount(1);
 });
 
 test('straight line drill scores a drawn stroke and auto-clears', async ({
