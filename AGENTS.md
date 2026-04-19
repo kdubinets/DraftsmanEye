@@ -12,13 +12,16 @@ The app is a **perceptual training tool**, not a drawing simulator. It should he
 
 ## Product Scope
 
-The MVP centers on three exercise families:
+The app covers four exercise families:
 
 - **Division** — divide a horizontal or vertical line into halves, thirds, quarters, or fifths
-- **Same-axis transfer** — copy or double a line length along a guide on the same axis
-- **Cross-axis transfer** — copy or double a line length across horizontal and vertical axes
+- **Freehand Control** — draw a straight line, circle, or ellipse freehand and compare it to the fitted ideal
+- **Target Drawing** — draw to explicit targets: a line through two points, or a circle from center+radius or three points
+- **Trace Control** — trace a faint guide shape (line, circle, ellipse) as accurately as possible
 
-These families train different skills and should be treated as distinct modes with separate statistics.
+Same-axis transfer and cross-axis transfer are planned but not yet implemented.
+
+These families train different perceptual and motor skills and should be treated as distinct modes with separate statistics.
 
 On app load, the main page should act as the practice index:
 
@@ -34,17 +37,17 @@ After each completed exercise, the user should be able to:
 
 ## Product Non-Goals
 
-Do not turn this app into a drawing simulator. The MVP should not include:
+The app trains visual judgment and freehand motor control, not full studio workflow. Do not include:
 
-- freehand drawing tools
-- pencil or brush simulation
+- pencil or brush simulation (pressure curves, texture, blending)
 - ruler simulation
-- random-angle exercises
 - account systems
 - cloud sync
 - social features
-- gamification clutter
+- gamification clutter (streaks-as-currency, XP, unlocks)
 - complex settings unrelated to the core drill loop
+
+Freehand drawing, target drawing, and trace drills **are** in scope — they are first-class exercise families, not non-goals.
 
 When in doubt, prefer a simpler interaction model that supports fast repetition.
 
@@ -85,24 +88,29 @@ The value of the app is the repetition-feedback loop, not architectural cleverne
 
 ## Interaction Model
 
-The default trial flow is:
+Two distinct trial flows exist:
 
+**Single-mark flow** (Division, Transfer):
 1. Show the main exercise list with scores and `Auto`
 2. User selects a drill directly, or chooses `Auto`
 3. App shows one exercise
-4. User places one mark
+4. User places one mark (click/tap)
 5. App commits the answer
 6. App reveals the placed mark, correct mark, visual error, and numeric error
 7. User chooses `Again`, `Back to List`, or `Auto Next`
 
-For MVP work:
+**Freehand/Target/Trace flow**:
+1. Same list and selection step
+2. App shows the exercise canvas (with guide marks for target/trace variants)
+3. User draws a stroke with pointer/stylus
+4. App fits the ideal shape, overlays the correction, shows numeric scores
+5. History thumbnail is appended; user can inspect past attempts
+6. User chooses `Again`, `Back to List`, or `Auto Next`
 
-- optimize for click or tap placement first
-- only add drag adjustment if it clearly improves the core flow
-- avoid multi-step editing or configuration flows
+For all flows:
 - keep the intended action visually obvious
-
-The challenge should come from perceptual judgment, not interface decoding.
+- avoid multi-step editing or configuration flows
+- the challenge should come from perceptual or motor judgment, not interface decoding
 
 ## Geometry and Scoring
 
@@ -212,11 +220,11 @@ There is no need for a global toast or notification system in the MVP unless the
 
 ## Testing
 
-Default test stance: prioritize end-to-end coverage of user-visible behavior.
+Default test stance: E2E for user-visible flows, unit tests for geometry and scoring.
 
-- Focus first on exercise flow, scoring correctness, feedback display, and statistics tracking
-- Test confusing or boundary-case user inputs before polishing happy paths
-- Add lower-level tests only if significant pure logic accumulates and they clearly improve confidence
+- **E2E (Playwright):** exercise flow, feedback display, statistics tracking, navigation
+- **Unit (vitest):** geometry fitting (`fitLine`, `fitCircle`, `fitEllipse`), scoring functions, band thresholds — these are non-trivial math with no observable UI surface; pin current outputs as golden values before any refactor
+- Test confusing or boundary-case inputs before polishing happy paths
 
 When writing tests, ask:
 

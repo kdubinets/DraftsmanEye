@@ -1,7 +1,7 @@
 /**
  * Defines selectable drills and their trial generation and scoring behavior.
  */
-import type { StoredProgress } from '../storage/progress';
+import type { ProgressStore } from '../storage/progress';
 
 export type ExerciseId =
   | 'freehand-straight-line'
@@ -235,26 +235,26 @@ export function getExerciseById(exerciseId: ExerciseId): ExerciseDefinition {
   return exercise;
 }
 
-export function getAutoExercise(progress: StoredProgress): ExerciseDefinition {
+export function getAutoExercise(progress: ProgressStore): ExerciseDefinition {
   const implementedExercises = EXERCISES.filter((exercise) => exercise.implemented);
   let selected = implementedExercises[0];
   let lowestScore = Number.POSITIVE_INFINITY;
   let lowestAttempts = Number.POSITIVE_INFINITY;
 
   for (const exercise of implementedExercises) {
-    const entry = progress[exercise.id];
+    const entry = progress.aggregates[exercise.id];
     const attempts = entry?.attempts ?? 0;
-    const emaScore = entry?.emaScore ?? 0;
+    const ema = entry?.ema ?? 0;
 
     if (attempts < lowestAttempts) {
       lowestAttempts = attempts;
-      lowestScore = emaScore;
+      lowestScore = ema;
       selected = exercise;
       continue;
     }
 
-    if (attempts === lowestAttempts && emaScore < lowestScore) {
-      lowestScore = emaScore;
+    if (attempts === lowestAttempts && ema < lowestScore) {
+      lowestScore = ema;
       selected = exercise;
     }
   }

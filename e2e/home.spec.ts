@@ -71,7 +71,7 @@ test('home page lists drills and auto entry point', async ({ page }) => {
     }),
   ).toBeVisible();
   await expect(page.getByText('No score yet')).toHaveCount(17);
-  await expect(page.getByRole('button', { name: 'Comming' })).toHaveCount(8);
+  await expect(page.getByRole('button', { name: 'Coming' })).toHaveCount(8);
   await expect(
     page
       .getByRole('article')
@@ -81,7 +81,7 @@ test('home page lists drills and auto entry point', async ({ page }) => {
           name: 'Double Horizontal on Horizontal',
         }),
       })
-      .getByRole('button', { name: 'Comming' }),
+      .getByRole('button', { name: 'Coming' }),
   ).toBeDisabled();
 });
 
