@@ -10,6 +10,9 @@ export type ExerciseId =
   | 'target-line-two-points'
   | 'target-circle-center-point'
   | 'target-circle-three-points'
+  | 'trace-line'
+  | 'trace-circle'
+  | 'trace-ellipse'
   | 'division-horizontal-halves'
   | 'division-horizontal-thirds'
   | 'division-horizontal-quarters'
@@ -77,7 +80,10 @@ export type FreehandExerciseDefinition = ExerciseBase & {
     | 'freehand-ellipse'
     | 'target-line-two-points'
     | 'target-circle-center-point'
-    | 'target-circle-three-points';
+    | 'target-circle-three-points'
+    | 'trace-line'
+    | 'trace-circle'
+    | 'trace-ellipse';
 };
 
 export type ExerciseDefinition =
@@ -132,6 +138,30 @@ export const EXERCISES: ExerciseDefinition[] = [
     description: 'Draw a circle passing through the three shown points.',
     implemented: true,
     kind: 'target-circle-three-points',
+  },
+  {
+    id: 'trace-line',
+    family: 'Trace Control',
+    label: 'Trace Line',
+    description: 'Trace the faint straight guide as accurately as possible.',
+    implemented: true,
+    kind: 'trace-line',
+  },
+  {
+    id: 'trace-circle',
+    family: 'Trace Control',
+    label: 'Trace Circle',
+    description: 'Trace the faint circle guide as accurately as possible.',
+    implemented: true,
+    kind: 'trace-circle',
+  },
+  {
+    id: 'trace-ellipse',
+    family: 'Trace Control',
+    label: 'Trace Ellipse',
+    description: 'Trace the faint ellipse guide as accurately as possible.',
+    implemented: true,
+    kind: 'trace-ellipse',
   },
   divisionExercise('division-horizontal-halves', 'horizontal', 2),
   divisionExercise('division-horizontal-thirds', 'horizontal', 3),

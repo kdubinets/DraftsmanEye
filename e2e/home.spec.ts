@@ -17,7 +17,7 @@ test('home page lists drills and auto entry point', async ({ page }) => {
     page.getByRole('heading', { level: 3, name: 'Circle', exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole('heading', { level: 3, name: 'Ellipse' }),
+    page.getByRole('heading', { level: 3, name: 'Ellipse', exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole('heading', { level: 3, name: 'Line Through Two Points' }),
@@ -27,6 +27,15 @@ test('home page lists drills and auto entry point', async ({ page }) => {
   ).toBeVisible();
   await expect(
     page.getByRole('heading', { level: 3, name: 'Circle Through Three Points' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('heading', { level: 3, name: 'Trace Line' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('heading', { level: 3, name: 'Trace Circle' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('heading', { level: 3, name: 'Trace Ellipse' }),
   ).toBeVisible();
   await expect(
     page.getByRole('heading', { level: 3, name: 'Horizontal Thirds' }),
@@ -61,7 +70,7 @@ test('home page lists drills and auto entry point', async ({ page }) => {
       name: 'Double Vertical on Horizontal',
     }),
   ).toBeVisible();
-  await expect(page.getByText('No score yet')).toHaveCount(14);
+  await expect(page.getByText('No score yet')).toHaveCount(17);
   await expect(page.getByRole('button', { name: 'Comming' })).toHaveCount(8);
   await expect(
     page
@@ -196,13 +205,174 @@ test('target circle drill scores a circle through three points', async ({
   await expect(page.locator('.freehand-history-item')).toHaveCount(1);
 });
 
+test('trace line drill scores a stroke against the faint guide', async ({
+  page,
+}) => {
+  await page.goto('/');
+
+  await page
+    .getByRole('article')
+    .filter({
+      has: page.getByRole('heading', { level: 3, name: 'Trace Line' }),
+    })
+    .getByRole('button', { name: 'Practice' })
+    .click();
+
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Trace Line' }),
+  ).toBeVisible();
+
+  const canvas = page.getByTestId('freehand-canvas');
+  const guide = canvas.locator('.freehand-trace-guide');
+  await expect(guide).toBeVisible();
+  const geometry = await guide.evaluate((line) => ({
+    start: {
+      x: Number(line.getAttribute('x1')),
+      y: Number(line.getAttribute('y1')),
+    },
+    end: {
+      x: Number(line.getAttribute('x2')),
+      y: Number(line.getAttribute('y2')),
+    },
+  }));
+  const points = await svgPointsToClient(page, [
+    geometry.start,
+    ...Array.from({ length: 7 }, (_, index) => {
+      const ratio = (index + 1) / 8;
+      return {
+        x: geometry.start.x + (geometry.end.x - geometry.start.x) * ratio,
+        y: geometry.start.y + (geometry.end.y - geometry.start.y) * ratio,
+      };
+    }),
+    geometry.end,
+  ]);
+
+  await drawPolyline(page, points);
+
+  await expect(page.getByText(/Target line \d+\.\d/)).toBeVisible();
+  await expect(canvas.locator('.freehand-target-correction-line')).toBeVisible();
+  await expect(canvas.locator('.freehand-target-mark')).toHaveCount(0);
+  await expect(page.locator('.freehand-history-item')).toHaveCount(1);
+});
+
+test('trace circle drill scores a stroke against the faint guide', async ({
+  page,
+}) => {
+  await page.goto('/');
+
+  await page
+    .getByRole('article')
+    .filter({
+      has: page.getByRole('heading', { level: 3, name: 'Trace Circle' }),
+    })
+    .getByRole('button', { name: 'Practice' })
+    .click();
+
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Trace Circle' }),
+  ).toBeVisible();
+
+  const canvas = page.getByTestId('freehand-canvas');
+  const guide = canvas.locator('.freehand-trace-guide');
+  await expect(guide).toBeVisible();
+  const geometry = await guide.evaluate((circle) => ({
+    center: {
+      x: Number(circle.getAttribute('cx')),
+      y: Number(circle.getAttribute('cy')),
+    },
+    radius: Number(circle.getAttribute('r')),
+  }));
+  const points = await svgPointsToClient(
+    page,
+    Array.from({ length: 41 }, (_, index) => {
+      const angle = (Math.PI * 2 * index) / 40;
+      return {
+        x: geometry.center.x + Math.cos(angle) * geometry.radius,
+        y: geometry.center.y + Math.sin(angle) * geometry.radius,
+      };
+    }),
+  );
+
+  await drawPolyline(page, points);
+
+  await expect(page.getByText(/Target circle \d+\.\d/)).toBeVisible();
+  await expect(page.getByText('Center miss')).toBeVisible();
+  await expect(canvas.locator('.freehand-target-correction-circle')).toBeVisible();
+  await expect(canvas.locator('.freehand-target-mark')).toHaveCount(0);
+  await expect(canvas.locator('.freehand-target-center')).toHaveCount(0);
+  await expect(page.locator('.freehand-history-item')).toHaveCount(1);
+});
+
+test('trace ellipse drill scores a stroke against the faint guide', async ({
+  page,
+}) => {
+  await page.goto('/');
+
+  await page
+    .getByRole('article')
+    .filter({
+      has: page.getByRole('heading', { level: 3, name: 'Trace Ellipse' }),
+    })
+    .getByRole('button', { name: 'Practice' })
+    .click();
+
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Trace Ellipse' }),
+  ).toBeVisible();
+
+  const canvas = page.getByTestId('freehand-canvas');
+  const guide = canvas.locator('.freehand-trace-guide');
+  await expect(guide).toBeVisible();
+  const geometry = await guide.evaluate((ellipse) => {
+    const transform = ellipse.getAttribute('transform') ?? '';
+    const rotationMatch = /rotate\(([-\d.]+)/.exec(transform);
+    return {
+      center: {
+        x: Number(ellipse.getAttribute('cx')),
+        y: Number(ellipse.getAttribute('cy')),
+      },
+      majorRadius: Number(ellipse.getAttribute('rx')),
+      minorRadius: Number(ellipse.getAttribute('ry')),
+      rotationRadians: rotationMatch
+        ? (Number(rotationMatch[1]) * Math.PI) / 180
+        : 0,
+    };
+  });
+  const cos = Math.cos(geometry.rotationRadians);
+  const sin = Math.sin(geometry.rotationRadians);
+  const points = await svgPointsToClient(
+    page,
+    Array.from({ length: 49 }, (_, index) => {
+      const angle = (Math.PI * 2 * index) / 48;
+      const localX = Math.cos(angle) * geometry.majorRadius;
+      const localY = Math.sin(angle) * geometry.minorRadius;
+      return {
+        x: geometry.center.x + localX * cos - localY * sin,
+        y: geometry.center.y + localX * sin + localY * cos,
+      };
+    }),
+  );
+
+  await drawPolyline(page, points);
+
+  await expect(page.getByText(/Target ellipse \d+\.\d/)).toBeVisible();
+  await expect(page.getByText('Major miss')).toBeVisible();
+  await expect(canvas.locator('.freehand-target-correction-ellipse')).toBeVisible();
+  await expect(canvas.locator('.freehand-target-mark')).toHaveCount(0);
+  await expect(page.locator('.freehand-history-item')).toHaveCount(1);
+});
+
 test('ellipse drill scores a drawn stroke and auto-clears', async ({ page }) => {
   await page.goto('/');
 
   await page
     .getByRole('article')
     .filter({
-      has: page.getByRole('heading', { level: 3, name: 'Ellipse' }),
+      has: page.getByRole('heading', {
+        level: 3,
+        name: 'Ellipse',
+        exact: true,
+      }),
     })
     .getByRole('button', { name: 'Practice' })
     .click();
@@ -521,6 +691,44 @@ async function targetPlusCenter(locator: Locator): Promise<{
     x: (x1 + x2) / 2,
     y,
   };
+}
+
+async function svgPointsToClient(
+  page: Page,
+  points: { x: number; y: number }[],
+): Promise<{ x: number; y: number }[]> {
+  return page.getByTestId('freehand-canvas').evaluate((svgElement, sourcePoints) => {
+    const svg = svgElement as SVGSVGElement;
+    const matrix = svg.getScreenCTM();
+    if (!matrix) {
+      throw new Error('Expected freehand canvas to have a screen transform.');
+    }
+
+    return sourcePoints.map((sourcePoint) => {
+      const point = svg.createSVGPoint();
+      point.x = sourcePoint.x;
+      point.y = sourcePoint.y;
+      const transformed = point.matrixTransform(matrix);
+      return { x: transformed.x, y: transformed.y };
+    });
+  }, points);
+}
+
+async function drawPolyline(
+  page: Page,
+  points: { x: number; y: number }[],
+): Promise<void> {
+  const [firstPoint, ...restPoints] = points;
+  if (!firstPoint) {
+    throw new Error('Expected at least one point to draw.');
+  }
+
+  await page.mouse.move(firstPoint.x, firstPoint.y);
+  await page.mouse.down();
+  for (const point of restPoints) {
+    await page.mouse.move(point.x, point.y);
+  }
+  await page.mouse.up();
 }
 
 async function drawCircle(

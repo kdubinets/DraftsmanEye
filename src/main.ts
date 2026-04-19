@@ -57,7 +57,10 @@ function renderApp(): void {
     exercise.kind === 'freehand-ellipse' ||
     exercise.kind === 'target-line-two-points' ||
     exercise.kind === 'target-circle-center-point' ||
-    exercise.kind === 'target-circle-three-points'
+    exercise.kind === 'target-circle-three-points' ||
+    exercise.kind === 'trace-line' ||
+    exercise.kind === 'trace-circle' ||
+    exercise.kind === 'trace-ellipse'
   ) {
     appRoot.append(renderFreehandExerciseScreen(exercise, state.source));
     return;
@@ -265,19 +268,30 @@ type FreehandEllipseResult = {
   joinAngleDegrees: number;
 };
 
+type FreehandTargetEllipseResult = Omit<FreehandEllipseResult, 'kind'> & {
+  kind: 'target-ellipse';
+  target: TargetEllipse;
+  centerErrorPixels: number;
+  majorRadiusErrorPixels: number;
+  minorRadiusErrorPixels: number;
+  rotationErrorDegrees: number;
+};
+
 type FreehandResult =
   | FreehandLineResult
   | FreehandTargetLineResult
   | FreehandCircleResult
   | FreehandTargetCircleResult
-  | FreehandEllipseResult;
+  | FreehandEllipseResult
+  | FreehandTargetEllipseResult;
 
-type FreehandTarget = TargetLine | TargetCircle;
+type FreehandTarget = TargetLine | TargetCircle | TargetEllipse;
 
 type TargetLine = {
   kind: 'line';
   start: { x: number; y: number };
   end: { x: number; y: number };
+  trace?: boolean;
 };
 
 type TargetCircle = {
@@ -286,6 +300,16 @@ type TargetCircle = {
   radius: number;
   marks: { x: number; y: number }[];
   showCenter: boolean;
+  trace?: boolean;
+};
+
+type TargetEllipse = {
+  kind: 'ellipse';
+  center: { x: number; y: number };
+  majorRadius: number;
+  minorRadius: number;
+  rotationRadians: number;
+  trace?: boolean;
 };
 
 type FreehandAttemptSnapshot = {
@@ -314,7 +338,9 @@ function renderFreehandExerciseScreen(
     isCircleExercise ||
     isEllipseExercise ||
     exercise.kind === 'target-circle-center-point' ||
-    exercise.kind === 'target-circle-three-points';
+    exercise.kind === 'target-circle-three-points' ||
+    exercise.kind === 'trace-circle' ||
+    exercise.kind === 'trace-ellipse';
 
   const screen = pageShell();
   const header = exerciseHeader(exercise, source);
@@ -767,6 +793,12 @@ function freehandPromptText(kind: FreehandExerciseDefinition['kind']): string {
       return 'Draw a circle using the center and radius point.';
     case 'target-circle-three-points':
       return 'Draw a circle through the three marks.';
+    case 'trace-line':
+      return 'Trace the faint straight guide.';
+    case 'trace-circle':
+      return 'Trace the faint circle guide.';
+    case 'trace-ellipse':
+      return 'Trace the faint ellipse guide.';
     case 'freehand-line':
       return 'Draw one straight line in the field.';
   }
@@ -784,6 +816,10 @@ function freehandReadyText(kind: FreehandExerciseDefinition['kind']): string {
       return 'Use Pencil, touch, or mouse to draw the target circle.';
     case 'target-circle-three-points':
       return 'Use Pencil, touch, or mouse to pass through the three marks.';
+    case 'trace-line':
+    case 'trace-circle':
+    case 'trace-ellipse':
+      return 'Use Pencil, touch, or mouse to trace the faint guide.';
     case 'freehand-line':
       return 'Use Pencil, touch, or mouse to draw one line.';
   }
@@ -794,11 +830,14 @@ function freehandCanvasLabel(kind: FreehandExerciseDefinition['kind']): string {
     case 'freehand-circle':
     case 'target-circle-center-point':
     case 'target-circle-three-points':
+    case 'trace-circle':
       return 'Circle drawing field';
     case 'freehand-ellipse':
+    case 'trace-ellipse':
       return 'Ellipse drawing field';
     case 'freehand-line':
     case 'target-line-two-points':
+    case 'trace-line':
       return 'Straight line drawing field';
   }
 }
@@ -813,7 +852,12 @@ function freehandRetryText(kind: FreehandExerciseDefinition['kind']): string {
       return 'Stroke was too short. Connect the two marks.';
     case 'target-circle-center-point':
     case 'target-circle-three-points':
+    case 'trace-circle':
       return 'Stroke was too short. Draw a larger circle.';
+    case 'trace-ellipse':
+      return 'Stroke was too short. Draw a larger ellipse.';
+    case 'trace-line':
+      return 'Stroke was too short. Trace more of the line.';
     case 'freehand-line':
       return 'Stroke was too short. Draw a longer line.';
   }
@@ -825,6 +869,8 @@ function freehandScoreLabel(kind: FreehandResult['kind']): string {
       return 'Roundness';
     case 'target-circle':
       return 'Target circle';
+    case 'target-ellipse':
+      return 'Target ellipse';
     case 'ellipse':
       return 'Ellipse fit';
     case 'target-line':
@@ -838,7 +884,8 @@ function isClosedFreehandResult(result: FreehandResult): boolean {
   return (
     result.kind === 'circle' ||
     result.kind === 'ellipse' ||
-    result.kind === 'target-circle'
+    result.kind === 'target-circle' ||
+    result.kind === 'target-ellipse'
   );
 }
 
@@ -853,10 +900,14 @@ function scoreFreehandStroke(
     case 'freehand-ellipse':
       return scoreFreehandEllipse(points);
     case 'target-line-two-points':
+    case 'trace-line':
       return target?.kind === 'line' ? scoreTargetLine(points, target) : null;
     case 'target-circle-center-point':
     case 'target-circle-three-points':
+    case 'trace-circle':
       return target?.kind === 'circle' ? scoreTargetCircle(points, target) : null;
+    case 'trace-ellipse':
+      return target?.kind === 'ellipse' ? scoreTargetEllipse(points, target) : null;
     case 'freehand-line':
       return scoreFreehandLine(points);
   }
@@ -868,10 +919,16 @@ function createFreehandTarget(
   switch (kind) {
     case 'target-line-two-points':
       return createTargetLine();
+    case 'trace-line':
+      return { ...createTargetLine(), trace: true };
     case 'target-circle-center-point':
       return createTargetCircle(1);
     case 'target-circle-three-points':
       return createTargetCircle(3);
+    case 'trace-circle':
+      return createTraceCircle();
+    case 'trace-ellipse':
+      return createTraceEllipse();
     case 'freehand-circle':
     case 'freehand-ellipse':
     case 'freehand-line':
@@ -922,6 +979,39 @@ function createTargetCircle(markCount: 1 | 3): TargetCircle {
   return { kind: 'circle', center, radius, marks, showCenter: markCount === 1 };
 }
 
+function createTraceCircle(): TargetCircle {
+  const radius = randomRange(105, 180);
+  return {
+    kind: 'circle',
+    center: {
+      x: randomRange(260 + radius, 740 - radius),
+      y: randomRange(120 + radius, 500 - radius),
+    },
+    radius,
+    marks: [],
+    showCenter: false,
+    trace: true,
+  };
+}
+
+function createTraceEllipse(): TargetEllipse {
+  const majorRadius = randomRange(150, 240);
+  const minorRadius = randomRange(70, 130);
+  const halfWidth = majorRadius;
+  const halfHeight = majorRadius;
+  return {
+    kind: 'ellipse',
+    center: {
+      x: randomRange(80 + halfWidth, 920 - halfWidth),
+      y: randomRange(70 + halfHeight, 550 - halfHeight),
+    },
+    majorRadius,
+    minorRadius,
+    rotationRadians: randomRange(-0.65, 0.65),
+    trace: true,
+  };
+}
+
 function renderFreehandTargetMarks(
   targetLayer: SVGGElement,
   target: FreehandTarget | null,
@@ -938,12 +1028,25 @@ function appendFreehandTargetMarks(
   targetLayer: SVGGElement,
   target: FreehandTarget,
 ): void {
-
   if (target.kind === 'line') {
+    if (target.trace) {
+      targetLayer.append(createTraceLineGuide(target));
+      return;
+    }
     targetLayer.append(
       createTargetPlusMark(target.start, 'freehand-target-mark'),
       createTargetPlusMark(target.end, 'freehand-target-mark'),
     );
+    return;
+  }
+
+  if (target.kind === 'ellipse') {
+    targetLayer.append(createTraceEllipseGuide(target));
+    return;
+  }
+
+  if (target.trace) {
+    targetLayer.append(createTraceCircleGuide(target));
     return;
   }
 
@@ -955,6 +1058,39 @@ function appendFreehandTargetMarks(
       createTargetPlusMark(mark, 'freehand-target-mark'),
     ),
   );
+}
+
+function createTraceLineGuide(target: TargetLine): SVGLineElement {
+  const guide = createSvg('line');
+  guide.setAttribute('class', 'freehand-trace-guide');
+  guide.setAttribute('x1', target.start.x.toFixed(2));
+  guide.setAttribute('y1', target.start.y.toFixed(2));
+  guide.setAttribute('x2', target.end.x.toFixed(2));
+  guide.setAttribute('y2', target.end.y.toFixed(2));
+  return guide;
+}
+
+function createTraceCircleGuide(target: TargetCircle): SVGCircleElement {
+  const guide = createSvg('circle');
+  guide.setAttribute('class', 'freehand-trace-guide');
+  guide.setAttribute('cx', target.center.x.toFixed(2));
+  guide.setAttribute('cy', target.center.y.toFixed(2));
+  guide.setAttribute('r', target.radius.toFixed(2));
+  return guide;
+}
+
+function createTraceEllipseGuide(target: TargetEllipse): SVGEllipseElement {
+  const guide = createSvg('ellipse');
+  guide.setAttribute('class', 'freehand-trace-guide');
+  guide.setAttribute('cx', target.center.x.toFixed(2));
+  guide.setAttribute('cy', target.center.y.toFixed(2));
+  guide.setAttribute('rx', target.majorRadius.toFixed(2));
+  guide.setAttribute('ry', target.minorRadius.toFixed(2));
+  guide.setAttribute(
+    'transform',
+    `rotate(${radiansToDegrees(target.rotationRadians).toFixed(2)} ${target.center.x.toFixed(2)} ${target.center.y.toFixed(2)})`,
+  );
+  return guide;
 }
 
 function createTargetPlusMark(
@@ -1098,6 +1234,78 @@ function scoreTargetCircle(
   };
 }
 
+function scoreTargetEllipse(
+  points: FreehandPoint[],
+  target: TargetEllipse,
+): FreehandTargetEllipseResult | null {
+  const fit = fitEllipse(points);
+  if (!fit || points.length < 12) {
+    return null;
+  }
+
+  let strokeLengthPixels = 0;
+  let totalErrorPixels = 0;
+  let maxErrorPixels = 0;
+  for (let index = 0; index < points.length; index += 1) {
+    if (index > 0) {
+      strokeLengthPixels += distanceBetween(points[index - 1], points[index]);
+    }
+    const radialError = ellipseRadialErrorPixels(points[index], target);
+    totalErrorPixels += radialError;
+    maxErrorPixels = Math.max(maxErrorPixels, radialError);
+  }
+
+  if (strokeLengthPixels < 180) {
+    return null;
+  }
+
+  const meanErrorPixels = totalErrorPixels / points.length;
+  const closureGapPixels = distanceBetween(points[0], points[points.length - 1]);
+  const joinAngleDegrees = closedShapeJoinAngleDegrees(points) ?? 180;
+  const referenceRadius = Math.sqrt(target.majorRadius * target.minorRadius);
+  const centerErrorPixels = distanceBetween(fit.center, target.center);
+  const majorRadiusErrorPixels = Math.abs(fit.majorRadius - target.majorRadius);
+  const minorRadiusErrorPixels = Math.abs(fit.minorRadius - target.minorRadius);
+  const rotationErrorDegrees = ellipseRotationDifferenceDegrees(
+    fit.rotationRadians,
+    target.rotationRadians,
+  );
+  const normalizedClosureGap =
+    closureGapPixels / ellipseCircumferenceApproximation(target);
+  const score = clampNumber(
+    100 -
+      (meanErrorPixels / referenceRadius) * 1200 -
+      (maxErrorPixels / referenceRadius) * 170 -
+      (centerErrorPixels / referenceRadius) * 160 -
+      ((majorRadiusErrorPixels + minorRadiusErrorPixels) / referenceRadius) * 95 -
+      normalizedClosureGap * 360 -
+      rotationErrorDegrees * 0.3 -
+      joinAngleDegrees * 0.3,
+    0,
+    100,
+  );
+
+  return {
+    kind: 'target-ellipse',
+    score,
+    meanErrorPixels,
+    maxErrorPixels,
+    strokeLengthPixels,
+    pointCount: points.length,
+    center: fit.center,
+    majorRadius: fit.majorRadius,
+    minorRadius: fit.minorRadius,
+    rotationRadians: fit.rotationRadians,
+    closureGapPixels,
+    joinAngleDegrees,
+    target,
+    centerErrorPixels,
+    majorRadiusErrorPixels,
+    minorRadiusErrorPixels,
+    rotationErrorDegrees,
+  };
+}
+
 function showClosedShapeMarkers(
   points: FreehandPoint[],
   closureGap: SVGLineElement,
@@ -1187,6 +1395,20 @@ function applyFreehandCorrectionElements(
     return;
   }
 
+  if (result.kind === 'target-ellipse') {
+    fittedEllipse.setAttribute('cx', result.target.center.x.toFixed(2));
+    fittedEllipse.setAttribute('cy', result.target.center.y.toFixed(2));
+    fittedEllipse.setAttribute('rx', result.target.majorRadius.toFixed(2));
+    fittedEllipse.setAttribute('ry', result.target.minorRadius.toFixed(2));
+    fittedEllipse.setAttribute(
+      'transform',
+      `rotate(${radiansToDegrees(result.target.rotationRadians).toFixed(2)} ${result.target.center.x.toFixed(2)} ${result.target.center.y.toFixed(2)})`,
+    );
+    fittedEllipse.classList.add('freehand-target-correction-ellipse');
+    fittedEllipse.style.display = '';
+    return;
+  }
+
   if (result.kind === 'circle') {
     fittedCircle.classList.remove('freehand-target-correction-circle');
     fittedCircle.setAttribute('cx', result.center.x.toFixed(2));
@@ -1196,6 +1418,7 @@ function applyFreehandCorrectionElements(
     return;
   }
 
+  fittedEllipse.classList.remove('freehand-target-correction-ellipse');
   fittedEllipse.setAttribute('cx', result.center.x.toFixed(2));
   fittedEllipse.setAttribute('cy', result.center.y.toFixed(2));
   fittedEllipse.setAttribute('rx', result.majorRadius.toFixed(2));
@@ -1394,6 +1617,24 @@ function appendFreehandCorrection(
     return;
   }
 
+  if (result.kind === 'target-ellipse') {
+    const targetEllipse = createSvg('ellipse');
+    targetEllipse.setAttribute(
+      'class',
+      `freehand-fit-ellipse freehand-target-correction-ellipse${classSuffix}`,
+    );
+    targetEllipse.setAttribute('cx', result.target.center.x.toFixed(2));
+    targetEllipse.setAttribute('cy', result.target.center.y.toFixed(2));
+    targetEllipse.setAttribute('rx', result.target.majorRadius.toFixed(2));
+    targetEllipse.setAttribute('ry', result.target.minorRadius.toFixed(2));
+    targetEllipse.setAttribute(
+      'transform',
+      `rotate(${radiansToDegrees(result.target.rotationRadians).toFixed(2)} ${result.target.center.x.toFixed(2)} ${result.target.center.y.toFixed(2)})`,
+    );
+    parent.append(targetEllipse);
+    return;
+  }
+
   if (result.kind === 'circle') {
     const fittedCircle = createSvg('circle');
     fittedCircle.setAttribute('class', `freehand-fit-circle${classSuffix}`);
@@ -1490,6 +1731,11 @@ function boundsForAttempt(attempt: FreehandAttemptSnapshot): {
     return bounds;
   }
 
+  if (attempt.result.kind === 'target-ellipse') {
+    includeRotatedEllipseBounds(bounds, attempt.result.target);
+    return bounds;
+  }
+
   includeRotatedEllipseBounds(bounds, attempt.result);
   return bounds;
 }
@@ -1506,7 +1752,12 @@ function includePointInBounds(
 
 function includeRotatedEllipseBounds(
   bounds: { minX: number; minY: number; maxX: number; maxY: number },
-  ellipse: FreehandEllipseResult,
+  ellipse: {
+    center: { x: number; y: number };
+    majorRadius: number;
+    minorRadius: number;
+    rotationRadians: number;
+  },
 ): void {
   const cos = Math.cos(ellipse.rotationRadians);
   const sin = Math.sin(ellipse.rotationRadians);
@@ -2477,6 +2728,17 @@ function freehandResultStats(result: FreehandResult): HTMLElement[] {
       resultStat('Closure', `${Math.round(result.closureGapPixels)} px`),
       resultStat('Join', `${Math.round(result.joinAngleDegrees)} deg`),
     );
+  } else if (result.kind === 'target-ellipse') {
+    stats.splice(
+      3,
+      0,
+      resultStat('Center miss', `${Math.round(result.centerErrorPixels)} px`),
+      resultStat('Major miss', `${Math.round(result.majorRadiusErrorPixels)} px`),
+      resultStat('Minor miss', `${Math.round(result.minorRadiusErrorPixels)} px`),
+      resultStat('Rotation', `${Math.round(result.rotationErrorDegrees)} deg`),
+      resultStat('Closure', `${Math.round(result.closureGapPixels)} px`),
+      resultStat('Join', `${Math.round(result.joinAngleDegrees)} deg`),
+    );
   } else if (result.kind === 'ellipse') {
     stats.splice(
       3,
@@ -2608,5 +2870,14 @@ function lineAngleDifferenceDegrees(
   const firstAngle = Math.atan2(firstEnd.y - firstStart.y, firstEnd.x - firstStart.x);
   const secondAngle = Math.atan2(secondEnd.y - secondStart.y, secondEnd.x - secondStart.x);
   const rawDifference = Math.abs(radiansToDegrees(firstAngle - secondAngle)) % 180;
+  return rawDifference > 90 ? 180 - rawDifference : rawDifference;
+}
+
+function ellipseRotationDifferenceDegrees(
+  firstRotationRadians: number,
+  secondRotationRadians: number,
+): number {
+  const rawDifference =
+    Math.abs(radiansToDegrees(firstRotationRadians - secondRotationRadians)) % 180;
   return rawDifference > 90 ? 180 - rawDifference : rawDifference;
 }

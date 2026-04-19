@@ -284,8 +284,18 @@ button {
 }
 
 .freehand-target-correction-line,
-.freehand-target-correction-circle {
+.freehand-target-correction-circle,
+.freehand-target-correction-ellipse {
   stroke-dasharray: 9 7;
+}
+
+.freehand-trace-guide {
+  fill: none;
+  stroke: rgba(47, 85, 125, 0.2);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
 }
 
 .freehand-history {
