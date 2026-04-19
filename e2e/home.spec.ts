@@ -778,6 +778,125 @@ async function drawCircle(
   await page.mouse.up();
 }
 
+// ── §8.6 missing E2E tests ─────────────────────────────────────────────────
+
+test('Again re-runs the same drill without returning to the list', async ({ page }) => {
+  await page.goto('/');
+
+  await page
+    .getByRole('article')
+    .filter({ has: page.getByRole('heading', { level: 3, name: 'Horizontal Halves' }) })
+    .getByRole('button', { name: 'Practice' })
+    .click();
+
+  await expect(page.getByRole('heading', { level: 1, name: 'Horizontal Halves' })).toBeVisible();
+
+  const line = page.locator('.exercise-line');
+  const lineBox = await line.boundingBox();
+  if (!lineBox) throw new Error('Expected exercise line bounding box');
+  await page.mouse.click(lineBox.x + lineBox.width / 2, lineBox.y + lineBox.height / 2);
+  await expect(page.getByRole('button', { name: 'Again' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Again' }).click();
+
+  // Should be back on the same exercise — not the list
+  await expect(page.getByRole('heading', { level: 1, name: 'Horizontal Halves' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: /choose a drill/i })).toHaveCount(0);
+  // Result buttons should be gone — fresh trial
+  await expect(page.getByRole('button', { name: 'Again' })).toHaveCount(0);
+});
+
+test('Auto Next navigates to a different drill after completion', async ({ page }) => {
+  await page.goto('/');
+
+  // Practice one drill to give Auto something to pick against
+  await page
+    .getByRole('article')
+    .filter({ has: page.getByRole('heading', { level: 3, name: 'Horizontal Halves' }) })
+    .getByRole('button', { name: 'Practice' })
+    .click();
+
+  const line = page.locator('.exercise-line');
+  const lineBox = await line.boundingBox();
+  if (!lineBox) throw new Error('Expected exercise line bounding box');
+  await page.mouse.click(lineBox.x + lineBox.width / 2, lineBox.y + lineBox.height / 2);
+  await expect(page.getByRole('button', { name: 'Auto Next' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Auto Next' }).click();
+
+  // Should land on an exercise screen — not the list
+  await expect(page.getByRole('heading', { level: 1, name: /choose a drill/i })).toHaveCount(0);
+  // And the heading should not be the one we just came from
+  await expect(page.getByRole('heading', { level: 1, name: 'Horizontal Halves' })).toHaveCount(0);
+});
+
+test('progress persists across a full page reload', async ({ page }) => {
+  await page.goto('/');
+
+  // Complete a drill
+  await page
+    .getByRole('article')
+    .filter({ has: page.getByRole('heading', { level: 3, name: 'Horizontal Halves' }) })
+    .getByRole('button', { name: 'Practice' })
+    .click();
+
+  const line = page.locator('.exercise-line');
+  const lineBox = await line.boundingBox();
+  if (!lineBox) throw new Error('Expected exercise line bounding box');
+  await page.mouse.click(lineBox.x + lineBox.width / 2, lineBox.y + lineBox.height / 2);
+  await expect(page.getByText(/Error .* px/i)).toBeVisible();
+
+  await page.getByRole('button', { name: 'Back to List' }).click();
+  await expect(page.locator('.score-chip').filter({ hasText: /^\d+\.\d$/ })).toHaveCount(1);
+
+  // Reload — localStorage must survive
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1, name: /choose a drill/i })).toBeVisible();
+  await expect(page.locator('.score-chip').filter({ hasText: /^\d+\.\d$/ })).toHaveCount(1);
+});
+
+test('Escape key dismisses the history modal', async ({ page }) => {
+  await page.goto('/');
+
+  await page
+    .getByRole('article')
+    .filter({ has: page.getByRole('heading', { level: 3, name: 'Circle', exact: true }) })
+    .getByRole('button', { name: 'Practice' })
+    .click();
+
+  const canvasBox = await page.locator('[data-testid="freehand-canvas"]').boundingBox();
+  if (!canvasBox) throw new Error('Expected freehand canvas bounding box');
+
+  const centerX = canvasBox.x + canvasBox.width / 2;
+  const centerY = canvasBox.y + canvasBox.height / 2;
+  const radius = Math.min(canvasBox.width, canvasBox.height) * 0.24;
+
+  await page.mouse.move(centerX + radius, centerY);
+  await page.mouse.down();
+  for (let i = 1; i <= 34; i++) {
+    const angle = (Math.PI * 2 * i) / 36;
+    await page.mouse.move(centerX + Math.cos(angle) * radius, centerY + Math.sin(angle) * radius);
+  }
+  await page.mouse.up();
+
+  await expect(page.getByText(/Roundness \d+\.\d/)).toBeVisible();
+
+  // Open history modal
+  await page.locator('.freehand-history-item').first().click();
+  await expect(page.getByTestId('freehand-history-modal')).toBeVisible();
+
+  // Dismiss with Escape
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('freehand-history-modal')).toHaveCount(0);
+});
+
+test('unknown route triggers error boundary and falls back to list', async ({ page }) => {
+  await page.goto('/exercise/does-not-exist');
+
+  // Error boundary should recover and render the list
+  await expect(page.getByRole('heading', { level: 1, name: /choose a drill/i })).toBeVisible();
+});
+
 function circleThroughPoints(
   first: { x: number; y: number },
   second: { x: number; y: number },

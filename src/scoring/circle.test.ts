@@ -88,6 +88,26 @@ describe('scoreFreehandCircle', () => {
     const result = scoreFreehandCircle(noisyCircle(300, 300, 120, 8))!;
     expect(result.score).toMatchInlineSnapshot(`32.06087404718329`);
   });
+
+  it('join-angle penalty: cusp at closure scores lower than smooth closure with same geometry', () => {
+    // Smooth: close back to first point so entry/exit tangents align
+    const smooth = circlePoints(300, 300, 120);
+
+    // Cusp: draw ~270°, then jump back to start — sharp angle at the join point
+    const n = 80;
+    const cusp: FreehandPoint[] = Array.from({ length: n }, (_, i) => {
+      const a = (i / n) * 1.5 * Math.PI; // 270°
+      return pt(300 + 120 * Math.cos(a), 300 + 120 * Math.sin(a));
+    });
+    // Append start point to create a large closure angle
+    cusp.push(cusp[0]!);
+
+    const smoothResult = scoreFreehandCircle(smooth);
+    const cuspResult = scoreFreehandCircle(cusp);
+    if (smoothResult !== null && cuspResult !== null) {
+      expect(smoothResult.score).toBeGreaterThan(cuspResult.score);
+    }
+  });
 });
 
 describe('scoreTargetCircle', () => {

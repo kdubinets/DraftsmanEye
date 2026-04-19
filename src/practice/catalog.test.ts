@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { EXERCISES, getExerciseById, getAutoExercise } from './catalog';
-import type { ExerciseId } from './catalog';
+import type { ExerciseId, SingleMarkExerciseDefinition } from './catalog';
 import type { ProgressStore } from '../storage/progress';
 
 function emptyProgress(): ProgressStore {
@@ -23,6 +23,21 @@ describe('EXERCISES registry', () => {
     const ids = EXERCISES.map((e) => e.id);
     const unique = new Set(ids);
     expect(unique.size).toBe(ids.length);
+  });
+
+  it('every exercise id begins with its family slug', () => {
+    const familyToPrefix: Record<string, string> = {
+      'Division': 'division-',
+      'Freehand Control': 'freehand-',
+      'Target Drawing': 'target-',
+      'Trace Control': 'trace-',
+    };
+    for (const ex of EXERCISES) {
+      const prefix = familyToPrefix[ex.family];
+      if (prefix !== undefined) {
+        expect(ex.id).toMatch(new RegExp(`^${prefix}`));
+      }
+    }
   });
 });
 
@@ -87,5 +102,85 @@ describe('getAutoExercise', () => {
     const { reason } = getAutoExercise(emptyProgress());
     expect(typeof reason).toBe('string');
     expect(reason.length).toBeGreaterThan(0);
+  });
+
+  it('tie-break is stable: same result on repeated calls with equal progress', () => {
+    const implemented = EXERCISES.filter((e) => e.implemented);
+    const oldMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const aggregates: ProgressStore['aggregates'] = {};
+    for (const ex of implemented) {
+      aggregates[ex.id] = { ema: 75, attempts: 3, lastPracticedAt: oldMs };
+    }
+    const progress: ProgressStore = { version: 2, attempts: [], aggregates };
+    const first = getAutoExercise(progress).exercise.id;
+    const second = getAutoExercise(progress).exercise.id;
+    // Tie-breaking must be deterministic (no randomness breaks it across calls
+    // with identical inputs — jitter, if any, should be bounded enough that the
+    // top pick is stable when all scores are equal)
+    expect(first).toBe(second);
+  });
+});
+
+describe('single-mark scoreSelection', () => {
+  function singleMarkExercises(): SingleMarkExerciseDefinition[] {
+    return EXERCISES.filter(
+      (e): e is SingleMarkExerciseDefinition => e.implemented && 'createTrial' in e,
+    );
+  }
+
+  it('placing above target (lower scalar on vertical axis) gives negative signedError', () => {
+    const vertical = EXERCISES.find(
+      (e): e is SingleMarkExerciseDefinition =>
+        e.implemented && 'createTrial' in e && e.id.startsWith('division-vertical-'),
+    );
+    if (!vertical) return;
+    const trial = vertical.createTrial();
+    // On a vertical axis, scalar is y. Placing above target = smaller y = negative signed error.
+    // Force a placement above the midpoint (smaller scalar than target)
+    const aboveTarget = trial.line.startScalar;
+    const result = trial.scoreSelection(aboveTarget);
+    expect(result.signedErrorPixels).toBeLessThan(0);
+  });
+
+  it('placing below target (larger scalar on vertical axis) gives positive signedError', () => {
+    const vertical = EXERCISES.find(
+      (e): e is SingleMarkExerciseDefinition =>
+        e.implemented && 'createTrial' in e && e.id.startsWith('division-vertical-'),
+    );
+    if (!vertical) return;
+    const trial = vertical.createTrial();
+    const result = trial.scoreSelection(trial.line.endScalar);
+    expect(result.signedErrorPixels).toBeGreaterThan(0);
+  });
+
+  it('exact placement gives signedErrorPixels=0 and directionLabel="Exact"', () => {
+    for (const ex of singleMarkExercises()) {
+      const trial = ex.createTrial();
+      // Compute where the target scalar is: score(placed) returns signedError=placed-target,
+      // so target = placed - signedError. Find it by trial and binary search isn't needed —
+      // we can derive it from two probe placements.
+      const r0 = trial.scoreSelection(trial.line.startScalar);
+      // target = startScalar - r0.signedErrorPixels
+      const target = trial.line.startScalar - r0.signedErrorPixels;
+      const exact = trial.scoreSelection(target);
+      expect(exact.signedErrorPixels).toBe(0);
+      expect(exact.directionLabel).toBe('Exact');
+      break; // one exercise is sufficient to prove the invariant
+    }
+  });
+
+  it('trial line endpoints stay within viewport bounds across many generations', () => {
+    const horizontal = EXERCISES.find(
+      (e): e is SingleMarkExerciseDefinition =>
+        e.implemented && 'createTrial' in e && e.id.startsWith('division-horizontal-'),
+    )!;
+    for (let i = 0; i < 200; i++) {
+      const trial = horizontal.createTrial();
+      const { startScalar, endScalar, anchorY } = trial.line;
+      expect(startScalar).toBeGreaterThanOrEqual(0);
+      expect(endScalar).toBeLessThanOrEqual(trial.viewport.width);
+      expect(anchorY).toBeGreaterThanOrEqual(0);
+      expect(anchorY).toBeLessThanOrEqual(trial.viewport.height);
+    }
   });
 });
