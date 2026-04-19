@@ -13,6 +13,7 @@ import {
   freehandPointFromEvent,
   freehandPointsFromPointerEvent,
   renderFreehandStroke,
+  appendIncrementalSegments,
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
 } from '../exercises/freehand/input';
@@ -200,8 +201,9 @@ export function mountFreehandScreen(
     if (drawingPointerId !== event.pointerId || result) return;
     const next = freehandPointsFromPointerEvent(svg, event);
     if (next.length === 0) return;
+    const tail = points[points.length - 1];
     points.push(...next);
-    renderFreehandStroke(strokeLayer, points, 'freehand-user-stroke');
+    appendIncrementalSegments(strokeLayer, tail, next, 'freehand-user-stroke');
   });
 
   const finishStroke = (event: PointerEvent): void => {

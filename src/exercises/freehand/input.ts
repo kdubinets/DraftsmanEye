@@ -61,7 +61,7 @@ export function freehandPointFromEvent(
   };
 }
 
-/** Rebuild the stroke layer from scratch. Called on every pointermove during drawing. */
+/** Clear the stroke layer and draw all points. Call on pointerdown to start a fresh stroke. */
 export function renderFreehandStroke(
   parent: SVGGElement,
   points: FreehandPoint[],
@@ -69,6 +69,20 @@ export function renderFreehandStroke(
 ): void {
   parent.replaceChildren();
   appendFreehandStroke(parent, points, className);
+}
+
+/**
+ * Append only the new segments connecting prevTail → newPoints.
+ * Call on pointermove instead of renderFreehandStroke to avoid O(n) DOM rebuild per event.
+ */
+export function appendIncrementalSegments(
+  parent: SVGGElement,
+  prevTail: FreehandPoint,
+  newPoints: FreehandPoint[],
+  className: string,
+): void {
+  if (newPoints.length === 0) return;
+  appendFreehandStroke(parent, [prevTail, ...newPoints], className);
 }
 
 export function appendFreehandStroke(
