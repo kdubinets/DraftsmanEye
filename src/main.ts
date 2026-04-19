@@ -4,12 +4,9 @@
  * screen's cleanup before mounting the next one.
  */
 import './styles/main.css';
-import { getExerciseById } from './practice/catalog';
-import type { FreehandExerciseDefinition, SingleMarkExerciseDefinition } from './practice/catalog';
+import { getMountableById } from './exercises/registry';
 import { mountScreen } from './app/screens';
 import { mountListScreen } from './screens/list';
-import { mountSingleMarkScreen } from './screens/singleMark';
-import { mountFreehandScreen } from './screens/freehand';
 import type { AppState } from './app/state';
 
 const rootEl = document.querySelector<HTMLElement>('#app');
@@ -32,25 +29,7 @@ function navigate(next: AppState): void {
     return;
   }
 
-  const exercise = getExerciseById(state.exerciseId);
-
-  if (!exercise.implemented) {
-    console.error(`Exercise "${state.exerciseId}" is not implemented; falling back to list.`);
-    navigate({ screen: 'list' });
-    return;
-  }
-
+  const exercise = getMountableById(state.exerciseId);
   const { source } = state;
-
-  if (exercise.kind === 'single-mark') {
-    currentCleanup = mountScreen(root, (r) =>
-      mountSingleMarkScreen(r, exercise as SingleMarkExerciseDefinition, source, navigate),
-    );
-    return;
-  }
-
-  // All remaining kinds are freehand variants.
-  currentCleanup = mountScreen(root, (r) =>
-    mountFreehandScreen(r, exercise as FreehandExerciseDefinition, source, navigate),
-  );
+  currentCleanup = mountScreen(root, (r) => exercise.mount(r, source, navigate));
 }

@@ -1,5 +1,5 @@
 /** Freehand exercise screen used by Freehand Control, Target Drawing, and Trace Control. */
-import type { FreehandExerciseDefinition } from '../practice/catalog';
+import type { ExerciseDefinition } from '../practice/catalog';
 import { updateStoredProgress } from '../storage/progress';
 import { createSvg } from '../render/svg';
 import { pageShell, exerciseHeader, actionButton } from '../render/components';
@@ -8,10 +8,6 @@ import {
   feedbackBandClass,
   feedbackLabel,
 } from '../scoring/bands';
-import { scoreFreehandLine } from '../scoring/line';
-import { scoreFreehandCircle, scoreTargetCircle } from '../scoring/circle';
-import { scoreFreehandEllipse, scoreTargetEllipse } from '../scoring/ellipse';
-import { scoreTargetLine } from '../scoring/line';
 import {
   canStartFreehandStroke,
   freehandPointFromEvent,
@@ -31,19 +27,20 @@ import {
   renderFreehandAttemptThumbnail,
   renderFreehandHistoryModal,
 } from '../exercises/freehand/history';
-import { createFreehandTarget } from '../exercises/freehand/targets';
 import { freehandScoreLabel, freehandResultStats } from '../exercises/freehand/stats';
 import type {
   FreehandPoint,
   FreehandResult,
   FreehandTarget,
   FreehandAttemptSnapshot,
+  FreehandExerciseConfig,
 } from '../exercises/freehand/types';
 import type { AppState } from '../app/state';
 
 export function mountFreehandScreen(
   root: HTMLElement,
-  exercise: FreehandExerciseDefinition,
+  exercise: ExerciseDefinition,
+  config: FreehandExerciseConfig,
   source: 'direct' | 'auto',
   onNavigate: (next: AppState) => void,
 ): () => void {
@@ -54,17 +51,11 @@ export function mountFreehandScreen(
   let resetTimer: number | null = null;
   let escapeListener: ((e: KeyboardEvent) => void) | null = null;
   let nextAttemptId = 1;
-  let target: FreehandTarget | null = createFreehandTarget(exercise.kind);
+  let target: FreehandTarget | null = config.createTarget();
   const attempts: FreehandAttemptSnapshot[] = [];
   const MAX_ATTEMPTS = 36;
 
-  const isClosedShapeExercise =
-    exercise.kind === 'freehand-circle' ||
-    exercise.kind === 'freehand-ellipse' ||
-    exercise.kind === 'target-circle-center-point' ||
-    exercise.kind === 'target-circle-three-points' ||
-    exercise.kind === 'trace-circle' ||
-    exercise.kind === 'trace-ellipse';
+  const isClosedShapeExercise = config.isClosedShape;
 
   const screen = pageShell();
   const header = exerciseHeader(exercise, source);
@@ -76,7 +67,7 @@ export function mountFreehandScreen(
 
   const prompt = document.createElement('p');
   prompt.className = 'exercise-prompt';
-  prompt.textContent = promptText(exercise.kind);
+  prompt.textContent = config.promptText;
 
   const fullscreenBtn = actionButton('Fullscreen', () => {
     void toggleFullscreen(stage, fullscreenBtn);
@@ -91,7 +82,7 @@ export function mountFreehandScreen(
 
   const feedback = document.createElement('p');
   feedback.className = 'feedback-banner';
-  feedback.textContent = readyText(exercise.kind);
+  feedback.textContent = config.readyText;
 
   const summary = document.createElement('div');
   summary.className = 'result-summary';
@@ -136,7 +127,7 @@ export function mountFreehandScreen(
   svg.setAttribute('class', 'freehand-canvas');
   svg.setAttribute('viewBox', `0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`);
   svg.setAttribute('role', 'img');
-  svg.setAttribute('aria-label', canvasLabel(exercise.kind));
+  svg.setAttribute('aria-label', config.canvasLabel);
   svg.dataset.testid = 'freehand-canvas';
 
   const frame = createSvg('rect');
@@ -240,11 +231,11 @@ export function mountFreehandScreen(
   };
 
   function revealFreehandResult(): void {
-    const next = scoreStroke(exercise.kind, points, target);
+    const next = config.scoreStroke(points, target);
     if (!next) {
       points = [];
       strokeLayer.replaceChildren();
-      feedback.textContent = retryText(exercise.kind);
+      feedback.textContent = config.retryText;
       return;
     }
 
@@ -300,7 +291,7 @@ export function mountFreehandScreen(
       if (cancelled) return;
       points = [];
       result = null;
-      target = createFreehandTarget(exercise.kind);
+      target = config.createTarget();
       resetTimer = null;
       strokeLayer.replaceChildren();
       renderFreehandTargetMarks(targetLayer, target);
@@ -315,7 +306,7 @@ export function mountFreehandScreen(
       summary.hidden = true;
       feedback.removeAttribute('data-tone');
       summary.removeAttribute('data-tone');
-      feedback.textContent = promptText(exercise.kind);
+      feedback.textContent = config.promptText;
     }, 1500);
   }
 
@@ -357,30 +348,6 @@ export function mountFreehandScreen(
   }
 }
 
-function scoreStroke(
-  kind: FreehandExerciseDefinition['kind'],
-  points: FreehandPoint[],
-  target: FreehandTarget | null,
-): FreehandResult | null {
-  switch (kind) {
-    case 'freehand-line':
-      return scoreFreehandLine(points);
-    case 'freehand-circle':
-      return scoreFreehandCircle(points);
-    case 'freehand-ellipse':
-      return scoreFreehandEllipse(points);
-    case 'target-line-two-points':
-    case 'trace-line':
-      return target?.kind === 'line' ? scoreTargetLine(points, target) : null;
-    case 'target-circle-center-point':
-    case 'target-circle-three-points':
-    case 'trace-circle':
-      return target?.kind === 'circle' ? scoreTargetCircle(points, target) : null;
-    case 'trace-ellipse':
-      return target?.kind === 'ellipse' ? scoreTargetEllipse(points, target) : null;
-  }
-}
-
 async function toggleFullscreen(
   stage: HTMLElement,
   button: HTMLButtonElement,
@@ -411,84 +378,3 @@ async function toggleFullscreen(
   }
 }
 
-function promptText(kind: FreehandExerciseDefinition['kind']): string {
-  switch (kind) {
-    case 'freehand-line':
-      return 'Draw one straight line in the field.';
-    case 'freehand-circle':
-      return 'Draw one circle in the field.';
-    case 'freehand-ellipse':
-      return 'Draw one ellipse in the field.';
-    case 'target-line-two-points':
-      return 'Draw one straight line connecting the two marks.';
-    case 'target-circle-center-point':
-      return 'Draw a circle using the center and radius point.';
-    case 'target-circle-three-points':
-      return 'Draw a circle through the three marks.';
-    case 'trace-line':
-      return 'Trace the faint straight guide.';
-    case 'trace-circle':
-      return 'Trace the faint circle guide.';
-    case 'trace-ellipse':
-      return 'Trace the faint ellipse guide.';
-  }
-}
-
-function readyText(kind: FreehandExerciseDefinition['kind']): string {
-  switch (kind) {
-    case 'freehand-line':
-      return 'Use Pencil, touch, or mouse to draw one line.';
-    case 'freehand-circle':
-      return 'Use Pencil, touch, or mouse to draw one circle.';
-    case 'freehand-ellipse':
-      return 'Use Pencil, touch, or mouse to draw one ellipse.';
-    case 'target-line-two-points':
-      return 'Use Pencil, touch, or mouse to connect the two marks.';
-    case 'target-circle-center-point':
-      return 'Use Pencil, touch, or mouse to draw the target circle.';
-    case 'target-circle-three-points':
-      return 'Use Pencil, touch, or mouse to pass through the three marks.';
-    case 'trace-line':
-    case 'trace-circle':
-    case 'trace-ellipse':
-      return 'Use Pencil, touch, or mouse to trace the faint guide.';
-  }
-}
-
-function retryText(kind: FreehandExerciseDefinition['kind']): string {
-  switch (kind) {
-    case 'freehand-line':
-      return 'Stroke was too short. Draw a longer line.';
-    case 'freehand-circle':
-      return 'Stroke was too short. Draw a larger circle.';
-    case 'freehand-ellipse':
-      return 'Stroke was too short. Draw a larger ellipse.';
-    case 'target-line-two-points':
-      return 'Stroke was too short. Connect the two marks.';
-    case 'target-circle-center-point':
-    case 'target-circle-three-points':
-    case 'trace-circle':
-      return 'Stroke was too short. Draw a larger circle.';
-    case 'trace-ellipse':
-      return 'Stroke was too short. Draw a larger ellipse.';
-    case 'trace-line':
-      return 'Stroke was too short. Trace more of the line.';
-  }
-}
-
-function canvasLabel(kind: FreehandExerciseDefinition['kind']): string {
-  switch (kind) {
-    case 'freehand-circle':
-    case 'target-circle-center-point':
-    case 'target-circle-three-points':
-    case 'trace-circle':
-      return 'Circle drawing field';
-    case 'freehand-ellipse':
-    case 'trace-ellipse':
-      return 'Ellipse drawing field';
-    case 'freehand-line':
-    case 'target-line-two-points':
-    case 'trace-line':
-      return 'Straight line drawing field';
-  }
-}

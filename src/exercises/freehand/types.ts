@@ -1,4 +1,7 @@
-/** Type definitions for freehand stroke data, per-kind results, and target geometries. */
+/**
+ * Type definitions for freehand stroke data, per-kind results, target geometries,
+ * and the per-exercise config consumed by mountFreehandScreen.
+ */
 
 export type FreehandPoint = {
   x: number;
@@ -111,4 +114,18 @@ export type FreehandAttemptSnapshot = {
   points: FreehandPoint[];
   result: FreehandResult;
   target: FreehandTarget | null;
+};
+
+/**
+ * Per-exercise configuration passed to mountFreehandScreen.
+ * Encapsulates every kind-specific decision so the screen body stays kind-agnostic.
+ */
+export type FreehandExerciseConfig = {
+  isClosedShape: boolean;
+  createTarget: () => FreehandTarget | null;
+  scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) => FreehandResult | null;
+  promptText: string;
+  readyText: string;
+  retryText: string;
+  canvasLabel: string;
 };
