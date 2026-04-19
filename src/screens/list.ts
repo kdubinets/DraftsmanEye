@@ -10,20 +10,23 @@ import type { ProgressStore } from '../storage/progress';
 import { pageShell, formatScore, actionButton } from '../render/components';
 import type { AppState } from '../app/state';
 
-export function renderListScreen(
+export function mountListScreen(
+  root: HTMLElement,
   onNavigate: (next: AppState) => void,
-): HTMLElement {
+): () => void {
   const progress = getStoredProgress();
-
-  return pageShell(
-    headerBlock(),
-    autoCard(onNavigate, progress),
-    exerciseGrid(
-      EXERCISES.map((ex) =>
-        exerciseCard(ex, progress.aggregates[ex.id]?.ema, onNavigate),
+  root.append(
+    pageShell(
+      headerBlock(),
+      autoCard(onNavigate, progress),
+      exerciseGrid(
+        EXERCISES.map((ex) =>
+          exerciseCard(ex, progress.aggregates[ex.id]?.ema, onNavigate),
+        ),
       ),
     ),
   );
+  return () => {};
 }
 
 function headerBlock(): HTMLElement {

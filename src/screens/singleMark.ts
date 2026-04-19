@@ -22,11 +22,12 @@ import {
 } from '../scoring/bands';
 import type { AppState } from '../app/state';
 
-export function renderSingleMarkExerciseScreen(
+export function mountSingleMarkScreen(
+  root: HTMLElement,
   exercise: SingleMarkExerciseDefinition,
   source: 'direct' | 'auto',
   onNavigate: (next: AppState) => void,
-): HTMLElement {
+): () => void {
   const trial = exercise.createTrial();
   let result: SingleMarkTrialResult | null = null;
 
@@ -71,7 +72,8 @@ export function renderSingleMarkExerciseScreen(
   actions.append(againBtn, backBtn, autoBtn);
   stage.append(prompt, svg, feedback, summary, actions);
   screen.append(header, stage);
-  return screen;
+  root.append(screen);
+  return () => {};
 
   function onSelect(scalar: number): void {
     if (result) return;

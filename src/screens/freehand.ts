@@ -1,8 +1,4 @@
-/**
- * Freehand exercise screen used by Freehand Control, Target Drawing, and Trace Control.
- * The `resetTimer` / `currentRender` stale-closure guard remains here temporarily; it will
- * be eliminated by the Screen lifecycle refactor (PR 3), which cancels timers on unmount.
- */
+/** Freehand exercise screen used by Freehand Control, Target Drawing, and Trace Control. */
 import type { FreehandExerciseDefinition } from '../practice/catalog';
 import { updateStoredProgress } from '../storage/progress';
 import { createSvg } from '../render/svg';
@@ -45,17 +41,18 @@ import type {
 } from '../exercises/freehand/types';
 import type { AppState } from '../app/state';
 
-export function renderFreehandExerciseScreen(
+export function mountFreehandScreen(
+  root: HTMLElement,
   exercise: FreehandExerciseDefinition,
   source: 'direct' | 'auto',
   onNavigate: (next: AppState) => void,
-  currentRender: number,
-  getRenderVersion: () => number,
-): HTMLElement {
+): () => void {
+  let cancelled = false;
   let points: FreehandPoint[] = [];
   let drawingPointerId: number | null = null;
   let result: FreehandResult | null = null;
   let resetTimer: number | null = null;
+  let escapeListener: ((e: KeyboardEvent) => void) | null = null;
   let nextAttemptId = 1;
   let target: FreehandTarget | null = createFreehandTarget(exercise.kind);
   const attempts: FreehandAttemptSnapshot[] = [];
@@ -87,7 +84,6 @@ export function renderFreehandExerciseScreen(
   fullscreenBtn.classList.add('freehand-fullscreen-action');
 
   const backBtn = actionButton('Back to List', () => {
-    if (resetTimer !== null) window.clearTimeout(resetTimer);
     onNavigate({ screen: 'list' });
   });
 
@@ -232,7 +228,16 @@ export function renderFreehandExerciseScreen(
 
   stage.append(toolbar, svg, feedback, summary);
   screen.append(header, stage, historySection);
-  return screen;
+  root.append(screen);
+
+  return () => {
+    cancelled = true;
+    if (resetTimer !== null) window.clearTimeout(resetTimer);
+    if (escapeListener !== null) {
+      document.removeEventListener('keydown', escapeListener);
+      escapeListener = null;
+    }
+  };
 
   function revealFreehandResult(): void {
     const next = scoreStroke(exercise.kind, points, target);
@@ -290,11 +295,9 @@ export function renderFreehandExerciseScreen(
     summary.hidden = false;
     summary.replaceChildren(...freehandResultStats(result));
 
-    // Reset to a fresh trial after 1.5 s. The renderVersion guard prevents this
-    // callback from mutating a screen that has already been replaced; it goes away
-    // once the Screen lifecycle (PR 3) lets us cancel the timer on unmount.
+    // Reset to a fresh trial after 1.5 s. The cancelled flag is set by cleanup on unmount.
     resetTimer = window.setTimeout(() => {
-      if (getRenderVersion() !== currentRender) return;
+      if (cancelled) return;
       points = [];
       result = null;
       target = createFreehandTarget(exercise.kind);
@@ -339,18 +342,17 @@ export function renderFreehandExerciseScreen(
     );
 
     function closeModal(): void {
-      document.removeEventListener('keydown', onEscape);
+      if (escapeListener !== null) {
+        document.removeEventListener('keydown', escapeListener);
+        escapeListener = null;
+      }
       modal.remove();
     }
 
-    function onEscape(event: KeyboardEvent): void {
+    escapeListener = (event: KeyboardEvent) => {
       if (event.key === 'Escape') closeModal();
-    }
-
-    document.addEventListener('keydown', onEscape);
-    // Modal is appended to the screen root so it sits above the exercise stage.
-    // After the Screen lifecycle refactor (PR 3), each screen will own its root
-    // container and this won't need to reach up to the document body.
+    };
+    document.addEventListener('keydown', escapeListener);
     screen.append(modal);
   }
 }
