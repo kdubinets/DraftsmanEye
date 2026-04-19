@@ -23,62 +23,57 @@ export function freehandScoreLabel(kind: FreehandResult['kind']): string {
 }
 
 export function freehandResultStats(result: FreehandResult): HTMLElement[] {
-  const stats = [
+  const header = [
     stat('Score', result.score.toFixed(1)),
     stat('Mean drift', `${result.meanErrorPixels.toFixed(1)} px`),
     stat('Max drift', `${result.maxErrorPixels.toFixed(1)} px`),
+  ];
+  const footer = [
     stat('Length', `${Math.round(result.strokeLengthPixels)} px`),
     stat('Samples', String(result.pointCount)),
   ];
 
+  let kindStats: HTMLElement[];
   if (result.kind === 'circle') {
-    stats.splice(
-      3,
-      0,
+    kindStats = [
       stat('Radius', `${Math.round(result.radius)} px`),
       stat('Closure', `${Math.round(result.closureGapPixels)} px`),
       stat('Join', `${Math.round(result.joinAngleDegrees)} deg`),
-    );
+    ];
   } else if (result.kind === 'target-circle') {
-    stats.splice(
-      3,
-      0,
+    kindStats = [
       stat('Center miss', `${Math.round(result.centerErrorPixels)} px`),
       stat('Radius miss', `${Math.round(result.radiusErrorPixels)} px`),
       stat('Closure', `${Math.round(result.closureGapPixels)} px`),
       stat('Join', `${Math.round(result.joinAngleDegrees)} deg`),
-    );
+    ];
   } else if (result.kind === 'target-ellipse') {
-    stats.splice(
-      3,
-      0,
+    kindStats = [
       stat('Center miss', `${Math.round(result.centerErrorPixels)} px`),
       stat('Major miss', `${Math.round(result.majorRadiusErrorPixels)} px`),
       stat('Minor miss', `${Math.round(result.minorRadiusErrorPixels)} px`),
       stat('Rotation', `${Math.round(result.rotationErrorDegrees)} deg`),
       stat('Closure', `${Math.round(result.closureGapPixels)} px`),
       stat('Join', `${Math.round(result.joinAngleDegrees)} deg`),
-    );
+    ];
   } else if (result.kind === 'ellipse') {
-    stats.splice(
-      3,
-      0,
+    kindStats = [
       stat('Major', `${Math.round(result.majorRadius)} px`),
       stat('Minor', `${Math.round(result.minorRadius)} px`),
       stat('Closure', `${Math.round(result.closureGapPixels)} px`),
       stat('Join', `${Math.round(result.joinAngleDegrees)} deg`),
-    );
+    ];
   } else if (result.kind === 'target-line') {
-    stats.splice(
-      3,
-      0,
+    kindStats = [
       stat('Start miss', `${Math.round(result.startErrorPixels)} px`),
       stat('End miss', `${Math.round(result.endErrorPixels)} px`),
       stat('Angle miss', `${Math.round(result.angleErrorDegrees)} deg`),
-    );
+    ];
+  } else {
+    kindStats = [];
   }
 
-  return stats;
+  return [...header, ...kindStats, ...footer];
 }
 
 function stat(label: string, value: string): HTMLElement {
