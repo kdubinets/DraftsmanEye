@@ -29,7 +29,23 @@ function navigate(next: AppState): void {
     return;
   }
 
-  const exercise = getMountableById(state.exerciseId);
+  let exercise;
+  try {
+    exercise = getMountableById(state.exerciseId);
+  } catch (err) {
+    console.error('Unknown exercise id; falling back to list.', err);
+    navigate({ screen: 'list' });
+    return;
+  }
+
   const { source } = state;
-  currentCleanup = mountScreen(root, (r) => exercise.mount(r, source, navigate));
+  currentCleanup = mountScreen(root, (r) => {
+    try {
+      return exercise.mount(r, source, navigate);
+    } catch (err) {
+      console.error('Exercise mount failed; falling back to list.', err);
+      navigate({ screen: 'list' });
+      return () => {};
+    }
+  });
 }
