@@ -17,6 +17,9 @@ test('home page lists drills and auto entry point', async ({ page }) => {
     page.getByRole('heading', { level: 3, name: 'Circle' }),
   ).toBeVisible();
   await expect(
+    page.getByRole('heading', { level: 3, name: 'Ellipse' }),
+  ).toBeVisible();
+  await expect(
     page.getByRole('heading', { level: 3, name: 'Horizontal Thirds' }),
   ).toBeVisible();
   await expect(
@@ -49,7 +52,7 @@ test('home page lists drills and auto entry point', async ({ page }) => {
       name: 'Double Vertical on Horizontal',
     }),
   ).toBeVisible();
-  await expect(page.getByText('No score yet')).toHaveCount(10);
+  await expect(page.getByText('No score yet')).toHaveCount(11);
   await expect(page.getByRole('button', { name: 'Comming' })).toHaveCount(8);
   await expect(
     page
@@ -62,6 +65,62 @@ test('home page lists drills and auto entry point', async ({ page }) => {
       })
       .getByRole('button', { name: 'Comming' }),
   ).toBeDisabled();
+});
+
+test('ellipse drill scores a drawn stroke and auto-clears', async ({ page }) => {
+  await page.goto('/');
+
+  await page
+    .getByRole('article')
+    .filter({
+      has: page.getByRole('heading', { level: 3, name: 'Ellipse' }),
+    })
+    .getByRole('button', { name: 'Practice' })
+    .click();
+
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Ellipse' }),
+  ).toBeVisible();
+
+  const canvasBox = await page
+    .locator('[data-testid="freehand-canvas"]')
+    .boundingBox();
+  if (!canvasBox) {
+    throw new Error('Expected freehand canvas to have a bounding box.');
+  }
+
+  const centerX = canvasBox.x + canvasBox.width / 2;
+  const centerY = canvasBox.y + canvasBox.height / 2;
+  const majorRadius = Math.min(canvasBox.width, canvasBox.height) * 0.28;
+  const minorRadius = Math.min(canvasBox.width, canvasBox.height) * 0.15;
+  const rotation = Math.PI / 7;
+  const cos = Math.cos(rotation);
+  const sin = Math.sin(rotation);
+
+  await page.mouse.move(centerX + majorRadius * cos, centerY + majorRadius * sin);
+  await page.mouse.down();
+  for (let index = 1; index <= 48; index += 1) {
+    const angle = (Math.PI * 2 * index) / 48;
+    const localX = Math.cos(angle) * majorRadius;
+    const localY = Math.sin(angle) * minorRadius;
+    await page.mouse.move(
+      centerX + localX * cos - localY * sin,
+      centerY + localX * sin + localY * cos,
+    );
+  }
+  await page.mouse.up();
+
+  await expect(page.getByText(/Ellipse fit \d+\.\d/)).toBeVisible();
+  await expect(page.locator('.freehand-fit-ellipse')).toBeVisible();
+
+  await expect(page.getByText(/Draw one ellipse in the field/i)).toBeVisible({
+    timeout: 2500,
+  });
+
+  await page.getByRole('button', { name: 'Back to List' }).click();
+  await expect(
+    page.locator('.score-chip').filter({ hasText: /^\d+\.\d$/ }),
+  ).toHaveCount(1);
 });
 
 test('circle drill scores a drawn stroke and auto-clears', async ({ page }) => {

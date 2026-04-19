@@ -6,6 +6,7 @@ import type { StoredProgress } from '../storage/progress';
 export type ExerciseId =
   | 'freehand-straight-line'
   | 'freehand-circle'
+  | 'freehand-ellipse'
   | 'division-horizontal-halves'
   | 'division-horizontal-thirds'
   | 'division-horizontal-quarters'
@@ -67,7 +68,7 @@ export type SingleMarkExerciseDefinition = ExerciseBase & {
 };
 
 export type FreehandExerciseDefinition = ExerciseBase & {
-  kind: 'freehand-line' | 'freehand-circle';
+  kind: 'freehand-line' | 'freehand-circle' | 'freehand-ellipse';
 };
 
 export type ExerciseDefinition =
@@ -90,6 +91,14 @@ export const EXERCISES: ExerciseDefinition[] = [
     description: 'Draw one deliberate circle and compare it with its best fit.',
     implemented: true,
     kind: 'freehand-circle',
+  },
+  {
+    id: 'freehand-ellipse',
+    family: 'Freehand Control',
+    label: 'Ellipse',
+    description: 'Draw one deliberate ellipse and compare it with its best fit.',
+    implemented: true,
+    kind: 'freehand-ellipse',
   },
   divisionExercise('division-horizontal-halves', 'horizontal', 2),
   divisionExercise('division-horizontal-thirds', 'horizontal', 3),

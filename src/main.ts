@@ -51,7 +51,11 @@ function renderApp(): void {
   }
 
   const exercise = getExerciseById(state.exerciseId);
-  if (exercise.kind === 'freehand-line' || exercise.kind === 'freehand-circle') {
+  if (
+    exercise.kind === 'freehand-line' ||
+    exercise.kind === 'freehand-circle' ||
+    exercise.kind === 'freehand-ellipse'
+  ) {
     appRoot.append(renderFreehandExerciseScreen(exercise, state.source));
     return;
   }
@@ -227,7 +231,24 @@ type FreehandCircleResult = {
   closureGapPixels: number;
 };
 
-type FreehandResult = FreehandLineResult | FreehandCircleResult;
+type FreehandEllipseResult = {
+  kind: 'ellipse';
+  score: number;
+  meanErrorPixels: number;
+  maxErrorPixels: number;
+  strokeLengthPixels: number;
+  pointCount: number;
+  center: { x: number; y: number };
+  majorRadius: number;
+  minorRadius: number;
+  rotationRadians: number;
+  closureGapPixels: number;
+};
+
+type FreehandResult =
+  | FreehandLineResult
+  | FreehandCircleResult
+  | FreehandEllipseResult;
 
 function renderFreehandExerciseScreen(
   exercise: FreehandExerciseDefinition,
@@ -239,6 +260,7 @@ function renderFreehandExerciseScreen(
   let result: FreehandResult | null = null;
   let resetTimer: number | null = null;
   const isCircleExercise = exercise.kind === 'freehand-circle';
+  const isEllipseExercise = exercise.kind === 'freehand-ellipse';
 
   const screen = pageShell();
   const header = exerciseHeader(exercise, source);
@@ -250,9 +272,7 @@ function renderFreehandExerciseScreen(
 
   const prompt = document.createElement('p');
   prompt.className = 'exercise-prompt';
-  prompt.textContent = isCircleExercise
-    ? 'Draw one circle in the field.'
-    : 'Draw one straight line in the field.';
+  prompt.textContent = freehandPromptText(exercise.kind);
 
   const fullscreenButton = actionButton('Fullscreen', () => {
     void toggleFreehandFullscreen(stage, fullscreenButton);
@@ -271,9 +291,7 @@ function renderFreehandExerciseScreen(
 
   const feedback = document.createElement('p');
   feedback.className = 'feedback-banner';
-  feedback.textContent = isCircleExercise
-    ? 'Use Pencil, touch, or mouse to draw one circle.'
-    : 'Use Pencil, touch, or mouse to draw one line.';
+  feedback.textContent = freehandReadyText(exercise.kind);
 
   const summary = document.createElement('div');
   summary.className = 'result-summary';
@@ -285,7 +303,11 @@ function renderFreehandExerciseScreen(
   svg.setAttribute('role', 'img');
   svg.setAttribute(
     'aria-label',
-    isCircleExercise ? 'Circle drawing field' : 'Straight line drawing field',
+    isCircleExercise
+      ? 'Circle drawing field'
+      : isEllipseExercise
+        ? 'Ellipse drawing field'
+        : 'Straight line drawing field',
   );
   svg.dataset.testid = 'freehand-canvas';
 
@@ -308,7 +330,11 @@ function renderFreehandExerciseScreen(
   fittedCircle.setAttribute('class', 'freehand-fit-circle');
   fittedCircle.style.display = 'none';
 
-  svg.append(frame, userStroke, fittedLine, fittedCircle);
+  const fittedEllipse = createSvg('ellipse');
+  fittedEllipse.setAttribute('class', 'freehand-fit-ellipse');
+  fittedEllipse.style.display = 'none';
+
+  svg.append(frame, userStroke, fittedLine, fittedCircle, fittedEllipse);
 
   svg.addEventListener('pointerdown', (event) => {
     if (drawingPointerId !== null || result) {
@@ -363,15 +389,11 @@ function renderFreehandExerciseScreen(
   return screen;
 
   function revealFreehandResult(): void {
-    const nextResult = isCircleExercise
-      ? scoreFreehandCircle(points)
-      : scoreFreehandLine(points);
+    const nextResult = scoreFreehandStroke(exercise.kind, points);
     if (!nextResult) {
       points = [];
       userStroke.removeAttribute('d');
-      feedback.textContent = isCircleExercise
-        ? 'Stroke was too short. Draw a larger circle.'
-        : 'Stroke was too short. Draw a longer line.';
+      feedback.textContent = freehandRetryText(exercise.kind);
       return;
     }
 
@@ -385,11 +407,26 @@ function renderFreehandExerciseScreen(
       fittedLine.setAttribute('y2', result.fitEnd.y.toFixed(2));
       fittedLine.style.display = '';
       fittedCircle.style.display = 'none';
+      fittedEllipse.style.display = 'none';
     } else {
-      fittedCircle.setAttribute('cx', result.center.x.toFixed(2));
-      fittedCircle.setAttribute('cy', result.center.y.toFixed(2));
-      fittedCircle.setAttribute('r', result.radius.toFixed(2));
-      fittedCircle.style.display = '';
+      if (result.kind === 'circle') {
+        fittedCircle.setAttribute('cx', result.center.x.toFixed(2));
+        fittedCircle.setAttribute('cy', result.center.y.toFixed(2));
+        fittedCircle.setAttribute('r', result.radius.toFixed(2));
+        fittedCircle.style.display = '';
+        fittedEllipse.style.display = 'none';
+      } else {
+        fittedEllipse.setAttribute('cx', result.center.x.toFixed(2));
+        fittedEllipse.setAttribute('cy', result.center.y.toFixed(2));
+        fittedEllipse.setAttribute('rx', result.majorRadius.toFixed(2));
+        fittedEllipse.setAttribute('ry', result.minorRadius.toFixed(2));
+        fittedEllipse.setAttribute(
+          'transform',
+          `rotate(${radiansToDegrees(result.rotationRadians).toFixed(2)} ${result.center.x.toFixed(2)} ${result.center.y.toFixed(2)})`,
+        );
+        fittedEllipse.style.display = '';
+        fittedCircle.style.display = 'none';
+      }
       fittedLine.style.display = 'none';
     }
 
@@ -405,7 +442,7 @@ function renderFreehandExerciseScreen(
 
     feedback.textContent =
       `${feedbackLabel(100 - result.score)} · ` +
-      `${result.kind === 'circle' ? 'Roundness' : 'Straightness'} ${result.score.toFixed(1)} · ` +
+      `${freehandScoreLabel(result.kind)} ${result.score.toFixed(1)} · ` +
       `Mean drift ${result.meanErrorPixels.toFixed(1)} px`;
 
     const resultStats = [
@@ -420,6 +457,14 @@ function renderFreehandExerciseScreen(
         3,
         0,
         resultStat('Radius', `${Math.round(result.radius)} px`),
+        resultStat('Closure', `${Math.round(result.closureGapPixels)} px`),
+      );
+    } else if (result.kind === 'ellipse') {
+      resultStats.splice(
+        3,
+        0,
+        resultStat('Major', `${Math.round(result.majorRadius)} px`),
+        resultStat('Minor', `${Math.round(result.minorRadius)} px`),
         resultStat('Closure', `${Math.round(result.closureGapPixels)} px`),
       );
     }
@@ -437,12 +482,11 @@ function renderFreehandExerciseScreen(
       userStroke.removeAttribute('d');
       fittedLine.style.display = 'none';
       fittedCircle.style.display = 'none';
+      fittedEllipse.style.display = 'none';
       summary.hidden = true;
       feedback.removeAttribute('data-tone');
       summary.removeAttribute('data-tone');
-      feedback.textContent = isCircleExercise
-        ? 'Draw one circle in the field.'
-        : 'Draw one straight line in the field.';
+      feedback.textContent = freehandPromptText(exercise.kind);
     }, 1500);
   }
 }
@@ -585,6 +629,64 @@ function exerciseHeader(
   return header;
 }
 
+function freehandPromptText(kind: FreehandExerciseDefinition['kind']): string {
+  switch (kind) {
+    case 'freehand-circle':
+      return 'Draw one circle in the field.';
+    case 'freehand-ellipse':
+      return 'Draw one ellipse in the field.';
+    case 'freehand-line':
+      return 'Draw one straight line in the field.';
+  }
+}
+
+function freehandReadyText(kind: FreehandExerciseDefinition['kind']): string {
+  switch (kind) {
+    case 'freehand-circle':
+      return 'Use Pencil, touch, or mouse to draw one circle.';
+    case 'freehand-ellipse':
+      return 'Use Pencil, touch, or mouse to draw one ellipse.';
+    case 'freehand-line':
+      return 'Use Pencil, touch, or mouse to draw one line.';
+  }
+}
+
+function freehandRetryText(kind: FreehandExerciseDefinition['kind']): string {
+  switch (kind) {
+    case 'freehand-circle':
+      return 'Stroke was too short. Draw a larger circle.';
+    case 'freehand-ellipse':
+      return 'Stroke was too short. Draw a larger ellipse.';
+    case 'freehand-line':
+      return 'Stroke was too short. Draw a longer line.';
+  }
+}
+
+function freehandScoreLabel(kind: FreehandResult['kind']): string {
+  switch (kind) {
+    case 'circle':
+      return 'Roundness';
+    case 'ellipse':
+      return 'Ellipse fit';
+    case 'line':
+      return 'Straightness';
+  }
+}
+
+function scoreFreehandStroke(
+  kind: FreehandExerciseDefinition['kind'],
+  points: FreehandPoint[],
+): FreehandResult | null {
+  switch (kind) {
+    case 'freehand-circle':
+      return scoreFreehandCircle(points);
+    case 'freehand-ellipse':
+      return scoreFreehandEllipse(points);
+    case 'freehand-line':
+      return scoreFreehandLine(points);
+  }
+}
+
 function freehandPointsFromPointerEvent(
   svg: SVGSVGElement,
   event: PointerEvent,
@@ -592,7 +694,9 @@ function freehandPointsFromPointerEvent(
   const eventWithCoalesced = event as PointerEvent & {
     getCoalescedEvents?: () => PointerEvent[];
   };
-  const sourceEvents = eventWithCoalesced.getCoalescedEvents?.() ?? [event];
+  const coalescedEvents = eventWithCoalesced.getCoalescedEvents?.();
+  const sourceEvents =
+    coalescedEvents && coalescedEvents.length > 0 ? coalescedEvents : [event];
   const points: FreehandPoint[] = [];
 
   for (const sourceEvent of sourceEvents) {
@@ -830,6 +934,272 @@ function fitCircle(
     center,
     radius: Math.sqrt(radiusSquared),
   };
+}
+
+function scoreFreehandEllipse(
+  points: FreehandPoint[],
+): FreehandEllipseResult | null {
+  if (points.length < 12) {
+    return null;
+  }
+
+  let strokeLengthPixels = 0;
+  for (let index = 1; index < points.length; index += 1) {
+    strokeLengthPixels += distanceBetween(points[index - 1], points[index]);
+  }
+
+  if (strokeLengthPixels < 180) {
+    return null;
+  }
+
+  const fit = fitEllipse(points);
+  if (
+    !fit ||
+    fit.majorRadius < 45 ||
+    fit.majorRadius > 480 ||
+    fit.minorRadius < 24 ||
+    fit.minorRadius > 420 ||
+    fit.majorRadius / fit.minorRadius > 8
+  ) {
+    return null;
+  }
+
+  let totalErrorPixels = 0;
+  let maxErrorPixels = 0;
+  for (const point of points) {
+    const radialError = ellipseRadialErrorPixels(point, fit);
+    totalErrorPixels += radialError;
+    maxErrorPixels = Math.max(maxErrorPixels, radialError);
+  }
+
+  const meanErrorPixels = totalErrorPixels / points.length;
+  const closureGapPixels = distanceBetween(points[0], points[points.length - 1]);
+  const referenceRadius = Math.sqrt(fit.majorRadius * fit.minorRadius);
+  const normalizedMeanError = meanErrorPixels / referenceRadius;
+  const normalizedMaxError = maxErrorPixels / referenceRadius;
+  const normalizedClosureGap =
+    closureGapPixels / ellipseCircumferenceApproximation(fit);
+  const score = clampNumber(
+    100 -
+      (normalizedMeanError * 1250 +
+        normalizedMaxError * 180 +
+        normalizedClosureGap * 420),
+    0,
+    100,
+  );
+
+  return {
+    kind: 'ellipse',
+    score,
+    meanErrorPixels,
+    maxErrorPixels,
+    strokeLengthPixels,
+    pointCount: points.length,
+    center: fit.center,
+    majorRadius: fit.majorRadius,
+    minorRadius: fit.minorRadius,
+    rotationRadians: fit.rotationRadians,
+    closureGapPixels,
+  };
+}
+
+function fitEllipse(
+  points: FreehandPoint[],
+): {
+  center: { x: number; y: number };
+  majorRadius: number;
+  minorRadius: number;
+  rotationRadians: number;
+} | null {
+  const coefficients = Array.from({ length: 5 }, () => Array(5).fill(0));
+  const constants = Array(5).fill(0);
+
+  for (const point of points) {
+    const row = [
+      point.x * point.x,
+      point.x * point.y,
+      point.y * point.y,
+      point.x,
+      point.y,
+    ];
+
+    for (let rowIndex = 0; rowIndex < row.length; rowIndex += 1) {
+      constants[rowIndex] += row[rowIndex];
+      for (let columnIndex = 0; columnIndex < row.length; columnIndex += 1) {
+        coefficients[rowIndex][columnIndex] +=
+          row[rowIndex] * row[columnIndex];
+      }
+    }
+  }
+
+  const solution = solveLinearSystem(coefficients, constants);
+  if (!solution) {
+    return null;
+  }
+
+  const [a, b, c, d, e] = solution;
+  const f = -1;
+  const discriminant = b * b - 4 * a * c;
+  if (discriminant >= 0) {
+    return null;
+  }
+
+  const center = {
+    x: (2 * c * d - b * e) / discriminant,
+    y: (2 * a * e - b * d) / discriminant,
+  };
+  const centeredConstant =
+    a * center.x * center.x +
+    b * center.x * center.y +
+    c * center.y * center.y +
+    d * center.x +
+    e * center.y +
+    f;
+
+  const crossTerm = b / 2;
+  const trace = (a + c) / 2;
+  const spread = Math.hypot((a - c) / 2, crossTerm);
+  const firstEigenvalue = trace + spread;
+  const secondEigenvalue = trace - spread;
+  const firstRadiusSquared = -centeredConstant / firstEigenvalue;
+  const secondRadiusSquared = -centeredConstant / secondEigenvalue;
+
+  if (
+    !Number.isFinite(firstRadiusSquared) ||
+    !Number.isFinite(secondRadiusSquared) ||
+    firstRadiusSquared <= 0 ||
+    secondRadiusSquared <= 0
+  ) {
+    return null;
+  }
+
+  const firstRadius = Math.sqrt(firstRadiusSquared);
+  const secondRadius = Math.sqrt(secondRadiusSquared);
+  const firstAngle = eigenvectorAngle(a, crossTerm, c, firstEigenvalue);
+  const secondAngle = eigenvectorAngle(a, crossTerm, c, secondEigenvalue);
+
+  if (firstRadius >= secondRadius) {
+    return {
+      center,
+      majorRadius: firstRadius,
+      minorRadius: secondRadius,
+      rotationRadians: firstAngle,
+    };
+  }
+
+  return {
+    center,
+    majorRadius: secondRadius,
+    minorRadius: firstRadius,
+    rotationRadians: secondAngle,
+  };
+}
+
+function ellipseRadialErrorPixels(
+  point: FreehandPoint,
+  ellipse: {
+    center: { x: number; y: number };
+    majorRadius: number;
+    minorRadius: number;
+    rotationRadians: number;
+  },
+): number {
+  const cos = Math.cos(ellipse.rotationRadians);
+  const sin = Math.sin(ellipse.rotationRadians);
+  const dx = point.x - ellipse.center.x;
+  const dy = point.y - ellipse.center.y;
+  const localX = dx * cos + dy * sin;
+  const localY = -dx * sin + dy * cos;
+  const distanceFromCenter = Math.hypot(localX, localY);
+
+  if (distanceFromCenter === 0) {
+    return ellipse.minorRadius;
+  }
+
+  const directionCos = localX / distanceFromCenter;
+  const directionSin = localY / distanceFromCenter;
+  const fittedRadius =
+    1 /
+    Math.sqrt(
+      (directionCos * directionCos) /
+        (ellipse.majorRadius * ellipse.majorRadius) +
+        (directionSin * directionSin) /
+          (ellipse.minorRadius * ellipse.minorRadius),
+    );
+
+  return Math.abs(distanceFromCenter - fittedRadius);
+}
+
+function ellipseCircumferenceApproximation(ellipse: {
+  majorRadius: number;
+  minorRadius: number;
+}): number {
+  const h =
+    ((ellipse.majorRadius - ellipse.minorRadius) *
+      (ellipse.majorRadius - ellipse.minorRadius)) /
+    ((ellipse.majorRadius + ellipse.minorRadius) *
+      (ellipse.majorRadius + ellipse.minorRadius));
+  return (
+    Math.PI *
+    (ellipse.majorRadius + ellipse.minorRadius) *
+    (1 + (3 * h) / (10 + Math.sqrt(4 - 3 * h)))
+  );
+}
+
+function eigenvectorAngle(
+  a: number,
+  crossTerm: number,
+  c: number,
+  eigenvalue: number,
+): number {
+  if (Math.abs(crossTerm) > 1e-9) {
+    return Math.atan2(eigenvalue - a, crossTerm);
+  }
+
+  return Math.abs(a - eigenvalue) <= Math.abs(c - eigenvalue)
+    ? 0
+    : Math.PI / 2;
+}
+
+function solveLinearSystem(
+  coefficients: number[][],
+  constants: number[],
+): number[] | null {
+  const matrix = coefficients.map((row, index) => [...row, constants[index]]);
+  const size = constants.length;
+
+  for (let column = 0; column < size; column += 1) {
+    let pivotRow = column;
+    for (let row = column + 1; row < size; row += 1) {
+      if (Math.abs(matrix[row][column]) > Math.abs(matrix[pivotRow][column])) {
+        pivotRow = row;
+      }
+    }
+
+    const pivot = matrix[pivotRow][column];
+    if (Math.abs(pivot) < 1e-9) {
+      return null;
+    }
+
+    [matrix[column], matrix[pivotRow]] = [matrix[pivotRow], matrix[column]];
+
+    for (let entry = column; entry <= size; entry += 1) {
+      matrix[column][entry] /= pivot;
+    }
+
+    for (let row = 0; row < size; row += 1) {
+      if (row === column) {
+        continue;
+      }
+
+      const factor = matrix[row][column];
+      for (let entry = column; entry <= size; entry += 1) {
+        matrix[row][entry] -= factor * matrix[column][entry];
+      }
+    }
+  }
+
+  return matrix.map((row) => row[size]);
 }
 
 function solveThreeByThree(
@@ -1206,4 +1576,8 @@ function distanceBetween(
 
 function clampNumber(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function radiansToDegrees(value: number): number {
+  return (value * 180) / Math.PI;
 }
