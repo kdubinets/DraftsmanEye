@@ -222,6 +222,46 @@ test("angle copy drill scores a drawn ray from the target vertex", async ({
   await expect(page.locator(".freehand-history-item")).toHaveCount(1);
 });
 
+test("angle copy drill accepts a ray drawn toward the target vertex", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await page
+    .getByRole("article")
+    .filter({
+      has: page.getByRole("heading", {
+        level: 3,
+        name: "Horizontal Reference, Rotated Base",
+      }),
+    })
+    .getByRole("button", { name: "Practice" })
+    .click();
+
+  const canvas = page.getByTestId("freehand-canvas");
+  const vertex = await locatorCenter(
+    canvas.locator(".freehand-angle-target-vertex"),
+  );
+  const baseEnd = await svgLineEnd(
+    canvas.locator(".freehand-angle-target-base"),
+  );
+  const [baseEndClient] = await svgPointsToClient(page, [baseEnd]);
+
+  await page.mouse.move(baseEndClient.x, baseEndClient.y);
+  await page.mouse.down();
+  for (let index = 1; index <= 8; index += 1) {
+    const ratio = index / 8;
+    await page.mouse.move(
+      baseEndClient.x + (vertex.x - baseEndClient.x) * ratio,
+      baseEndClient.y + (vertex.y - baseEndClient.y) * ratio,
+    );
+  }
+  await page.mouse.up();
+
+  await expect(page.getByText(/Angle copy \d+\.\d/)).toBeVisible();
+  await expect(page.getByText("Angle miss")).toBeVisible();
+});
+
 test("target circle drill scores a circle from center and radius point", async ({
   page,
 }) => {

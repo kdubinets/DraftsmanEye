@@ -65,6 +65,17 @@ describe("scoreTargetAngle", () => {
     expect(result.score).toBeCloseTo(100, 5);
   });
 
+  it("accepts a copied angle stroke drawn toward the vertex", () => {
+    const target = targetAngle();
+    const result = scoreTargetAngle(
+      linePoints(target.target.correctEnd, target.target.vertex),
+      target,
+    )!;
+    expect(result).not.toBeNull();
+    expect(result.angleErrorDegrees).toBeCloseTo(0, 6);
+    expect(result.score).toBeCloseTo(100, 5);
+  });
+
   it("reports too-open and too-narrow signed opening errors", () => {
     const target = targetAngle();
     const tooOpenEnd = {

@@ -40,7 +40,12 @@ export function scoreTargetAngle(
     target.target.vertex,
     target.target.correctEnd,
   );
-  const startErrorPixels = distanceBetween(points[0], target.target.vertex);
+  const firstErrorPixels = distanceBetween(points[0], target.target.vertex);
+  const lastErrorPixels = distanceBetween(
+    points[points.length - 1],
+    target.target.vertex,
+  );
+  const startErrorPixels = Math.min(firstErrorPixels, lastErrorPixels);
   if (startErrorPixels > MAX_START_MISS) return null;
 
   const userRay = orientedFitRay(
@@ -99,12 +104,16 @@ function orientedFitRay(
 ): { start: { x: number; y: number }; end: { x: number; y: number } } | null {
   const first = points[0];
   const last = points[points.length - 1];
+  const firstIsNearer =
+    distanceBetween(first, vertex) <= distanceBetween(last, vertex);
   const dx = last.x - first.x;
   const dy = last.y - first.y;
   const strokeLength = Math.hypot(dx, dy);
   if (strokeLength === 0) return null;
+  const awayDx = firstIsNearer ? dx : -dx;
+  const awayDy = firstIsNearer ? dy : -dy;
   const direction =
-    dx * fitDirection.x + dy * fitDirection.y >= 0
+    awayDx * fitDirection.x + awayDy * fitDirection.y >= 0
       ? fitDirection
       : { x: -fitDirection.x, y: -fitDirection.y };
 
