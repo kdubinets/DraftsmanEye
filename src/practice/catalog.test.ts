@@ -341,4 +341,43 @@ describe("single-mark scoreSelection", () => {
       expect(exact.relativeAccuracyPercent).toBe(100);
     }
   });
+
+  it("extrapolated intersection drill scores a free canvas point", () => {
+    const drill = EXERCISES.find(
+      (e): e is SingleMarkExerciseDefinition =>
+        e.id === "intersection-extrapolated" &&
+        e.implemented &&
+        "createTrial" in e,
+    )!;
+
+    for (let i = 0; i < 50; i += 1) {
+      const trial = drill.createTrial();
+      expect(trial.scorePoint).toBeDefined();
+      expect(trial.line.axis).toBe("free");
+      expect(trial.projectionLine).toBeDefined();
+      expect(trial.line.endScalar).toBeGreaterThan(140);
+      expect(trial.projectionLine!.endScalar).toBeGreaterThan(140);
+
+      const target = trial.projectionOrigin!;
+      expect(target.x).toBeGreaterThanOrEqual(0);
+      expect(target.x).toBeLessThanOrEqual(trial.viewport.width);
+      expect(target.y).toBeGreaterThanOrEqual(0);
+      expect(target.y).toBeLessThanOrEqual(trial.viewport.height);
+
+      const exact = trial.scorePoint!(target);
+      expect(exact).not.toBeNull();
+      expect(exact!.distanceErrorPixels).toBe(0);
+      expect(exact!.relativeAccuracyPercent).toBe(100);
+
+      const near = trial.scorePoint!({ x: target.x + 12, y: target.y + 5 });
+      expect(near).not.toBeNull();
+      expect(near!.distanceErrorPixels).toBeCloseTo(13);
+
+      const far = trial.scorePoint!({
+        x: target.x + trial.viewport.width,
+        y: target.y + trial.viewport.height,
+      });
+      expect(far).toBeNull();
+    }
+  });
 });

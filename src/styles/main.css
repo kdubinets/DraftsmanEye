@@ -569,11 +569,32 @@ button {
   stroke: #2f7d5d;
 }
 
+.user-point-mark,
+.target-point-mark {
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.user-point-mark {
+  stroke: rgba(122, 77, 34, 0.68);
+  stroke-width: 1.4;
+}
+
+.target-point-mark {
+  stroke: #2f7d5d;
+  stroke-width: 3;
+}
+
 .error-gap {
   stroke: #c26134;
   stroke-width: 3;
   stroke-linecap: round;
   stroke-dasharray: 7 6;
+}
+
+.point-error-gap {
+  stroke-width: 1.5;
+  stroke-dasharray: 5 7;
 }
 
 .feedback-banner {

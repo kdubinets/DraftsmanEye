@@ -43,7 +43,9 @@ export function mountSingleMarkScreen(
 
   const prompt = h("p", { class: "exercise-prompt" }, [trial.prompt]);
   const feedback = h("p", { class: "feedback-banner" }, [
-    "Place one mark on the line.",
+    trial.scorePoint
+      ? "Place one mark in the field."
+      : "Place one mark on the line.",
   ]);
   const summary = h("div", { class: "result-summary" });
   summary.hidden = true;
@@ -66,7 +68,7 @@ export function mountSingleMarkScreen(
   });
   autoBtn.hidden = true;
 
-  let svg = renderTrialSvg(trial, () => result, onSelect);
+  let svg = renderTrialSvg(trial, () => result, onSelect, onPointSelect);
 
   actions.append(againBtn, backBtn, autoBtn);
   stage.append(prompt, svg, feedback, summary, actions);
@@ -79,8 +81,15 @@ export function mountSingleMarkScreen(
     revealResult(trial.scoreSelection(scalar));
   }
 
+  function onPointSelect(point: { x: number; y: number }): void {
+    if (result || !trial.scorePoint) return;
+    const next = trial.scorePoint(point);
+    if (!next) return;
+    revealResult(next);
+  }
+
   function rerenderSvg(): void {
-    const next = renderTrialSvg(trial, () => result, onSelect);
+    const next = renderTrialSvg(trial, () => result, onSelect, onPointSelect);
     svg.replaceWith(next);
     svg = next;
   }
@@ -105,38 +114,52 @@ export function mountSingleMarkScreen(
     summary.style.setProperty("--result-accent", accent);
 
     feedback.textContent =
-      result.angleErrorDegrees === undefined
+      result.distanceErrorPixels !== undefined
         ? `${feedbackLabel(result.relativeErrorPercent)} · ` +
-          `Error ${formatSignedValue(result.signedErrorPixels)} px · ` +
-          `${result.relativeErrorPercent.toFixed(1)}% of line length`
-        : `${feedbackLabel(result.relativeErrorPercent)} · ` +
-          `Angle error ${result.angleErrorDegrees.toFixed(1)}° · ` +
-          `Offset ${formatSignedValue(result.signedErrorPixels)} px`;
+          `Error ${result.distanceErrorPixels.toFixed(1)} px`
+        : result.angleErrorDegrees === undefined
+          ? `${feedbackLabel(result.relativeErrorPercent)} · ` +
+            `Error ${formatSignedValue(result.signedErrorPixels)} px · ` +
+            `${result.relativeErrorPercent.toFixed(1)}% of line length`
+          : `${feedbackLabel(result.relativeErrorPercent)} · ` +
+            `Angle error ${result.angleErrorDegrees.toFixed(1)}° · ` +
+            `Offset ${formatSignedValue(result.signedErrorPixels)} px`;
 
     summary.hidden = false;
     const resultStats =
-      result.angleErrorDegrees === undefined
+      result.distanceErrorPixels !== undefined
         ? [
             resultStat("Score", result.relativeAccuracyPercent.toFixed(1)),
-            resultStat("Placed", `${Math.round(result.placedScalar)} px`),
-            resultStat("Target", `${Math.round(result.targetScalar)} px`),
-            resultStat(
-              "Direction",
-              result.signedErrorPixels === 0 ? "Exact" : result.directionLabel,
-            ),
+            resultStat("Error", `${result.distanceErrorPixels.toFixed(1)} px`),
+            resultStat("Placed", formatPoint(result.placedPoint)),
+            resultStat("Target", formatPoint(result.targetPoint)),
           ]
-        : [
-            resultStat("Score", result.relativeAccuracyPercent.toFixed(1)),
-            resultStat("Angle", `${result.angleErrorDegrees.toFixed(1)}°`),
-            resultStat(
-              "Offset",
-              `${formatSignedValue(result.signedErrorPixels)} px`,
-            ),
-            resultStat(
-              "Direction",
-              result.signedErrorPixels === 0 ? "Exact" : result.directionLabel,
-            ),
-          ];
+        : result.angleErrorDegrees === undefined
+          ? [
+              resultStat("Score", result.relativeAccuracyPercent.toFixed(1)),
+              resultStat("Placed", `${Math.round(result.placedScalar)} px`),
+              resultStat("Target", `${Math.round(result.targetScalar)} px`),
+              resultStat(
+                "Direction",
+                result.signedErrorPixels === 0
+                  ? "Exact"
+                  : result.directionLabel,
+              ),
+            ]
+          : [
+              resultStat("Score", result.relativeAccuracyPercent.toFixed(1)),
+              resultStat("Angle", `${result.angleErrorDegrees.toFixed(1)}°`),
+              resultStat(
+                "Offset",
+                `${formatSignedValue(result.signedErrorPixels)} px`,
+              ),
+              resultStat(
+                "Direction",
+                result.signedErrorPixels === 0
+                  ? "Exact"
+                  : result.directionLabel,
+              ),
+            ];
     summary.replaceChildren(...resultStats);
 
     againBtn.hidden = false;
@@ -153,6 +176,7 @@ function renderTrialSvg(
   trial: import("../practice/catalog").SingleMarkTrial,
   getResult: () => SingleMarkTrialResult | null,
   onSelect: (scalar: number) => void,
+  onPointSelect: (point: { x: number; y: number }) => void,
 ): SVGSVGElement {
   const frame = s("rect", {
     x: 1,
@@ -180,8 +204,11 @@ function renderTrialSvg(
       })
     : null;
 
-  // Invisible hit-rect wider than the line so taps near the ends still register.
-  const guide = createClickGuide(trial.line);
+  // Invisible hit target. Point-selection drills use the whole field; line
+  // drills use a narrow band so accidental off-line taps are ignored.
+  const guide = trial.scorePoint
+    ? createFieldClickGuide(trial.viewport.width, trial.viewport.height)
+    : createClickGuide(trial.line);
 
   const startCap =
     trial.line.showEndpointTicks === false
@@ -250,6 +277,11 @@ function renderTrialSvg(
     const local = localSvgPoint(svg, event.clientX, event.clientY);
     if (!local) return;
 
+    if (trial.scorePoint) {
+      onPointSelect({ x: local.x, y: local.y });
+      return;
+    }
+
     const scalar = scalarFromPoint(trial.line, local);
     const crossDist = crossAxisDistance(trial.line.axis, trial.line, local);
     if (
@@ -267,6 +299,38 @@ function renderTrialSvg(
   const res = getResult();
   if (res) {
     const accent = `hsl(${feedbackHueForError(res.relativeErrorPercent)} 55% 42%)`;
+    if (res.placedPoint && res.targetPoint) {
+      const gapEl = s("line", {
+        x1: res.placedPoint.x,
+        y1: res.placedPoint.y,
+        x2: res.targetPoint.x,
+        y2: res.targetPoint.y,
+        class: "error-gap point-error-gap",
+      });
+      gapEl.style.stroke = accent;
+
+      const resultOverlay: SVGElement[] = [
+        gapEl,
+        createProjectionResultRay(
+          nearestLineEndpoint(trial.line, res.targetPoint),
+          res.targetPoint,
+        ),
+      ];
+      if (trial.projectionLine) {
+        resultOverlay.push(
+          createProjectionResultRay(
+            nearestLineEndpoint(trial.projectionLine, res.targetPoint),
+            res.targetPoint,
+          ),
+        );
+      }
+      resultOverlay.push(
+        createPointMark(res.placedPoint, "user-point-mark", accent),
+      );
+      svg.append(...resultOverlay);
+      return svg;
+    }
+
     const gapA = gapPoint(trial.line.axis, trial.line, res.placedScalar);
     const gapB = gapPoint(trial.line.axis, trial.line, res.targetScalar);
 
@@ -307,6 +371,11 @@ function renderTrialSvg(
   return svg;
 }
 
+function formatPoint(point: { x: number; y: number } | undefined): string {
+  if (!point) return "--";
+  return `${Math.round(point.x)}, ${Math.round(point.y)}`;
+}
+
 function createProjectionResultRay(
   start: { x: number; y: number },
   end: { x: number; y: number },
@@ -333,6 +402,51 @@ function createReferenceLineGroup(line: TrialLine): SVGGElement {
     createTick(line.axis, line, line.startScalar, "reference-endpoint-tick"),
     createTick(line.axis, line, line.endScalar, "reference-endpoint-tick"),
   ]);
+}
+
+function createFieldClickGuide(width: number, height: number): SVGRectElement {
+  return s("rect", {
+    x: 0,
+    y: 0,
+    width,
+    height,
+    class: "click-guide",
+  });
+}
+
+function createPointMark(
+  point: { x: number; y: number },
+  className: string,
+  stroke?: string,
+): SVGGElement {
+  const mark = s("g", { class: className }, [
+    s("line", {
+      x1: point.x - 7,
+      y1: point.y - 7,
+      x2: point.x + 7,
+      y2: point.y + 7,
+    }),
+    s("line", {
+      x1: point.x - 7,
+      y1: point.y + 7,
+      x2: point.x + 7,
+      y2: point.y - 7,
+    }),
+  ]);
+  if (stroke) mark.style.stroke = stroke;
+  return mark;
+}
+
+function nearestLineEndpoint(
+  line: TrialLine,
+  point: { x: number; y: number },
+): { x: number; y: number } {
+  const start = linePoint(line, "start");
+  const end = linePoint(line, "end");
+  return Math.hypot(point.x - start.x, point.y - start.y) <
+    Math.hypot(point.x - end.x, point.y - end.y)
+    ? start
+    : end;
 }
 
 function createClickGuide(line: TrialLine): SVGElement {

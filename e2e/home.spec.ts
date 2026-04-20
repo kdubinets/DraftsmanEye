@@ -106,11 +106,17 @@ test("home page lists drills and auto entry point", async ({ page }) => {
       name: "Projected Line Intersection",
     }),
   ).toBeVisible();
-  await expect(page.getByText("No score yet")).toHaveCount(38);
+  await expect(
+    page.getByRole("heading", {
+      level: 3,
+      name: "Extrapolated Segment Intersection",
+    }),
+  ).toBeVisible();
+  await expect(page.getByText("No score yet")).toHaveCount(39);
   await expect(page.getByRole("button", { name: "Coming soon" })).toHaveCount(
     0,
   );
-  await expect(page.getByRole("button", { name: "Practice" })).toHaveCount(38);
+  await expect(page.getByRole("button", { name: "Practice" })).toHaveCount(39);
   await expect(
     page
       .getByRole("article")
@@ -934,6 +940,46 @@ test("intersection drill scores the marked crossing by angle", async ({
   expect(canvasAfter.width).toBeCloseTo(canvasBefore.width, 1);
 });
 
+test("extrapolated intersection drill scores a free point mark", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await page
+    .getByRole("article")
+    .filter({
+      has: page.getByRole("heading", {
+        level: 3,
+        name: "Extrapolated Segment Intersection",
+      }),
+    })
+    .getByRole("button", { name: "Practice" })
+    .click();
+
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Extrapolated Segment Intersection",
+    }),
+  ).toBeVisible();
+  await expect(page.getByText(/two segments would meet/i)).toBeVisible();
+  await expect(page.getByText(/Place one mark in the field/i)).toBeVisible();
+
+  const first = await svgLineEndpoints(page.locator(".exercise-line"));
+  const second = await svgLineEndpoints(page.locator(".projection-line"));
+  const target = lineIntersection(first, second);
+  const placed = { x: target.x + 18, y: target.y + 9 };
+  const [placedClient] = await exerciseSvgPointsToClient(page, [placed]);
+  await page.mouse.click(placedClient.x, placedClient.y);
+
+  await expect(page.getByText(/Error 20\.1 px/)).toBeVisible();
+  await expect(page.locator(".user-point-mark")).toBeVisible();
+  await expect(page.locator(".target-point-mark")).toHaveCount(0);
+  await expect(page.locator(".point-error-gap")).toBeVisible();
+  await expect(page.locator(".projection-result-ray")).toHaveCount(2);
+  await expect(page.getByRole("button", { name: "Auto Next" })).toBeVisible();
+});
+
 test("cross-axis double drill scores a mark on the full guide", async ({
   page,
 }) => {
@@ -1057,6 +1103,53 @@ async function svgLineMidpoint(locator: Locator): Promise<{
   }
 
   return { x: (x1 + x2) / 2, y: (y1 + y2) / 2 };
+}
+
+async function svgLineEndpoints(locator: Locator): Promise<{
+  start: { x: number; y: number };
+  end: { x: number; y: number };
+}> {
+  const x1 = Number(await locator.getAttribute("x1"));
+  const y1 = Number(await locator.getAttribute("y1"));
+  const x2 = Number(await locator.getAttribute("x2"));
+  const y2 = Number(await locator.getAttribute("y2"));
+  if (
+    !Number.isFinite(x1) ||
+    !Number.isFinite(y1) ||
+    !Number.isFinite(x2) ||
+    !Number.isFinite(y2)
+  ) {
+    throw new Error("Expected SVG line to expose endpoint coordinates.");
+  }
+
+  return { start: { x: x1, y: y1 }, end: { x: x2, y: y2 } };
+}
+
+function lineIntersection(
+  first: { start: { x: number; y: number }; end: { x: number; y: number } },
+  second: { start: { x: number; y: number }; end: { x: number; y: number } },
+): { x: number; y: number } {
+  const x1 = first.start.x;
+  const y1 = first.start.y;
+  const x2 = first.end.x;
+  const y2 = first.end.y;
+  const x3 = second.start.x;
+  const y3 = second.start.y;
+  const x4 = second.end.x;
+  const y4 = second.end.y;
+  const denominator = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+  if (Math.abs(denominator) < 0.001) {
+    throw new Error("Expected extrapolated segments to intersect.");
+  }
+
+  return {
+    x:
+      ((x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4)) /
+      denominator,
+    y:
+      ((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4)) /
+      denominator,
+  };
 }
 
 async function exerciseSvgPointsToClient(

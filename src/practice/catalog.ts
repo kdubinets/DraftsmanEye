@@ -2,7 +2,11 @@
  * Defines selectable drills and their trial generation and scoring behavior.
  */
 import type { ProgressStore } from "../storage/progress";
-import { clampNumber, radiansToDegrees } from "../geometry/primitives";
+import {
+  clampNumber,
+  distanceBetween,
+  radiansToDegrees,
+} from "../geometry/primitives";
 
 export type ExerciseId =
   | "freehand-straight-line"
@@ -42,7 +46,8 @@ export type ExerciseId =
   | "double-vertical-vertical"
   | "double-vertical-horizontal"
   | "double-random-random"
-  | "intersection-random";
+  | "intersection-random"
+  | "intersection-extrapolated";
 
 export type LineAxis = "horizontal" | "vertical" | "free";
 
@@ -67,6 +72,10 @@ export type SingleMarkTrial = {
   anchorScalar?: number;
   anchorDirectionSign?: -1 | 1;
   scoreSelection: (placedScalar: number) => SingleMarkTrialResult;
+  scorePoint?: (point: {
+    x: number;
+    y: number;
+  }) => SingleMarkTrialResult | null;
 };
 
 export type TrialLine = {
@@ -89,6 +98,9 @@ export type SingleMarkTrialResult = {
   directionLabel: string;
   angleErrorDegrees?: number;
   signedAngleErrorDegrees?: number;
+  distanceErrorPixels?: number;
+  placedPoint?: { x: number; y: number };
+  targetPoint?: { x: number; y: number };
 };
 
 export type SingleMarkExerciseDefinition = ExerciseBase & {
@@ -356,6 +368,7 @@ export const EXERCISES: ExerciseDefinition[] = [
     "free",
   ),
   intersectionExercise(),
+  extrapolatedIntersectionExercise(),
 ];
 
 export const AUTO_EXERCISE_ID: ExerciseId = "division-horizontal-halves";
@@ -982,6 +995,134 @@ function intersectionExercise(): SingleMarkExerciseDefinition {
   };
 }
 
+function extrapolatedIntersectionExercise(): SingleMarkExerciseDefinition {
+  return {
+    id: "intersection-extrapolated",
+    family: "Intersection",
+    label: "Extrapolated Segment Intersection",
+    description:
+      "Extend two separated segments mentally and mark where their lines meet.",
+    implemented: true,
+    kind: "single-mark",
+    createTrial: createExtrapolatedIntersectionTrial,
+  };
+}
+
+function createExtrapolatedIntersectionTrial(): SingleMarkTrial {
+  const width = 760;
+  const height = 520;
+  const margin = 64;
+  const targetPoint = {
+    x: randomInteger(margin + 80, width - margin - 80),
+    y: randomInteger(margin + 70, height - margin - 70),
+  };
+
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    const firstAngle = randomRange(-Math.PI, Math.PI);
+    const secondAngle = firstAngle + randomRange(0.65, 1.35) * randomSign();
+    const first = createSegmentAwayFromPoint(
+      targetPoint,
+      firstAngle,
+      randomInteger(86, 132),
+      randomInteger(150, 250),
+    );
+    const second = createSegmentAwayFromPoint(
+      targetPoint,
+      secondAngle,
+      randomInteger(86, 132),
+      randomInteger(150, 250),
+    );
+
+    if (
+      segmentInViewport(first, width, height, margin) &&
+      segmentInViewport(second, width, height, margin)
+    ) {
+      return createExtrapolatedIntersectionTrialFromSegments(
+        width,
+        height,
+        first,
+        second,
+        targetPoint,
+      );
+    }
+  }
+
+  const fallbackTarget = { x: width / 2, y: height / 2 };
+  const first = createSegmentAwayFromPoint(fallbackTarget, -0.35, 104, 210);
+  const second = createSegmentAwayFromPoint(fallbackTarget, 0.92, 104, 210);
+  return createExtrapolatedIntersectionTrialFromSegments(
+    width,
+    height,
+    first,
+    second,
+    fallbackTarget,
+  );
+}
+
+function createExtrapolatedIntersectionTrialFromSegments(
+  width: number,
+  height: number,
+  first: TrialLine,
+  second: TrialLine,
+  targetPoint: { x: number; y: number },
+): SingleMarkTrial {
+  const referenceDistance = Math.min(
+    distanceBetween(targetPoint, first.endPoint!),
+    distanceBetween(targetPoint, second.endPoint!),
+  );
+  return {
+    label: "Extrapolated Segment Intersection",
+    prompt: "Click where the two segments would meet if both were extended.",
+    viewport: { width, height },
+    line: first,
+    projectionLine: second,
+    projectionOrigin: targetPoint,
+    scoreSelection: (placedScalar) =>
+      scoreSelection(
+        placedScalar,
+        first.startScalar,
+        referenceDistance,
+        "free",
+      ),
+    scorePoint: (placedPoint) =>
+      scoreExtrapolatedIntersectionPoint(
+        placedPoint,
+        targetPoint,
+        referenceDistance,
+      ),
+  };
+}
+
+function createSegmentAwayFromPoint(
+  point: { x: number; y: number },
+  angle: number,
+  gap: number,
+  length: number,
+): TrialLine {
+  const unit = { x: Math.cos(angle), y: Math.sin(angle) };
+  const near = {
+    x: point.x + unit.x * gap,
+    y: point.y + unit.y * gap,
+  };
+  const far = {
+    x: point.x + unit.x * (gap + length),
+    y: point.y + unit.y * (gap + length),
+  };
+  return lineFromEndpoints(far, near);
+}
+
+function segmentInViewport(
+  segment: TrialLine,
+  width: number,
+  height: number,
+  margin: number,
+): boolean {
+  return (
+    pointInViewport(segment.startPoint!, width, height, margin) &&
+    pointInViewport(segment.endPoint!, width, height, margin)
+  );
+}
+
 function createIntersectionTrial(): SingleMarkTrial {
   const width = 760;
   const height = 520;
@@ -1084,6 +1225,34 @@ function createIntersectionTrial(): SingleMarkTrial {
         targetPoint,
         pointOnTrialLine(longLine, placedScalar),
       ),
+  };
+}
+
+function scoreExtrapolatedIntersectionPoint(
+  placedPoint: { x: number; y: number },
+  targetPoint: { x: number; y: number },
+  referenceDistance: number,
+): SingleMarkTrialResult | null {
+  const distanceErrorPixels = distanceBetween(placedPoint, targetPoint);
+  if (distanceErrorPixels > Math.max(170, referenceDistance * 1.7)) {
+    return null;
+  }
+  const relativeErrorPercent = clampNumber(
+    (distanceErrorPixels / referenceDistance) * 100,
+    0,
+    100,
+  );
+
+  return {
+    placedScalar: placedPoint.x,
+    targetScalar: targetPoint.x,
+    signedErrorPixels: distanceErrorPixels,
+    relativeErrorPercent,
+    relativeAccuracyPercent: 100 - relativeErrorPercent,
+    directionLabel: distanceErrorPixels === 0 ? "Exact" : "Off target",
+    distanceErrorPixels,
+    placedPoint,
+    targetPoint,
   };
 }
 
