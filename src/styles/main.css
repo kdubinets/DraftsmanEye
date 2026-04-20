@@ -1,6 +1,6 @@
 :root {
   color-scheme: light;
-  font-family: 'Iowan Old Style', 'Palatino Linotype', 'URW Palladio L', serif;
+  font-family: "Iowan Old Style", "Palatino Linotype", "URW Palladio L", serif;
   line-height: 1.5;
   font-weight: 400;
   color: #1f1a17;
@@ -183,6 +183,27 @@ button {
   display: block;
 }
 
+.reference-line {
+  stroke: rgba(47, 85, 125, 0.62);
+  stroke-width: 4;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.reference-endpoint-tick {
+  stroke: rgba(47, 85, 125, 0.76);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.anchor-tick {
+  stroke: rgba(122, 77, 34, 0.86);
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
 .freehand-stage {
   display: grid;
   gap: 1rem;
@@ -336,7 +357,7 @@ button {
   color: var(--muted);
 }
 
-.freehand-history[data-empty='false'] .freehand-history-empty {
+.freehand-history[data-empty="false"] .freehand-history-empty {
   display: none;
 }
 
@@ -347,7 +368,7 @@ button {
   margin-top: 0.8rem;
 }
 
-.freehand-history-grid[data-variant='closed'] {
+.freehand-history-grid[data-variant="closed"] {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
@@ -435,7 +456,7 @@ button {
   cursor: zoom-out;
 }
 
-.exercise-canvas[data-axis='vertical'] {
+.exercise-canvas[data-axis="vertical"] {
   height: min(68vh, 640px);
   min-height: 520px;
 }
@@ -497,19 +518,19 @@ button {
     color-mix(in srgb, var(--result-accent) 12%, transparent);
 }
 
-.feedback-banner[data-tone='excellent'] {
+.feedback-banner[data-tone="excellent"] {
   background: color-mix(in srgb, white 86%, var(--result-accent));
 }
 
-.feedback-banner[data-tone='good'] {
+.feedback-banner[data-tone="good"] {
   background: color-mix(in srgb, white 88%, var(--result-accent));
 }
 
-.feedback-banner[data-tone='ok'] {
+.feedback-banner[data-tone="ok"] {
   background: color-mix(in srgb, white 90%, var(--result-accent));
 }
 
-.feedback-banner[data-tone='bad'] {
+.feedback-banner[data-tone="bad"] {
   background: color-mix(in srgb, white 92%, var(--result-accent));
 }
 
@@ -723,11 +744,11 @@ button {
     grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
   }
 
-  .freehand-history-grid[data-variant='closed'] {
+  .freehand-history-grid[data-variant="closed"] {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .exercise-canvas[data-axis='vertical'] {
+  .exercise-canvas[data-axis="vertical"] {
     height: min(64vh, 620px);
     min-height: 460px;
   }
