@@ -12,7 +12,7 @@ export type FreehandPoint = {
 };
 
 export type FreehandLineResult = {
-  kind: 'line';
+  kind: "line";
   score: number;
   meanErrorPixels: number;
   maxErrorPixels: number;
@@ -22,16 +22,26 @@ export type FreehandLineResult = {
   fitEnd: { x: number; y: number };
 };
 
-export type FreehandTargetLineResult = Omit<FreehandLineResult, 'kind'> & {
-  kind: 'target-line';
+export type FreehandTargetLineResult = Omit<FreehandLineResult, "kind"> & {
+  kind: "target-line";
   target: TargetLine;
   startErrorPixels: number;
   endErrorPixels: number;
   angleErrorDegrees: number;
 };
 
+export type FreehandTargetAngleResult = Omit<FreehandLineResult, "kind"> & {
+  kind: "target-angle";
+  target: TargetAngle;
+  startErrorPixels: number;
+  angleErrorDegrees: number;
+  signedOpenErrorDegrees: number;
+  userRayStart: { x: number; y: number };
+  userRayEnd: { x: number; y: number };
+};
+
 export type FreehandCircleResult = {
-  kind: 'circle';
+  kind: "circle";
   score: number;
   meanErrorPixels: number;
   maxErrorPixels: number;
@@ -43,15 +53,15 @@ export type FreehandCircleResult = {
   joinAngleDegrees: number;
 };
 
-export type FreehandTargetCircleResult = Omit<FreehandCircleResult, 'kind'> & {
-  kind: 'target-circle';
+export type FreehandTargetCircleResult = Omit<FreehandCircleResult, "kind"> & {
+  kind: "target-circle";
   target: TargetCircle;
   centerErrorPixels: number;
   radiusErrorPixels: number;
 };
 
 export type FreehandEllipseResult = {
-  kind: 'ellipse';
+  kind: "ellipse";
   score: number;
   meanErrorPixels: number;
   maxErrorPixels: number;
@@ -65,8 +75,11 @@ export type FreehandEllipseResult = {
   joinAngleDegrees: number;
 };
 
-export type FreehandTargetEllipseResult = Omit<FreehandEllipseResult, 'kind'> & {
-  kind: 'target-ellipse';
+export type FreehandTargetEllipseResult = Omit<
+  FreehandEllipseResult,
+  "kind"
+> & {
+  kind: "target-ellipse";
   target: TargetEllipse;
   centerErrorPixels: number;
   majorRadiusErrorPixels: number;
@@ -77,20 +90,21 @@ export type FreehandTargetEllipseResult = Omit<FreehandEllipseResult, 'kind'> & 
 export type FreehandResult =
   | FreehandLineResult
   | FreehandTargetLineResult
+  | FreehandTargetAngleResult
   | FreehandCircleResult
   | FreehandTargetCircleResult
   | FreehandEllipseResult
   | FreehandTargetEllipseResult;
 
 export type TargetLine = {
-  kind: 'line';
+  kind: "line";
   start: { x: number; y: number };
   end: { x: number; y: number };
   trace?: boolean;
 };
 
 export type TargetCircle = {
-  kind: 'circle';
+  kind: "circle";
   center: { x: number; y: number };
   radius: number;
   marks: { x: number; y: number }[];
@@ -99,7 +113,7 @@ export type TargetCircle = {
 };
 
 export type TargetEllipse = {
-  kind: 'ellipse';
+  kind: "ellipse";
   center: { x: number; y: number };
   majorRadius: number;
   minorRadius: number;
@@ -107,7 +121,27 @@ export type TargetEllipse = {
   trace?: boolean;
 };
 
-export type FreehandTarget = TargetLine | TargetCircle | TargetEllipse;
+export type TargetAngle = {
+  kind: "angle";
+  reference: {
+    vertex: { x: number; y: number };
+    baseEnd: { x: number; y: number };
+    angleEnd: { x: number; y: number };
+  };
+  target: {
+    vertex: { x: number; y: number };
+    baseEnd: { x: number; y: number };
+    correctEnd: { x: number; y: number };
+  };
+  openingRadians: number;
+  openingSign: 1 | -1;
+};
+
+export type FreehandTarget =
+  | TargetLine
+  | TargetCircle
+  | TargetEllipse
+  | TargetAngle;
 
 export type FreehandAttemptSnapshot = {
   id: number;
@@ -123,7 +157,10 @@ export type FreehandAttemptSnapshot = {
 export type FreehandExerciseConfig = {
   isClosedShape: boolean;
   createTarget: () => FreehandTarget | null;
-  scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) => FreehandResult | null;
+  scoreStroke: (
+    points: FreehandPoint[],
+    target: FreehandTarget | null,
+  ) => FreehandResult | null;
   promptText: string;
   readyText: string;
   retryText: string;

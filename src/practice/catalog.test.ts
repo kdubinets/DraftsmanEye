@@ -31,6 +31,7 @@ describe("EXERCISES registry", () => {
       "Freehand Control": "freehand-",
       "Target Drawing": "target-",
       "Trace Control": "trace-",
+      "Angle Copy": "angle-copy-",
     };
     for (const ex of EXERCISES) {
       const prefix = familyToPrefix[ex.family];

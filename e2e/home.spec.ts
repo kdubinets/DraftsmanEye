@@ -41,6 +41,18 @@ test("home page lists drills and auto entry point", async ({ page }) => {
     page.getByRole("heading", { level: 3, name: "Trace Ellipse" }),
   ).toBeVisible();
   await expect(
+    page.getByRole("heading", {
+      level: 3,
+      name: "Horizontal Reference, Aligned Base",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      level: 3,
+      name: "Arbitrary Reference, Rotated Base",
+    }),
+  ).toBeVisible();
+  await expect(
     page.getByRole("heading", { level: 3, name: "Horizontal Thirds" }),
   ).toBeVisible();
   await expect(
@@ -73,11 +85,11 @@ test("home page lists drills and auto entry point", async ({ page }) => {
       name: "Double Vertical on Horizontal",
     }),
   ).toBeVisible();
-  await expect(page.getByText("No score yet")).toHaveCount(25);
+  await expect(page.getByText("No score yet")).toHaveCount(31);
   await expect(page.getByRole("button", { name: "Coming soon" })).toHaveCount(
     0,
   );
-  await expect(page.getByRole("button", { name: "Practice" })).toHaveCount(25);
+  await expect(page.getByRole("button", { name: "Practice" })).toHaveCount(31);
   await expect(
     page
       .getByRole("article")
@@ -137,6 +149,60 @@ test("target line drill scores a stroke connecting two marks", async ({
     page
       .getByTestId("freehand-canvas")
       .locator(".freehand-target-correction-line"),
+  ).toBeVisible();
+  await expect(page.locator(".freehand-history-item")).toHaveCount(1);
+});
+
+test("angle copy drill scores a drawn ray from the target vertex", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await page
+    .getByRole("article")
+    .filter({
+      has: page.getByRole("heading", {
+        level: 3,
+        name: "Horizontal Reference, Rotated Base",
+      }),
+    })
+    .getByRole("button", { name: "Practice" })
+    .click();
+
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Horizontal Reference, Rotated Base",
+    }),
+  ).toBeVisible();
+
+  const canvas = page.getByTestId("freehand-canvas");
+  await expect(canvas.locator(".freehand-angle-reference-ray")).toHaveCount(2);
+  await expect(canvas.locator(".freehand-angle-target-base")).toHaveCount(1);
+  await expect(canvas.locator(".freehand-angle-direction-cue")).toHaveCount(1);
+  const vertex = await locatorCenter(
+    canvas.locator(".freehand-angle-target-vertex"),
+  );
+  const baseEnd = await svgLineEnd(
+    canvas.locator(".freehand-angle-target-base"),
+  );
+  const [baseEndClient] = await svgPointsToClient(page, [baseEnd]);
+
+  await page.mouse.move(vertex.x, vertex.y);
+  await page.mouse.down();
+  for (let index = 1; index <= 8; index += 1) {
+    const ratio = index / 8;
+    await page.mouse.move(
+      vertex.x + (baseEndClient.x - vertex.x) * ratio,
+      vertex.y + (baseEndClient.y - vertex.y) * ratio,
+    );
+  }
+  await page.mouse.up();
+
+  await expect(page.getByText(/Angle copy \d+\.\d/)).toBeVisible();
+  await expect(page.getByText("Angle miss")).toBeVisible();
+  await expect(
+    canvas.locator(".freehand-target-correction-line"),
   ).toBeVisible();
   await expect(page.locator(".freehand-history-item")).toHaveCount(1);
 });
@@ -803,6 +869,19 @@ async function targetPlusCenter(locator: Locator): Promise<{
     x: (x1 + x2) / 2,
     y,
   };
+}
+
+async function svgLineEnd(locator: Locator): Promise<{
+  x: number;
+  y: number;
+}> {
+  const x = Number(await locator.getAttribute("x2"));
+  const y = Number(await locator.getAttribute("y2"));
+  if (!Number.isFinite(x) || !Number.isFinite(y)) {
+    throw new Error("Expected SVG line to expose x2/y2 coordinates.");
+  }
+
+  return { x, y };
 }
 
 async function svgPointsToClient(

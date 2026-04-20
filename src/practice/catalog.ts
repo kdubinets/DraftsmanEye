@@ -13,6 +13,12 @@ export type ExerciseId =
   | "trace-line"
   | "trace-circle"
   | "trace-ellipse"
+  | "angle-copy-horizontal-aligned"
+  | "angle-copy-vertical-aligned"
+  | "angle-copy-horizontal-rotated"
+  | "angle-copy-vertical-rotated"
+  | "angle-copy-arbitrary-aligned"
+  | "angle-copy-arbitrary-rotated"
   | "division-horizontal-halves"
   | "division-horizontal-thirds"
   | "division-horizontal-quarters"
@@ -87,7 +93,13 @@ export type FreehandExerciseDefinition = ExerciseBase & {
     | "target-circle-three-points"
     | "trace-line"
     | "trace-circle"
-    | "trace-ellipse";
+    | "trace-ellipse"
+    | "angle-copy-horizontal-aligned"
+    | "angle-copy-vertical-aligned"
+    | "angle-copy-horizontal-rotated"
+    | "angle-copy-vertical-rotated"
+    | "angle-copy-arbitrary-aligned"
+    | "angle-copy-arbitrary-rotated";
 };
 
 export type UnimplementedExerciseDefinition = ExerciseBase & {
@@ -172,6 +184,59 @@ export const EXERCISES: ExerciseDefinition[] = [
     description: "Trace the faint ellipse guide as accurately as possible.",
     implemented: true,
     kind: "trace-ellipse",
+  },
+  {
+    id: "angle-copy-horizontal-aligned",
+    family: "Angle Copy",
+    label: "Horizontal Reference, Aligned Base",
+    description:
+      "Copy an angle from a horizontal reference onto a matching base ray.",
+    implemented: true,
+    kind: "angle-copy-horizontal-aligned",
+  },
+  {
+    id: "angle-copy-vertical-aligned",
+    family: "Angle Copy",
+    label: "Vertical Reference, Aligned Base",
+    description:
+      "Copy an angle from a vertical reference onto a matching base ray.",
+    implemented: true,
+    kind: "angle-copy-vertical-aligned",
+  },
+  {
+    id: "angle-copy-horizontal-rotated",
+    family: "Angle Copy",
+    label: "Horizontal Reference, Rotated Base",
+    description:
+      "Copy an angle from a horizontal reference onto a rotated base ray.",
+    implemented: true,
+    kind: "angle-copy-horizontal-rotated",
+  },
+  {
+    id: "angle-copy-vertical-rotated",
+    family: "Angle Copy",
+    label: "Vertical Reference, Rotated Base",
+    description:
+      "Copy an angle from a vertical reference onto a rotated base ray.",
+    implemented: true,
+    kind: "angle-copy-vertical-rotated",
+  },
+  {
+    id: "angle-copy-arbitrary-aligned",
+    family: "Angle Copy",
+    label: "Arbitrary Reference, Aligned Base",
+    description:
+      "Copy an angle from a random reference orientation onto a matching base ray.",
+    implemented: true,
+    kind: "angle-copy-arbitrary-aligned",
+  },
+  {
+    id: "angle-copy-arbitrary-rotated",
+    family: "Angle Copy",
+    label: "Arbitrary Reference, Rotated Base",
+    description: "Copy an angle from one random base orientation onto another.",
+    implemented: true,
+    kind: "angle-copy-arbitrary-rotated",
   },
   divisionExercise("division-horizontal-halves", "horizontal", 2),
   divisionExercise("division-horizontal-thirds", "horizontal", 3),

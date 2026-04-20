@@ -4,16 +4,20 @@
  * geometry fields; a polymorphic exercise definition (PR 4) would let each kind own
  * its bounding box computation instead.
  */
-import { feedbackHueForError, feedbackBandClass, feedbackLabel } from '../../scoring/bands';
-import { s, h } from '../../render/h';
-import { appendFreehandStroke } from './input';
+import {
+  feedbackHueForError,
+  feedbackBandClass,
+  feedbackLabel,
+} from "../../scoring/bands";
+import { s, h } from "../../render/h";
+import { appendFreehandStroke } from "./input";
 import {
   appendFreehandCorrection,
   showClosedShapeMarkers,
   isClosedFreehandResult,
-} from './correction';
-import { freehandScoreLabel, freehandResultStats } from './stats';
-import type { FreehandAttemptSnapshot } from './types';
+} from "./correction";
+import { freehandScoreLabel, freehandResultStats } from "./stats";
+import type { FreehandAttemptSnapshot } from "./types";
 
 /** CANVAS_WIDTH/HEIGHT thumbnail viewport constants. */
 const THUMB_W = 180;
@@ -25,26 +29,43 @@ export function renderFreehandAttemptThumbnail(
   onOpen: () => void,
 ): HTMLButtonElement {
   const transform = thumbnailTransform(attempt);
-  const content = s('g', {
+  const content = s("g", {
     transform: `translate(${transform.offsetX.toFixed(2)} ${transform.offsetY.toFixed(2)}) scale(${transform.scale.toFixed(4)})`,
   });
   if (showCorrections) appendFreehandCorrection(content, attempt.result, true);
-  appendFreehandStroke(content, attempt.points, 'freehand-history-stroke');
+  appendFreehandStroke(content, attempt.points, "freehand-history-stroke");
 
-  const svg = s('svg', {
-    class: 'freehand-history-canvas',
-    viewBox: `0 0 ${THUMB_W} ${THUMB_H}`,
-    role: 'img',
-    'aria-label': `${freehandScoreLabel(attempt.result.kind)} ${attempt.result.score.toFixed(1)}`,
-  }, [
-    s('rect', { x: 1, y: 1, width: THUMB_W - 2, height: THUMB_H - 2, rx: 8, class: 'freehand-history-frame' }),
-    content,
-  ]);
+  const svg = s(
+    "svg",
+    {
+      class: "freehand-history-canvas",
+      viewBox: `0 0 ${THUMB_W} ${THUMB_H}`,
+      role: "img",
+      "aria-label": `${freehandScoreLabel(attempt.result.kind)} ${attempt.result.score.toFixed(1)}`,
+    },
+    [
+      s("rect", {
+        x: 1,
+        y: 1,
+        width: THUMB_W - 2,
+        height: THUMB_H - 2,
+        rx: 8,
+        class: "freehand-history-frame",
+      }),
+      content,
+    ],
+  );
 
-  return h('button', { type: 'button', class: 'freehand-history-item', on: { click: onOpen } }, [
-    svg,
-    h('p', { class: 'freehand-history-score' }, [attempt.result.score.toFixed(1)]),
-  ]);
+  return h(
+    "button",
+    { type: "button", class: "freehand-history-item", on: { click: onOpen } },
+    [
+      svg,
+      h("p", { class: "freehand-history-score" }, [
+        attempt.result.score.toFixed(1),
+      ]),
+    ],
+  );
 }
 
 export function renderFreehandHistoryModal(
@@ -57,37 +78,49 @@ export function renderFreehandHistoryModal(
   const feedbackCls = feedbackBandClass(feedbackError);
   const accent = `hsl(${feedbackHue} 55% 42%)`;
 
-  const feedback = h('p', {
-    class: 'feedback-banner',
-    dataset: { tone: feedbackCls },
-    style: { '--result-accent': accent } as unknown as Partial<CSSStyleDeclaration>,
-  }, [
-    `${feedbackLabel(feedbackError)} · ` +
-    `${freehandScoreLabel(attempt.result.kind)} ${attempt.result.score.toFixed(1)} · ` +
-    `Mean drift ${attempt.result.meanErrorPixels.toFixed(1)} px`,
-  ]);
+  const feedback = h(
+    "p",
+    {
+      class: "feedback-banner",
+      dataset: { tone: feedbackCls },
+      style: {
+        "--result-accent": accent,
+      } as unknown as Partial<CSSStyleDeclaration>,
+    },
+    [
+      `${feedbackLabel(feedbackError)} · ` +
+        `${freehandScoreLabel(attempt.result.kind)} ${attempt.result.score.toFixed(1)} · ` +
+        `Mean drift ${attempt.result.meanErrorPixels.toFixed(1)} px`,
+    ],
+  );
 
-  const summary = h('div', {
-    class: 'result-summary',
+  const summary = h("div", {
+    class: "result-summary",
     dataset: { tone: feedbackCls },
-    style: { '--result-accent': accent } as unknown as Partial<CSSStyleDeclaration>,
+    style: {
+      "--result-accent": accent,
+    } as unknown as Partial<CSSStyleDeclaration>,
   });
   summary.replaceChildren(...freehandResultStats(attempt.result));
 
-  const panel = h('div', { class: 'freehand-history-modal-panel' }, [
+  const panel = h("div", { class: "freehand-history-modal-panel" }, [
     renderAttemptPreview(attempt, showCorrections),
     feedback,
     summary,
   ]);
 
-  const overlay = h('div', {
-    class: 'freehand-history-modal',
-    dataset: { testid: 'freehand-history-modal' },
-    on: { click: onClose },
-  }, [panel]);
-  overlay.setAttribute('role', 'dialog');
-  overlay.setAttribute('aria-modal', 'true');
-  overlay.setAttribute('aria-label', 'History attempt detail');
+  const overlay = h(
+    "div",
+    {
+      class: "freehand-history-modal",
+      dataset: { testid: "freehand-history-modal" },
+      on: { click: onClose },
+    },
+    [panel],
+  );
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-label", "History attempt detail");
   return overlay;
 }
 
@@ -95,27 +128,43 @@ function renderAttemptPreview(
   attempt: FreehandAttemptSnapshot,
   showCorrections: boolean,
 ): SVGSVGElement {
-  const content = s('g');
+  const content = s("g");
   if (showCorrections) appendFreehandCorrection(content, attempt.result, false);
-  appendFreehandStroke(content, attempt.points, 'freehand-user-stroke');
+  appendFreehandStroke(content, attempt.points, "freehand-user-stroke");
 
   if (showCorrections && isClosedFreehandResult(attempt.result)) {
-    const closureGap = s('line', { class: 'freehand-closure-gap' });
-    const startTangent = s('line', { class: 'freehand-join-tangent' });
-    const endTangent = s('line', { class: 'freehand-join-tangent' });
-    showClosedShapeMarkers(attempt.points, closureGap, startTangent, endTangent);
+    const closureGap = s("line", { class: "freehand-closure-gap" });
+    const startTangent = s("line", { class: "freehand-join-tangent" });
+    const endTangent = s("line", { class: "freehand-join-tangent" });
+    showClosedShapeMarkers(
+      attempt.points,
+      closureGap,
+      startTangent,
+      endTangent,
+    );
     content.append(closureGap, startTangent, endTangent);
   }
 
-  return s('svg', {
-    class: 'freehand-history-modal-canvas',
-    viewBox: '0 0 1000 620',
-    role: 'img',
-    'aria-label': `${freehandScoreLabel(attempt.result.kind)} attempt at original size`,
-  }, [
-    s('rect', { x: 1, y: 1, width: 998, height: 618, rx: 18, class: 'canvas-frame' }),
-    content,
-  ]);
+  return s(
+    "svg",
+    {
+      class: "freehand-history-modal-canvas",
+      viewBox: "0 0 1000 620",
+      role: "img",
+      "aria-label": `${freehandScoreLabel(attempt.result.kind)} attempt at original size`,
+    },
+    [
+      s("rect", {
+        x: 1,
+        y: 1,
+        width: 998,
+        height: 618,
+        rx: 18,
+        class: "canvas-frame",
+      }),
+      content,
+    ],
+  );
 }
 
 function thumbnailTransform(attempt: FreehandAttemptSnapshot): {
@@ -127,10 +176,7 @@ function thumbnailTransform(attempt: FreehandAttemptSnapshot): {
   const w = Math.max(b.maxX - b.minX, 1);
   const h = Math.max(b.maxY - b.minY, 1);
   const pad = 14;
-  const scale = Math.min(
-    (THUMB_W - pad * 2) / w,
-    (THUMB_H - pad * 2) / h,
-  );
+  const scale = Math.min((THUMB_W - pad * 2) / w, (THUMB_H - pad * 2) / h);
   const offsetX = pad + (THUMB_W - pad * 2 - w * scale) / 2 - b.minX * scale;
   const offsetY = pad + (THUMB_H - pad * 2 - h * scale) / 2 - b.minY * scale;
   return { offsetX, offsetY, scale };
@@ -149,25 +195,40 @@ function boundsForAttempt(attempt: FreehandAttemptSnapshot): Bounds {
     { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity },
   );
 
-  if (attempt.result.kind === 'line') {
+  if (attempt.result.kind === "line") {
     extendBounds(b, attempt.result.fitStart);
     extendBounds(b, attempt.result.fitEnd);
     return b;
   }
-  if (attempt.result.kind === 'target-line') {
+  if (attempt.result.kind === "target-line") {
     extendBounds(b, attempt.result.target.start);
     extendBounds(b, attempt.result.target.end);
     return b;
   }
-  if (attempt.result.kind === 'circle') {
+  if (attempt.result.kind === "target-angle") {
+    extendBounds(b, attempt.result.target.reference.vertex);
+    extendBounds(b, attempt.result.target.reference.baseEnd);
+    extendBounds(b, attempt.result.target.reference.angleEnd);
+    extendBounds(b, attempt.result.target.target.vertex);
+    extendBounds(b, attempt.result.target.target.baseEnd);
+    extendBounds(b, attempt.result.target.target.correctEnd);
+    extendBounds(b, attempt.result.userRayStart);
+    extendBounds(b, attempt.result.userRayEnd);
+    return b;
+  }
+  if (attempt.result.kind === "circle") {
     extendCircleBounds(b, attempt.result.center, attempt.result.radius);
     return b;
   }
-  if (attempt.result.kind === 'target-circle') {
-    extendCircleBounds(b, attempt.result.target.center, attempt.result.target.radius);
+  if (attempt.result.kind === "target-circle") {
+    extendCircleBounds(
+      b,
+      attempt.result.target.center,
+      attempt.result.target.radius,
+    );
     return b;
   }
-  if (attempt.result.kind === 'target-ellipse') {
+  if (attempt.result.kind === "target-ellipse") {
     extendEllipseBounds(b, attempt.result.target);
     return b;
   }
