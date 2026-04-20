@@ -815,6 +815,12 @@ test("cross-axis double drill scores a mark on the full guide", async ({
   if (!anchorBox) {
     throw new Error("Expected transfer anchor to have a bounding box.");
   }
+  const directionCueBox = await page
+    .locator(".anchor-direction-cue")
+    .boundingBox();
+  if (!directionCueBox) {
+    throw new Error("Expected transfer direction cue to have a bounding box.");
+  }
 
   const guide = page.locator(".exercise-line");
   const guideBox = await guide.boundingBox();

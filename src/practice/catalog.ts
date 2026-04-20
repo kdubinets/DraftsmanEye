@@ -55,6 +55,7 @@ export type SingleMarkTrial = {
   line: TrialLine;
   referenceLine?: TrialLine;
   anchorScalar?: number;
+  anchorDirectionSign?: -1 | 1;
   scoreSelection: (placedScalar: number) => SingleMarkTrialResult;
 };
 
@@ -542,12 +543,18 @@ function createTransferTrial(
   const targetDistance = referenceLength * multiplier;
   const guideStart = margin;
   const guideEnd = (guideAxis === "horizontal" ? width : height) - margin;
-  const maxAnchor = guideEnd - targetDistance - 72;
+  const anchorDirectionSign = Math.random() < 0.5 ? -1 : 1;
+  const minAnchor =
+    anchorDirectionSign < 0
+      ? guideStart + targetDistance + 72
+      : guideStart + 72;
+  const maxAnchor =
+    anchorDirectionSign < 0 ? guideEnd - 72 : guideEnd - targetDistance - 72;
   const anchorScalar = randomInteger(
-    guideStart + 28,
-    Math.max(guideStart + 28, maxAnchor),
+    Math.min(minAnchor, maxAnchor),
+    Math.max(minAnchor, maxAnchor),
   );
-  const targetScalar = anchorScalar + targetDistance;
+  const targetScalar = anchorScalar + anchorDirectionSign * targetDistance;
   const referenceLine = createTransferReferenceLine(
     referenceAxis,
     guideAxis,
@@ -578,6 +585,7 @@ function createTransferTrial(
     line: guideLine,
     referenceLine,
     anchorScalar,
+    anchorDirectionSign,
     scoreSelection: (placedScalar) =>
       scoreSelection(placedScalar, targetScalar, targetDistance, guideAxis),
   };

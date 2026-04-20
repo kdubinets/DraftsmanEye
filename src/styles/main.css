@@ -204,6 +204,15 @@ button {
   vector-effect: non-scaling-stroke;
 }
 
+.anchor-direction-cue {
+  stroke: rgba(122, 77, 34, 0.62);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
 .freehand-stage {
   display: grid;
   gap: 1rem;

@@ -195,6 +195,15 @@ function renderTrialSvg(
           trial.anchorScalar,
           "anchor-tick",
         );
+  const anchorDirectionCue =
+    trial.anchorScalar === undefined || trial.anchorDirectionSign === undefined
+      ? null
+      : createAnchorDirectionCue(
+          trial.line.axis,
+          trial.line,
+          trial.anchorScalar,
+          trial.anchorDirectionSign,
+        );
 
   const svg = s(
     "svg",
@@ -204,7 +213,16 @@ function renderTrialSvg(
       role: "img",
       "aria-label": `${trial.label} practice canvas`,
     },
-    [frame, reference, guide, line, startCap, endCap, anchorTick],
+    [
+      frame,
+      reference,
+      guide,
+      line,
+      startCap,
+      endCap,
+      anchorDirectionCue,
+      anchorTick,
+    ],
   );
   svg.dataset.testid = "exercise-canvas";
   svg.dataset.axis = trial.line.axis;
@@ -275,6 +293,32 @@ function createReferenceLineGroup(line: TrialLine): SVGGElement {
   ]);
 }
 
+function createAnchorDirectionCue(
+  axis: LineAxis,
+  line: TrialLine,
+  anchorScalar: number,
+  directionSign: -1 | 1,
+): SVGGElement {
+  const startScalar = anchorScalar + directionSign * 14;
+  const endScalar = anchorScalar + directionSign * 52;
+  const start = linePointAtScalar(axis, line, startScalar);
+  const end = linePointAtScalar(axis, line, endScalar);
+  const headA =
+    axis === "horizontal"
+      ? { x: end.x - directionSign * 10, y: end.y - 7 }
+      : { x: end.x - 7, y: end.y - directionSign * 10 };
+  const headB =
+    axis === "horizontal"
+      ? { x: end.x - directionSign * 10, y: end.y + 7 }
+      : { x: end.x + 7, y: end.y - directionSign * 10 };
+
+  return s("g", { class: "anchor-direction-cue" }, [
+    s("line", { x1: start.x, y1: start.y, x2: end.x, y2: end.y }),
+    s("line", { x1: end.x, y1: end.y, x2: headA.x, y2: headA.y }),
+    s("line", { x1: end.x, y1: end.y, x2: headB.x, y2: headB.y }),
+  ]);
+}
+
 function createTick(
   axis: LineAxis,
   line: TrialLine,
@@ -307,6 +351,16 @@ function linePoint(
   return line.axis === "horizontal"
     ? { x: sc, y: line.anchorY }
     : { x: line.anchorX, y: sc };
+}
+
+function linePointAtScalar(
+  axis: LineAxis,
+  line: TrialLine,
+  scalar: number,
+): { x: number; y: number } {
+  return axis === "horizontal"
+    ? { x: scalar, y: line.anchorY }
+    : { x: line.anchorX, y: scalar };
 }
 
 function gapPoint(

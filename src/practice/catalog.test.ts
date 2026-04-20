@@ -205,13 +205,38 @@ describe("single-mark scoreSelection", () => {
       const trial = ex.createTrial();
       expect(trial.referenceLine).toBeDefined();
       expect(trial.anchorScalar).toBeDefined();
+      expect(
+        trial.anchorDirectionSign === -1 || trial.anchorDirectionSign === 1,
+      ).toBe(true);
       expect(trial.line.showEndpointTicks).toBe(false);
 
       const probe = trial.scoreSelection(trial.line.startScalar);
       const target = trial.line.startScalar - probe.signedErrorPixels;
-      expect(target).toBeGreaterThan(trial.anchorScalar!);
+      expect(target).toBeCloseTo(
+        trial.anchorScalar! +
+          trial.anchorDirectionSign! *
+            (trial.referenceLine!.endScalar -
+              trial.referenceLine!.startScalar) *
+            (ex.id.startsWith("double-") ? 2 : 1),
+      );
       expect(target).toBeLessThanOrEqual(trial.line.endScalar);
+      expect(target).toBeGreaterThanOrEqual(trial.line.startScalar);
     }
+  });
+
+  it("transfer drills randomly include both guide directions", () => {
+    const drill = EXERCISES.find(
+      (e): e is SingleMarkExerciseDefinition =>
+        e.id === "copy-horizontal-horizontal" &&
+        e.implemented &&
+        "createTrial" in e,
+    )!;
+    const seen = new Set<number>();
+    for (let i = 0; i < 100; i += 1) {
+      seen.add(drill.createTrial().anchorDirectionSign!);
+    }
+    expect(seen.has(-1)).toBe(true);
+    expect(seen.has(1)).toBe(true);
   });
 
   it("transfer reference endpoints are not aligned with guide anchor or target", () => {
@@ -247,7 +272,8 @@ describe("single-mark scoreSelection", () => {
     const trial = drill.createTrial();
     const referenceLength =
       trial.referenceLine!.endScalar - trial.referenceLine!.startScalar;
-    const target = trial.anchorScalar! + referenceLength * 2;
+    const target =
+      trial.anchorScalar! + trial.anchorDirectionSign! * referenceLength * 2;
     const result = trial.scoreSelection(target + 10);
     expect(result.relativeErrorPercent).toBeCloseTo(
       (10 / (referenceLength * 2)) * 100,
