@@ -27,16 +27,22 @@ export type ExerciseId =
   | "division-vertical-thirds"
   | "division-vertical-quarters"
   | "division-vertical-fifths"
+  | "division-random-halves"
+  | "division-random-thirds"
+  | "division-random-quarters"
+  | "division-random-fifths"
   | "copy-horizontal-horizontal"
   | "copy-horizontal-vertical"
   | "copy-vertical-vertical"
   | "copy-vertical-horizontal"
+  | "copy-random-random"
   | "double-horizontal-horizontal"
   | "double-horizontal-vertical"
   | "double-vertical-vertical"
-  | "double-vertical-horizontal";
+  | "double-vertical-horizontal"
+  | "double-random-random";
 
-export type LineAxis = "horizontal" | "vertical";
+export type LineAxis = "horizontal" | "vertical" | "free";
 
 type ExerciseBase = {
   id: ExerciseId;
@@ -65,6 +71,8 @@ export type TrialLine = {
   anchorY: number;
   startScalar: number;
   endScalar: number;
+  startPoint?: { x: number; y: number };
+  endPoint?: { x: number; y: number };
   showEndpointTicks?: boolean;
 };
 
@@ -247,6 +255,10 @@ export const EXERCISES: ExerciseDefinition[] = [
   divisionExercise("division-vertical-thirds", "vertical", 3),
   divisionExercise("division-vertical-quarters", "vertical", 4),
   divisionExercise("division-vertical-fifths", "vertical", 5),
+  divisionExercise("division-random-halves", "free", 2),
+  divisionExercise("division-random-thirds", "free", 3),
+  divisionExercise("division-random-quarters", "free", 4),
+  divisionExercise("division-random-fifths", "free", 5),
   transferExercise(
     "copy-horizontal-horizontal",
     "Same-Axis Transfer",
@@ -284,6 +296,15 @@ export const EXERCISES: ExerciseDefinition[] = [
     "horizontal",
   ),
   transferExercise(
+    "copy-random-random",
+    "Random-Line Transfer",
+    "Copy Distance on Random Lines",
+    "Transfer a random reference length to a separate random guide.",
+    "copy",
+    "free",
+    "free",
+  ),
+  transferExercise(
     "double-horizontal-horizontal",
     "Same-Axis Transfer",
     "Double Horizontal on Horizontal",
@@ -318,6 +339,15 @@ export const EXERCISES: ExerciseDefinition[] = [
     "double",
     "vertical",
     "horizontal",
+  ),
+  transferExercise(
+    "double-random-random",
+    "Random-Line Transfer",
+    "Double Distance on Random Lines",
+    "Double a random reference length along a separate random guide.",
+    "double",
+    "free",
+    "free",
   ),
 ];
 
@@ -414,18 +444,28 @@ function divisionExercise(
     | "division-vertical-thirds"
     | "division-vertical-quarters"
     | "division-vertical-fifths"
+    | "division-random-halves"
+    | "division-random-thirds"
+    | "division-random-quarters"
+    | "division-random-fifths"
   >,
   axis: LineAxis,
   denominator: 2 | 3 | 4 | 5,
 ): SingleMarkExerciseDefinition {
-  const orientationLabel = axis === "horizontal" ? "Horizontal" : "Vertical";
+  const orientationLabel =
+    axis === "horizontal"
+      ? "Horizontal"
+      : axis === "vertical"
+        ? "Vertical"
+        : "Random";
   const fractionLabel = denominatorLabel(denominator);
+  const axisDescription = axis === "free" ? "random line" : `${axis} line`;
 
   return {
     id,
     family: "Division",
     label: `${orientationLabel} ${fractionLabel}`,
-    description: `Divide a ${axis} line into ${denominator} equal parts.`,
+    description: `Divide a ${axisDescription} into ${denominator} equal parts.`,
     implemented: true,
     kind: "single-mark",
     createTrial: () =>
@@ -445,10 +485,21 @@ function createDivisionTrial(
   const width = 760;
   const height = axis === "horizontal" ? 320 : 640;
   const length =
-    axis === "horizontal" ? randomInteger(280, 520) : randomInteger(360, 520);
+    axis === "horizontal"
+      ? randomInteger(280, 520)
+      : axis === "vertical"
+        ? randomInteger(360, 520)
+        : randomInteger(330, 500);
   const edgePadding = 52;
   const centerOffsetSigma = 0.2;
-  const orientationText = axis === "horizontal" ? "horizontal" : "vertical";
+  const orientationText =
+    axis === "horizontal"
+      ? "horizontal"
+      : axis === "vertical"
+        ? "vertical"
+        : "random";
+  const anchorDirectionSign = Math.random() < 0.5 ? -1 : 1;
+  const usesDirectionCue = denominator !== 2;
 
   if (axis === "horizontal") {
     const maxCenterOffsetX = width / 2 - length / 2 - edgePadding;
@@ -459,15 +510,45 @@ function createDivisionTrial(
       height / 2 + boundedNormalOffset(maxCenterOffsetY, centerOffsetSigma);
     const startScalar = centerX - length / 2;
     const endScalar = centerX + length / 2;
-    const targetScalar = startScalar + length / denominator;
+    const targetScalar = usesDirectionCue
+      ? (anchorDirectionSign < 0 ? endScalar : startScalar) +
+        anchorDirectionSign * (length / denominator)
+      : startScalar + length / 2;
 
     return {
       label,
-      prompt: `Click where the ${orientationText} line should be divided at ${fractionPrompt(
-        denominator,
-      )} of its length.`,
+      prompt: divisionPrompt(orientationText, denominator, usesDirectionCue),
       viewport: { width, height },
       line: { axis, anchorX: 0, anchorY, startScalar, endScalar },
+      ...(usesDirectionCue
+        ? {
+            anchorScalar: anchorDirectionSign < 0 ? endScalar : startScalar,
+            anchorDirectionSign,
+          }
+        : {}),
+      scoreSelection: (placedScalar) =>
+        scoreSelection(placedScalar, targetScalar, length, axis),
+    };
+  }
+
+  if (axis === "free") {
+    const line = createRandomLine(width, height, length, edgePadding);
+    const targetScalar = usesDirectionCue
+      ? (anchorDirectionSign < 0 ? line.endScalar : line.startScalar) +
+        anchorDirectionSign * (length / denominator)
+      : line.startScalar + length / 2;
+    return {
+      label,
+      prompt: divisionPrompt("random", denominator, usesDirectionCue),
+      viewport: { width, height },
+      line,
+      ...(usesDirectionCue
+        ? {
+            anchorScalar:
+              anchorDirectionSign < 0 ? line.endScalar : line.startScalar,
+            anchorDirectionSign,
+          }
+        : {}),
       scoreSelection: (placedScalar) =>
         scoreSelection(placedScalar, targetScalar, length, axis),
     };
@@ -481,18 +562,38 @@ function createDivisionTrial(
     width / 2 + boundedNormalOffset(maxCenterOffsetX, centerOffsetSigma);
   const startScalar = centerY - length / 2;
   const endScalar = centerY + length / 2;
-  const targetScalar = startScalar + length / denominator;
+  const targetScalar = usesDirectionCue
+    ? (anchorDirectionSign < 0 ? endScalar : startScalar) +
+      anchorDirectionSign * (length / denominator)
+    : startScalar + length / 2;
 
   return {
     label,
-    prompt: `Click where the ${orientationText} line should be divided at ${fractionPrompt(
-      denominator,
-    )} of its length.`,
+    prompt: divisionPrompt(orientationText, denominator, usesDirectionCue),
     viewport: { width, height },
     line: { axis, anchorX, anchorY: 0, startScalar, endScalar },
+    ...(usesDirectionCue
+      ? {
+          anchorScalar: anchorDirectionSign < 0 ? endScalar : startScalar,
+          anchorDirectionSign,
+        }
+      : {}),
     scoreSelection: (placedScalar) =>
       scoreSelection(placedScalar, targetScalar, length, axis),
   };
+}
+
+function divisionPrompt(
+  orientationText: string,
+  denominator: 2 | 3 | 4 | 5,
+  usesDirectionCue: boolean,
+): string {
+  if (!usesDirectionCue) {
+    return `Click where the ${orientationText} line should be divided at one half of its length.`;
+  }
+  return `Click where the ${orientationText} line should be marked at ${fractionPrompt(
+    denominator,
+  )} of its length from the indicated end.`;
 }
 
 type TransferExerciseId = Extract<
@@ -501,10 +602,12 @@ type TransferExerciseId = Extract<
   | "copy-horizontal-vertical"
   | "copy-vertical-vertical"
   | "copy-vertical-horizontal"
+  | "copy-random-random"
   | "double-horizontal-horizontal"
   | "double-horizontal-vertical"
   | "double-vertical-vertical"
   | "double-vertical-horizontal"
+  | "double-random-random"
 >;
 
 function transferExercise(
@@ -539,8 +642,16 @@ function createTransferTrial(
   const margin = 52;
   const multiplier = mode === "copy" ? 1 : 2;
   const referenceLength =
-    mode === "copy" ? randomInteger(130, 230) : randomInteger(95, 165);
+    mode === "copy" ? randomInteger(130, 230) : randomInteger(95, 155);
   const targetDistance = referenceLength * multiplier;
+  if (referenceAxis === "free" && guideAxis === "free") {
+    return createRandomTransferTrial(
+      mode,
+      referenceLength,
+      targetDistance,
+      label,
+    );
+  }
   const guideStart = margin;
   const guideEnd = (guideAxis === "horizontal" ? width : height) - margin;
   const anchorDirectionSign = Math.random() < 0.5 ? -1 : 1;
@@ -588,6 +699,55 @@ function createTransferTrial(
     anchorDirectionSign,
     scoreSelection: (placedScalar) =>
       scoreSelection(placedScalar, targetScalar, targetDistance, guideAxis),
+  };
+}
+
+function createRandomTransferTrial(
+  mode: "copy" | "double",
+  referenceLength: number,
+  targetDistance: number,
+  label: string,
+): SingleMarkTrial {
+  const width = 760;
+  const height = 640;
+  const margin = 52;
+  const referenceLine = createRandomLineInRegion(
+    { minX: margin + 18, maxX: width - margin - 18, minY: 90, maxY: 270 },
+    referenceLength,
+    null,
+  );
+  const guideLength = Math.max(470, targetDistance + 190);
+  const guideLine = createRandomLineInRegion(
+    { minX: margin + 18, maxX: width - margin - 18, minY: 360, maxY: 570 },
+    guideLength,
+    lineAngle(referenceLine),
+  );
+  const anchorDirectionSign = Math.random() < 0.5 ? -1 : 1;
+  const minAnchor = anchorDirectionSign < 0 ? targetDistance + 72 : 72;
+  const maxAnchor =
+    anchorDirectionSign < 0
+      ? guideLength - 72
+      : guideLength - targetDistance - 72;
+  const anchorScalar = randomInteger(
+    Math.min(minAnchor, maxAnchor),
+    Math.max(minAnchor, maxAnchor),
+  );
+  const targetScalar = anchorScalar + anchorDirectionSign * targetDistance;
+  const action =
+    mode === "copy"
+      ? "copy the reference distance"
+      : "mark double the reference distance";
+
+  return {
+    label,
+    prompt: `Use the reference segment to ${action} on the random guide.`,
+    viewport: { width, height },
+    line: { ...guideLine, showEndpointTicks: false },
+    referenceLine,
+    anchorScalar,
+    anchorDirectionSign,
+    scoreSelection: (placedScalar) =>
+      scoreSelection(placedScalar, targetScalar, targetDistance, "free"),
   };
 }
 
@@ -640,6 +800,9 @@ function createTransferReferenceLine(
   anchorScalar: number,
   targetScalar: number,
 ): TrialLine {
+  if (referenceAxis === "free") {
+    return createRandomLine(width, height, length, margin);
+  }
   const startScalar = randomTransferReferenceStart(
     referenceAxis === "horizontal" ? width : height,
     margin,
@@ -673,6 +836,98 @@ function createTransferReferenceLine(
     startScalar,
     endScalar: startScalar + length,
   };
+}
+
+function createRandomLine(
+  width: number,
+  height: number,
+  length: number,
+  margin: number,
+): TrialLine {
+  return createRandomLineInRegion(
+    { minX: margin, maxX: width - margin, minY: margin, maxY: height - margin },
+    length,
+    null,
+  );
+}
+
+function createRandomLineInRegion(
+  region: { minX: number; maxX: number; minY: number; maxY: number },
+  length: number,
+  avoidAngle: number | null,
+): TrialLine {
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    const angle = randomLineAngle(avoidAngle);
+    const halfX = Math.abs(Math.cos(angle) * length) / 2;
+    const halfY = Math.abs(Math.sin(angle) * length) / 2;
+    if (
+      halfX > (region.maxX - region.minX) / 2 ||
+      halfY > (region.maxY - region.minY) / 2
+    ) {
+      continue;
+    }
+    const center = {
+      x: randomRange(region.minX + halfX, region.maxX - halfX),
+      y: randomRange(region.minY + halfY, region.maxY - halfY),
+    };
+    return lineFromCenter(center, length, angle);
+  }
+
+  const center = {
+    x: (region.minX + region.maxX) / 2,
+    y: (region.minY + region.maxY) / 2,
+  };
+  return lineFromCenter(
+    center,
+    length,
+    avoidAngle === null ? 0.45 : avoidAngle + 1.1,
+  );
+}
+
+function lineFromCenter(
+  center: { x: number; y: number },
+  length: number,
+  angle: number,
+): TrialLine {
+  const half = length / 2;
+  const dx = Math.cos(angle) * half;
+  const dy = Math.sin(angle) * half;
+  return {
+    axis: "free",
+    anchorX: 0,
+    anchorY: 0,
+    startScalar: 0,
+    endScalar: length,
+    startPoint: { x: center.x - dx, y: center.y - dy },
+    endPoint: { x: center.x + dx, y: center.y + dy },
+  };
+}
+
+function randomLineAngle(avoidAngle: number | null): number {
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    const angle = randomRange(-Math.PI, Math.PI);
+    if (
+      avoidAngle === null ||
+      angleDifferenceRadians(angle, avoidAngle) > 0.55
+    ) {
+      return angle;
+    }
+  }
+  return randomRange(-Math.PI, Math.PI);
+}
+
+function lineAngle(line: TrialLine): number {
+  if (line.axis === "horizontal") return 0;
+  if (line.axis === "vertical") return Math.PI / 2;
+  const start = line.startPoint!;
+  const end = line.endPoint!;
+  return Math.atan2(end.y - start.y, end.x - start.x);
+}
+
+function angleDifferenceRadians(a: number, b: number): number {
+  let diff = Math.abs(a - b) % Math.PI;
+  if (diff > Math.PI / 2) diff = Math.PI - diff;
+  return diff;
 }
 
 function randomTransferReferenceStart(
@@ -749,6 +1004,10 @@ function directionLabel(axis: LineAxis, signedErrorPixels: number): string {
     return signedErrorPixels < 0 ? "Too far left" : "Too far right";
   }
 
+  if (axis === "free") {
+    return signedErrorPixels < 0 ? "Too far back" : "Too far forward";
+  }
+
   return signedErrorPixels < 0 ? "Too high" : "Too low";
 }
 
@@ -781,6 +1040,10 @@ function fractionPrompt(denominator: 2 | 3 | 4 | 5): string {
 function randomInteger(min: number, max: number): number {
   const span = max - min + 1;
   return min + Math.floor(Math.random() * span);
+}
+
+function randomRange(min: number, max: number): number {
+  return min + Math.random() * (max - min);
 }
 
 function boundedNormalOffset(

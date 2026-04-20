@@ -62,6 +62,9 @@ test("home page lists drills and auto entry point", async ({ page }) => {
     page.getByRole("heading", { level: 3, name: "Vertical Fifths" }),
   ).toBeVisible();
   await expect(
+    page.getByRole("heading", { level: 3, name: "Random Thirds" }),
+  ).toBeVisible();
+  await expect(
     page.getByRole("heading", {
       level: 3,
       name: "Copy Horizontal to Vertical",
@@ -85,11 +88,23 @@ test("home page lists drills and auto entry point", async ({ page }) => {
       name: "Double Vertical on Horizontal",
     }),
   ).toBeVisible();
-  await expect(page.getByText("No score yet")).toHaveCount(31);
+  await expect(
+    page.getByRole("heading", {
+      level: 3,
+      name: "Copy Distance on Random Lines",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      level: 3,
+      name: "Double Distance on Random Lines",
+    }),
+  ).toBeVisible();
+  await expect(page.getByText("No score yet")).toHaveCount(37);
   await expect(page.getByRole("button", { name: "Coming soon" })).toHaveCount(
     0,
   );
-  await expect(page.getByRole("button", { name: "Practice" })).toHaveCount(31);
+  await expect(page.getByRole("button", { name: "Practice" })).toHaveCount(37);
   await expect(
     page
       .getByRole("article")
@@ -705,6 +720,7 @@ test("horizontal halves drill can be completed and updates score on return", asy
     page.getByRole("heading", { level: 1, name: "Horizontal Halves" }),
   ).toBeVisible();
   await expect(page.getByText(/divided at one half/i)).toBeVisible();
+  await expect(page.locator(".anchor-direction-cue")).toHaveCount(0);
 
   const line = page.locator(".exercise-line");
   const lineBox = await line.boundingBox();
@@ -712,10 +728,9 @@ test("horizontal halves drill can be completed and updates score on return", asy
     throw new Error("Expected rendered exercise line to have a bounding box.");
   }
 
-  await page.mouse.click(
-    lineBox.x + lineBox.width / 2,
-    lineBox.y + lineBox.height / 2,
-  );
+  const midpoint = await svgLineMidpoint(line);
+  const [midpointClient] = await exerciseSvgPointsToClient(page, [midpoint]);
+  await page.mouse.click(midpointClient.x, midpointClient.y);
 
   await expect(page.getByText(/Error .* px/i)).toBeVisible();
   await expect(page.getByRole("button", { name: "Again" })).toBeVisible();
@@ -747,7 +762,7 @@ test("vertical thirds drill can be completed", async ({ page }) => {
   await expect(
     page.getByRole("heading", { level: 1, name: "Vertical Thirds" }),
   ).toBeVisible();
-  await expect(page.getByText(/divided at one third/i)).toBeVisible();
+  await expect(page.getByText(/marked at one third/i)).toBeVisible();
 
   const line = page.locator(".exercise-line");
   const lineBox = await line.boundingBox();
@@ -768,10 +783,9 @@ test("vertical thirds drill can be completed", async ({ page }) => {
   expect(canvasBox.height).toBeGreaterThan(500);
 
   const lineXBeforeResult = lineBox.x;
-  await page.mouse.click(
-    lineBox.x + lineBox.width / 2,
-    lineBox.y + lineBox.height / 2,
-  );
+  const midpoint = await svgLineMidpoint(line);
+  const [midpointClient] = await exerciseSvgPointsToClient(page, [midpoint]);
+  await page.mouse.click(midpointClient.x, midpointClient.y);
 
   await expect(page.getByText(/Error .* px/i)).toBeVisible();
   await expect(page.getByText(/Too high|Too low|Exact/)).toBeVisible();
@@ -783,6 +797,46 @@ test("vertical thirds drill can be completed", async ({ page }) => {
     );
   }
   expect(resultLineBox.x).toBeCloseTo(lineXBeforeResult, 1);
+});
+
+test("random thirds drill can be completed on an arbitrary segment", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await page
+    .getByRole("article")
+    .filter({
+      has: page.getByRole("heading", { level: 3, name: "Random Thirds" }),
+    })
+    .getByRole("button", { name: "Practice" })
+    .click();
+
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Random Thirds" }),
+  ).toBeVisible();
+  await expect(page.getByText(/marked at one third/i)).toBeVisible();
+
+  const line = page.locator(".exercise-line");
+  const lineBox = await line.boundingBox();
+  if (!lineBox) {
+    throw new Error("Expected rendered random line to have a bounding box.");
+  }
+  const directionCueBox = await page
+    .locator(".anchor-direction-cue")
+    .boundingBox();
+  if (!directionCueBox) {
+    throw new Error("Expected random division direction cue to render.");
+  }
+
+  const midpoint = await svgLineMidpoint(line);
+  const [midpointClient] = await exerciseSvgPointsToClient(page, [midpoint]);
+  await page.mouse.click(midpointClient.x, midpointClient.y);
+
+  await expect(page.getByText(/Error .* px/i)).toBeVisible();
+  await expect(
+    page.getByText(/Too far back|Too far forward|Exact/),
+  ).toBeVisible();
 });
 
 test("cross-axis double drill scores a mark on the full guide", async ({
@@ -888,6 +942,49 @@ async function svgLineEnd(locator: Locator): Promise<{
   }
 
   return { x, y };
+}
+
+async function svgLineMidpoint(locator: Locator): Promise<{
+  x: number;
+  y: number;
+}> {
+  const x1 = Number(await locator.getAttribute("x1"));
+  const y1 = Number(await locator.getAttribute("y1"));
+  const x2 = Number(await locator.getAttribute("x2"));
+  const y2 = Number(await locator.getAttribute("y2"));
+  if (
+    !Number.isFinite(x1) ||
+    !Number.isFinite(y1) ||
+    !Number.isFinite(x2) ||
+    !Number.isFinite(y2)
+  ) {
+    throw new Error("Expected SVG line to expose endpoint coordinates.");
+  }
+
+  return { x: (x1 + x2) / 2, y: (y1 + y2) / 2 };
+}
+
+async function exerciseSvgPointsToClient(
+  page: Page,
+  points: { x: number; y: number }[],
+): Promise<{ x: number; y: number }[]> {
+  return page
+    .getByTestId("exercise-canvas")
+    .evaluate((svgElement, sourcePoints) => {
+      const svg = svgElement as SVGSVGElement;
+      const matrix = svg.getScreenCTM();
+      if (!matrix) {
+        throw new Error("Expected exercise canvas to have a screen transform.");
+      }
+
+      return sourcePoints.map((sourcePoint) => {
+        const point = svg.createSVGPoint();
+        point.x = sourcePoint.x;
+        point.y = sourcePoint.y;
+        const transformed = point.matrixTransform(matrix);
+        return { x: transformed.x, y: transformed.y };
+      });
+    }, points);
 }
 
 async function svgPointsToClient(

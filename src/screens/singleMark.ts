@@ -148,22 +148,7 @@ function renderTrialSvg(
   });
 
   // Invisible hit-rect wider than the line so taps near the ends still register.
-  const guide =
-    trial.line.axis === "horizontal"
-      ? s("rect", {
-          x: trial.line.startScalar,
-          y: trial.line.anchorY - 22,
-          width: trial.line.endScalar - trial.line.startScalar,
-          height: 44,
-          class: "click-guide",
-        })
-      : s("rect", {
-          x: trial.line.anchorX - 22,
-          y: trial.line.startScalar,
-          width: 44,
-          height: trial.line.endScalar - trial.line.startScalar,
-          class: "click-guide",
-        });
+  const guide = createClickGuide(trial.line);
 
   const startCap =
     trial.line.showEndpointTicks === false
@@ -231,7 +216,7 @@ function renderTrialSvg(
     const local = localSvgPoint(svg, event.clientX, event.clientY);
     if (!local) return;
 
-    const scalar = scalarFromPoint(trial.line.axis, local);
+    const scalar = scalarFromPoint(trial.line, local);
     const crossDist = crossAxisDistance(trial.line.axis, trial.line, local);
     if (
       crossDist > 28 ||
@@ -293,6 +278,40 @@ function createReferenceLineGroup(line: TrialLine): SVGGElement {
   ]);
 }
 
+function createClickGuide(line: TrialLine): SVGElement {
+  if (line.axis === "horizontal") {
+    return s("rect", {
+      x: line.startScalar,
+      y: line.anchorY - 22,
+      width: line.endScalar - line.startScalar,
+      height: 44,
+      class: "click-guide",
+    });
+  }
+  if (line.axis === "vertical") {
+    return s("rect", {
+      x: line.anchorX - 22,
+      y: line.startScalar,
+      width: 44,
+      height: line.endScalar - line.startScalar,
+      class: "click-guide",
+    });
+  }
+  const start = linePoint(line, "start");
+  const end = linePoint(line, "end");
+  const normal = lineNormal(line);
+  const halfWidth = 22;
+  return s("polygon", {
+    points: [
+      `${(start.x + normal.x * halfWidth).toFixed(2)},${(start.y + normal.y * halfWidth).toFixed(2)}`,
+      `${(end.x + normal.x * halfWidth).toFixed(2)},${(end.y + normal.y * halfWidth).toFixed(2)}`,
+      `${(end.x - normal.x * halfWidth).toFixed(2)},${(end.y - normal.y * halfWidth).toFixed(2)}`,
+      `${(start.x - normal.x * halfWidth).toFixed(2)},${(start.y - normal.y * halfWidth).toFixed(2)}`,
+    ].join(" "),
+    class: "click-guide",
+  });
+}
+
 function createAnchorDirectionCue(
   axis: LineAxis,
   line: TrialLine,
@@ -303,14 +322,14 @@ function createAnchorDirectionCue(
   const endScalar = anchorScalar + directionSign * 52;
   const start = linePointAtScalar(axis, line, startScalar);
   const end = linePointAtScalar(axis, line, endScalar);
-  const headA =
-    axis === "horizontal"
-      ? { x: end.x - directionSign * 10, y: end.y - 7 }
-      : { x: end.x - 7, y: end.y - directionSign * 10 };
-  const headB =
-    axis === "horizontal"
-      ? { x: end.x - directionSign * 10, y: end.y + 7 }
-      : { x: end.x + 7, y: end.y - directionSign * 10 };
+  const unit = lineUnit(line);
+  const normal = lineNormal(line);
+  const headBase = {
+    x: end.x - unit.x * directionSign * 10,
+    y: end.y - unit.y * directionSign * 10,
+  };
+  const headA = { x: headBase.x + normal.x * 7, y: headBase.y + normal.y * 7 };
+  const headB = { x: headBase.x - normal.x * 7, y: headBase.y - normal.y * 7 };
 
   return s("g", { class: "anchor-direction-cue" }, [
     s("line", { x1: start.x, y1: start.y, x2: end.x, y2: end.y }),
@@ -326,21 +345,15 @@ function createTick(
   className: string,
 ): SVGLineElement {
   const len = 30;
-  return axis === "horizontal"
-    ? s("line", {
-        x1: scalar,
-        y1: line.anchorY - len,
-        x2: scalar,
-        y2: line.anchorY + len,
-        class: className,
-      })
-    : s("line", {
-        x1: line.anchorX - len,
-        y1: scalar,
-        x2: line.anchorX + len,
-        y2: scalar,
-        class: className,
-      });
+  const point = linePointAtScalar(axis, line, scalar);
+  const normal = lineNormal(line);
+  return s("line", {
+    x1: point.x - normal.x * len,
+    y1: point.y - normal.y * len,
+    x2: point.x + normal.x * len,
+    y2: point.y + normal.y * len,
+    class: className,
+  });
 }
 
 function linePoint(
@@ -348,9 +361,7 @@ function linePoint(
   edge: "start" | "end",
 ): { x: number; y: number } {
   const sc = edge === "start" ? line.startScalar : line.endScalar;
-  return line.axis === "horizontal"
-    ? { x: sc, y: line.anchorY }
-    : { x: line.anchorX, y: sc };
+  return linePointAtScalar(line.axis, line, sc);
 }
 
 function linePointAtScalar(
@@ -358,9 +369,15 @@ function linePointAtScalar(
   line: TrialLine,
   scalar: number,
 ): { x: number; y: number } {
-  return axis === "horizontal"
-    ? { x: scalar, y: line.anchorY }
-    : { x: line.anchorX, y: scalar };
+  if (axis === "horizontal") return { x: scalar, y: line.anchorY };
+  if (axis === "vertical") return { x: line.anchorX, y: scalar };
+  const start = line.startPoint;
+  if (!start) return { x: 0, y: 0 };
+  const unit = lineUnit(line);
+  return {
+    x: start.x + unit.x * scalar,
+    y: start.y + unit.y * scalar,
+  };
 }
 
 function gapPoint(
@@ -369,13 +386,21 @@ function gapPoint(
   scalar: number,
 ): { x: number; y: number } {
   const offset = 34;
-  return axis === "horizontal"
-    ? { x: scalar, y: line.anchorY - offset }
-    : { x: line.anchorX - offset, y: scalar };
+  const point = linePointAtScalar(axis, line, scalar);
+  const normal = lineNormal(line);
+  return {
+    x: point.x - normal.x * offset,
+    y: point.y - normal.y * offset,
+  };
 }
 
-function scalarFromPoint(axis: LineAxis, point: DOMPoint | SVGPoint): number {
-  return axis === "horizontal" ? point.x : point.y;
+function scalarFromPoint(line: TrialLine, point: DOMPoint | SVGPoint): number {
+  if (line.axis === "horizontal") return point.x;
+  if (line.axis === "vertical") return point.y;
+  const start = line.startPoint;
+  if (!start) return 0;
+  const unit = lineUnit(line);
+  return (point.x - start.x) * unit.x + (point.y - start.y) * unit.y;
 }
 
 function crossAxisDistance(
@@ -383,7 +408,30 @@ function crossAxisDistance(
   line: TrialLine,
   point: DOMPoint | SVGPoint,
 ): number {
-  return axis === "horizontal"
-    ? Math.abs(point.y - line.anchorY)
-    : Math.abs(point.x - line.anchorX);
+  if (axis === "horizontal") return Math.abs(point.y - line.anchorY);
+  if (axis === "vertical") return Math.abs(point.x - line.anchorX);
+  const start = line.startPoint;
+  if (!start) return Infinity;
+  const normal = lineNormal(line);
+  return Math.abs(
+    (point.x - start.x) * normal.x + (point.y - start.y) * normal.y,
+  );
+}
+
+function lineUnit(line: TrialLine): { x: number; y: number } {
+  if (line.axis === "horizontal") return { x: 1, y: 0 };
+  if (line.axis === "vertical") return { x: 0, y: 1 };
+  const start = line.startPoint;
+  const end = line.endPoint;
+  if (!start || !end) return { x: 1, y: 0 };
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const length = Math.hypot(dx, dy);
+  if (length === 0) return { x: 1, y: 0 };
+  return { x: dx / length, y: dy / length };
+}
+
+function lineNormal(line: TrialLine): { x: number; y: number } {
+  const unit = lineUnit(line);
+  return { x: -unit.y, y: unit.x };
 }

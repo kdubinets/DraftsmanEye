@@ -199,7 +199,7 @@ describe("single-mark scoreSelection", () => {
         "createTrial" in e &&
         (e.id.startsWith("copy-") || e.id.startsWith("double-")),
     );
-    expect(transfer).toHaveLength(8);
+    expect(transfer).toHaveLength(10);
 
     for (const ex of transfer) {
       const trial = ex.createTrial();
@@ -221,6 +221,32 @@ describe("single-mark scoreSelection", () => {
       );
       expect(target).toBeLessThanOrEqual(trial.line.endScalar);
       expect(target).toBeGreaterThanOrEqual(trial.line.startScalar);
+    }
+  });
+
+  it("division drills include an indicated end and random variants use free lines", () => {
+    const division = EXERCISES.filter(
+      (e): e is SingleMarkExerciseDefinition =>
+        e.implemented && "createTrial" in e && e.id.startsWith("division-"),
+    );
+    expect(division).toHaveLength(12);
+
+    for (const ex of division) {
+      const trial = ex.createTrial();
+      if (ex.id.endsWith("-halves")) {
+        expect(trial.anchorScalar).toBeUndefined();
+        expect(trial.anchorDirectionSign).toBeUndefined();
+      } else {
+        expect(trial.anchorScalar).toBeDefined();
+        expect(
+          trial.anchorDirectionSign === -1 || trial.anchorDirectionSign === 1,
+        ).toBe(true);
+      }
+      if (ex.id.startsWith("division-random-")) {
+        expect(trial.line.axis).toBe("free");
+        expect(trial.line.startPoint).toBeDefined();
+        expect(trial.line.endPoint).toBeDefined();
+      }
     }
   });
 
@@ -250,6 +276,12 @@ describe("single-mark scoreSelection", () => {
     for (const ex of transfer) {
       for (let i = 0; i < 50; i += 1) {
         const trial = ex.createTrial();
+        if (
+          trial.referenceLine!.axis === "free" ||
+          trial.line.axis === "free"
+        ) {
+          continue;
+        }
         const reference = trial.referenceLine!;
         const probe = trial.scoreSelection(trial.line.startScalar);
         const target = trial.line.startScalar - probe.signedErrorPixels;
