@@ -32,6 +32,7 @@ describe("EXERCISES registry", () => {
       "Target Drawing": "target-",
       "Trace Control": "trace-",
       "Angle Copy": "angle-copy-",
+      Intersection: "intersection-",
     };
     for (const ex of EXERCISES) {
       const prefix = familyToPrefix[ex.family];
@@ -310,5 +311,34 @@ describe("single-mark scoreSelection", () => {
     expect(result.relativeErrorPercent).toBeCloseTo(
       (10 / (referenceLength * 2)) * 100,
     );
+  });
+
+  it("intersection drill uses a separate pointing segment and angle scoring", () => {
+    const drill = EXERCISES.find(
+      (e): e is SingleMarkExerciseDefinition =>
+        e.id === "intersection-random" && e.implemented && "createTrial" in e,
+    )!;
+
+    for (let i = 0; i < 50; i += 1) {
+      const trial = drill.createTrial();
+      expect(trial.line.axis).toBe("free");
+      expect(trial.projectionLine).toBeDefined();
+      expect(trial.projectionOrigin).toBeDefined();
+      expect(trial.line.endScalar - trial.line.startScalar).toBeGreaterThan(
+        480,
+      );
+      expect(
+        trial.projectionLine!.endScalar - trial.projectionLine!.startScalar,
+      ).toBeLessThan(150);
+
+      const probe = trial.scoreSelection(trial.line.startScalar);
+      const target = trial.line.startScalar - probe.signedErrorPixels;
+      expect(target).toBeGreaterThan(trial.line.startScalar + 70);
+      expect(target).toBeLessThan(trial.line.endScalar - 70);
+
+      const exact = trial.scoreSelection(target);
+      expect(exact.angleErrorDegrees).toBeCloseTo(0, 10);
+      expect(exact.relativeAccuracyPercent).toBe(100);
+    }
   });
 });

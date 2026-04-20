@@ -28,6 +28,7 @@
 }
 
 html {
+  overflow-y: scroll;
   scrollbar-gutter: stable;
 }
 
@@ -170,6 +171,7 @@ button {
 
 .exercise-stage {
   margin-top: 1.5rem;
+  overflow-anchor: none;
 }
 
 .exercise-prompt {
@@ -529,6 +531,21 @@ button {
   stroke: #34261b;
   stroke-width: 5;
   stroke-linecap: round;
+}
+
+.projection-line {
+  stroke: rgba(47, 85, 125, 0.72);
+  stroke-width: 4;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.projection-result-ray {
+  stroke: rgba(47, 85, 125, 0.36);
+  stroke-width: 2;
+  stroke-dasharray: 8 7;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
 }
 
 .endpoint-tick,

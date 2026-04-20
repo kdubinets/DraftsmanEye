@@ -2,6 +2,7 @@
  * Defines selectable drills and their trial generation and scoring behavior.
  */
 import type { ProgressStore } from "../storage/progress";
+import { clampNumber, radiansToDegrees } from "../geometry/primitives";
 
 export type ExerciseId =
   | "freehand-straight-line"
@@ -40,7 +41,8 @@ export type ExerciseId =
   | "double-horizontal-vertical"
   | "double-vertical-vertical"
   | "double-vertical-horizontal"
-  | "double-random-random";
+  | "double-random-random"
+  | "intersection-random";
 
 export type LineAxis = "horizontal" | "vertical" | "free";
 
@@ -60,6 +62,8 @@ export type SingleMarkTrial = {
   };
   line: TrialLine;
   referenceLine?: TrialLine;
+  projectionLine?: TrialLine;
+  projectionOrigin?: { x: number; y: number };
   anchorScalar?: number;
   anchorDirectionSign?: -1 | 1;
   scoreSelection: (placedScalar: number) => SingleMarkTrialResult;
@@ -83,6 +87,8 @@ export type SingleMarkTrialResult = {
   relativeErrorPercent: number;
   relativeAccuracyPercent: number;
   directionLabel: string;
+  angleErrorDegrees?: number;
+  signedAngleErrorDegrees?: number;
 };
 
 export type SingleMarkExerciseDefinition = ExerciseBase & {
@@ -349,6 +355,7 @@ export const EXERCISES: ExerciseDefinition[] = [
     "free",
     "free",
   ),
+  intersectionExercise(),
 ];
 
 export const AUTO_EXERCISE_ID: ExerciseId = "division-horizontal-halves";
@@ -962,6 +969,162 @@ function randomTransferReferenceStart(
   return viable[randomInteger(0, viable.length - 1)];
 }
 
+function intersectionExercise(): SingleMarkExerciseDefinition {
+  return {
+    id: "intersection-random",
+    family: "Intersection",
+    label: "Projected Line Intersection",
+    description:
+      "Extend the short segment mentally and mark where it crosses the long segment.",
+    implemented: true,
+    kind: "single-mark",
+    createTrial: createIntersectionTrial,
+  };
+}
+
+function createIntersectionTrial(): SingleMarkTrial {
+  const width = 760;
+  const height = 520;
+  const margin = 58;
+  const longLength = randomInteger(500, 620);
+  const shortLength = randomInteger(86, 132);
+  const gap = randomInteger(105, 180);
+  const minTargetPadding = 92;
+
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    const longLine = createRandomLineInRegion(
+      {
+        minX: margin,
+        maxX: width - margin,
+        minY: margin + 24,
+        maxY: height - margin - 24,
+      },
+      longLength,
+      null,
+    );
+    longLine.showEndpointTicks = false;
+
+    const longAngle = lineAngle(longLine);
+    const crossingAngle = longAngle + randomRange(0.55, 1.18) * randomSign();
+    const targetScalar = randomRange(
+      minTargetPadding,
+      longLength - minTargetPadding,
+    );
+    const targetPoint = pointOnTrialLine(longLine, targetScalar);
+    const rayUnit = {
+      x: Math.cos(crossingAngle),
+      y: Math.sin(crossingAngle),
+    };
+    const pointingEnd = {
+      x: targetPoint.x - rayUnit.x * gap,
+      y: targetPoint.y - rayUnit.y * gap,
+    };
+    const farEnd = {
+      x: pointingEnd.x - rayUnit.x * shortLength,
+      y: pointingEnd.y - rayUnit.y * shortLength,
+    };
+
+    if (
+      pointInViewport(pointingEnd, width, height, margin) &&
+      pointInViewport(farEnd, width, height, margin)
+    ) {
+      const projectionLine = lineFromEndpoints(farEnd, pointingEnd);
+      return {
+        label: "Projected Line Intersection",
+        prompt:
+          "Click where the short segment would cross the long segment if extended.",
+        viewport: { width, height },
+        line: longLine,
+        projectionLine,
+        projectionOrigin: pointingEnd,
+        scoreSelection: (placedScalar) =>
+          scoreIntersectionSelection(
+            placedScalar,
+            targetScalar,
+            pointingEnd,
+            targetPoint,
+            pointOnTrialLine(longLine, placedScalar),
+          ),
+      };
+    }
+  }
+
+  const longLine = lineFromCenter(
+    { x: width / 2, y: height / 2 + 80 },
+    longLength,
+    -0.16,
+  );
+  longLine.showEndpointTicks = false;
+  const targetScalar = longLength * 0.54;
+  const targetPoint = pointOnTrialLine(longLine, targetScalar);
+  const crossingAngle = lineAngle(longLine) - 0.84;
+  const rayUnit = { x: Math.cos(crossingAngle), y: Math.sin(crossingAngle) };
+  const pointingEnd = {
+    x: targetPoint.x - rayUnit.x * gap,
+    y: targetPoint.y - rayUnit.y * gap,
+  };
+  const farEnd = {
+    x: pointingEnd.x - rayUnit.x * shortLength,
+    y: pointingEnd.y - rayUnit.y * shortLength,
+  };
+
+  return {
+    label: "Projected Line Intersection",
+    prompt:
+      "Click where the short segment would cross the long segment if extended.",
+    viewport: { width, height },
+    line: longLine,
+    projectionLine: lineFromEndpoints(farEnd, pointingEnd),
+    projectionOrigin: pointingEnd,
+    scoreSelection: (placedScalar) =>
+      scoreIntersectionSelection(
+        placedScalar,
+        targetScalar,
+        pointingEnd,
+        targetPoint,
+        pointOnTrialLine(longLine, placedScalar),
+      ),
+  };
+}
+
+function scoreIntersectionSelection(
+  placedScalar: number,
+  targetScalar: number,
+  origin: { x: number; y: number },
+  targetPoint: { x: number; y: number },
+  placedPoint: { x: number; y: number },
+): SingleMarkTrialResult {
+  const targetAngle = Math.atan2(
+    targetPoint.y - origin.y,
+    targetPoint.x - origin.x,
+  );
+  const placedAngle = Math.atan2(
+    placedPoint.y - origin.y,
+    placedPoint.x - origin.x,
+  );
+  const signedAngleErrorDegrees = radiansToDegrees(
+    signedAngleDifferenceRadians(placedAngle, targetAngle),
+  );
+  const angleErrorDegrees = Math.abs(signedAngleErrorDegrees);
+  const signedErrorPixels = placedScalar - targetScalar;
+  const relativeErrorPercent = clampNumber(
+    (angleErrorDegrees / 15) * 100,
+    0,
+    100,
+  );
+
+  return {
+    placedScalar,
+    targetScalar,
+    signedErrorPixels,
+    relativeErrorPercent,
+    relativeAccuracyPercent: 100 - relativeErrorPercent,
+    directionLabel: directionLabel("free", signedErrorPixels),
+    angleErrorDegrees,
+    signedAngleErrorDegrees,
+  };
+}
+
 function separatedCoordinate(
   existing: number,
   candidates: number[],
@@ -993,6 +1156,62 @@ function scoreSelection(
     relativeAccuracyPercent,
     directionLabel: directionLabel(axis, signedErrorPixels),
   };
+}
+
+function pointOnTrialLine(
+  line: TrialLine,
+  scalar: number,
+): { x: number; y: number } {
+  if (line.axis === "horizontal") return { x: scalar, y: line.anchorY };
+  if (line.axis === "vertical") return { x: line.anchorX, y: scalar };
+  const start = line.startPoint!;
+  const angle = lineAngle(line);
+  return {
+    x: start.x + Math.cos(angle) * scalar,
+    y: start.y + Math.sin(angle) * scalar,
+  };
+}
+
+function lineFromEndpoints(
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+): TrialLine {
+  const length = Math.hypot(end.x - start.x, end.y - start.y);
+  return {
+    axis: "free",
+    anchorX: 0,
+    anchorY: 0,
+    startScalar: 0,
+    endScalar: length,
+    startPoint: start,
+    endPoint: end,
+    showEndpointTicks: false,
+  };
+}
+
+function pointInViewport(
+  point: { x: number; y: number },
+  width: number,
+  height: number,
+  margin: number,
+): boolean {
+  return (
+    point.x >= margin &&
+    point.x <= width - margin &&
+    point.y >= margin &&
+    point.y <= height - margin
+  );
+}
+
+function randomSign(): -1 | 1 {
+  return Math.random() < 0.5 ? -1 : 1;
+}
+
+function signedAngleDifferenceRadians(a: number, b: number): number {
+  let diff = a - b;
+  while (diff <= -Math.PI) diff += Math.PI * 2;
+  while (diff > Math.PI) diff -= Math.PI * 2;
+  return diff;
 }
 
 function directionLabel(axis: LineAxis, signedErrorPixels: number): string {

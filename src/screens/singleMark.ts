@@ -86,6 +86,8 @@ export function mountSingleMarkScreen(
   }
 
   function revealResult(next: SingleMarkTrialResult): void {
+    const revealScrollX = window.scrollX;
+    const revealScrollY = window.scrollY;
     result = next;
     updateStoredProgress(
       exercise.id,
@@ -103,25 +105,47 @@ export function mountSingleMarkScreen(
     summary.style.setProperty("--result-accent", accent);
 
     feedback.textContent =
-      `${feedbackLabel(result.relativeErrorPercent)} · ` +
-      `Error ${formatSignedValue(result.signedErrorPixels)} px · ` +
-      `${result.relativeErrorPercent.toFixed(1)}% of line length`;
+      result.angleErrorDegrees === undefined
+        ? `${feedbackLabel(result.relativeErrorPercent)} · ` +
+          `Error ${formatSignedValue(result.signedErrorPixels)} px · ` +
+          `${result.relativeErrorPercent.toFixed(1)}% of line length`
+        : `${feedbackLabel(result.relativeErrorPercent)} · ` +
+          `Angle error ${result.angleErrorDegrees.toFixed(1)}° · ` +
+          `Offset ${formatSignedValue(result.signedErrorPixels)} px`;
 
     summary.hidden = false;
-    summary.replaceChildren(
-      resultStat("Score", result.relativeAccuracyPercent.toFixed(1)),
-      resultStat("Placed", `${Math.round(result.placedScalar)} px`),
-      resultStat("Target", `${Math.round(result.targetScalar)} px`),
-      resultStat(
-        "Direction",
-        result.signedErrorPixels === 0 ? "Exact" : result.directionLabel,
-      ),
-    );
+    const resultStats =
+      result.angleErrorDegrees === undefined
+        ? [
+            resultStat("Score", result.relativeAccuracyPercent.toFixed(1)),
+            resultStat("Placed", `${Math.round(result.placedScalar)} px`),
+            resultStat("Target", `${Math.round(result.targetScalar)} px`),
+            resultStat(
+              "Direction",
+              result.signedErrorPixels === 0 ? "Exact" : result.directionLabel,
+            ),
+          ]
+        : [
+            resultStat("Score", result.relativeAccuracyPercent.toFixed(1)),
+            resultStat("Angle", `${result.angleErrorDegrees.toFixed(1)}°`),
+            resultStat(
+              "Offset",
+              `${formatSignedValue(result.signedErrorPixels)} px`,
+            ),
+            resultStat(
+              "Direction",
+              result.signedErrorPixels === 0 ? "Exact" : result.directionLabel,
+            ),
+          ];
+    summary.replaceChildren(...resultStats);
 
     againBtn.hidden = false;
     backBtn.hidden = false;
     autoBtn.hidden = false;
     rerenderSvg();
+    // Result controls can make the document taller; keep the canvas visually
+    // stationary instead of letting scroll anchoring move the marked geometry.
+    window.scrollTo(revealScrollX, revealScrollY);
   }
 }
 
@@ -146,6 +170,15 @@ function renderTrialSvg(
     y2: linePoint(trial.line, "end").y,
     class: "exercise-line",
   });
+  const projectionLine = trial.projectionLine
+    ? s("line", {
+        x1: linePoint(trial.projectionLine, "start").x,
+        y1: linePoint(trial.projectionLine, "start").y,
+        x2: linePoint(trial.projectionLine, "end").x,
+        y2: linePoint(trial.projectionLine, "end").y,
+        class: "projection-line",
+      })
+    : null;
 
   // Invisible hit-rect wider than the line so taps near the ends still register.
   const guide = createClickGuide(trial.line);
@@ -203,6 +236,7 @@ function renderTrialSvg(
       reference,
       guide,
       line,
+      projectionLine,
       startCap,
       endCap,
       anchorDirectionCue,
@@ -245,6 +279,14 @@ function renderTrialSvg(
     });
     gapEl.style.stroke = accent;
 
+    const projectionRay =
+      trial.projectionOrigin && trial.projectionLine
+        ? createProjectionResultRay(
+            trial.projectionOrigin,
+            linePointAtScalar(trial.line.axis, trial.line, res.targetScalar),
+          )
+        : null;
+
     const placedTick = createTick(
       trial.line.axis,
       trial.line,
@@ -253,14 +295,29 @@ function renderTrialSvg(
     );
     placedTick.style.stroke = accent;
 
-    svg.append(
+    const resultOverlay = [
       gapEl,
       placedTick,
       createTick(trial.line.axis, trial.line, res.targetScalar, "target-tick"),
-    );
+    ];
+    if (projectionRay) resultOverlay.splice(1, 0, projectionRay);
+    svg.append(...resultOverlay);
   }
 
   return svg;
+}
+
+function createProjectionResultRay(
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+): SVGLineElement {
+  return s("line", {
+    x1: start.x,
+    y1: start.y,
+    x2: end.x,
+    y2: end.y,
+    class: "projection-result-ray",
+  });
 }
 
 function createReferenceLineGroup(line: TrialLine): SVGGElement {

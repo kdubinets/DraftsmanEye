@@ -100,11 +100,17 @@ test("home page lists drills and auto entry point", async ({ page }) => {
       name: "Double Distance on Random Lines",
     }),
   ).toBeVisible();
-  await expect(page.getByText("No score yet")).toHaveCount(37);
+  await expect(
+    page.getByRole("heading", {
+      level: 3,
+      name: "Projected Line Intersection",
+    }),
+  ).toBeVisible();
+  await expect(page.getByText("No score yet")).toHaveCount(38);
   await expect(page.getByRole("button", { name: "Coming soon" })).toHaveCount(
     0,
   );
-  await expect(page.getByRole("button", { name: "Practice" })).toHaveCount(37);
+  await expect(page.getByRole("button", { name: "Practice" })).toHaveCount(38);
   await expect(
     page
       .getByRole("article")
@@ -877,6 +883,55 @@ test("random thirds drill can be completed on an arbitrary segment", async ({
   await expect(
     page.getByText(/Too far back|Too far forward|Exact/),
   ).toBeVisible();
+});
+
+test("intersection drill scores the marked crossing by angle", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await page
+    .getByRole("article")
+    .filter({
+      has: page.getByRole("heading", {
+        level: 3,
+        name: "Projected Line Intersection",
+      }),
+    })
+    .getByRole("button", { name: "Practice" })
+    .click();
+
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Projected Line Intersection",
+    }),
+  ).toBeVisible();
+  await expect(page.getByText(/short segment would cross/i)).toBeVisible();
+  await expect(page.locator(".projection-line")).toBeVisible();
+
+  const canvas = page.getByTestId("exercise-canvas");
+  const canvasBefore = await canvas.boundingBox();
+  if (!canvasBefore) {
+    throw new Error("Expected intersection canvas to have a bounding box.");
+  }
+  const longLine = page.locator(".exercise-line");
+  const midpoint = await svgLineMidpoint(longLine);
+  const [midpointClient] = await exerciseSvgPointsToClient(page, [midpoint]);
+  await page.mouse.click(midpointClient.x, midpointClient.y);
+
+  await expect(page.getByText(/Angle error \d+\.\d°/)).toBeVisible();
+  await expect(page.getByText(/Offset .* px/i)).toBeVisible();
+  await expect(page.locator(".projection-result-ray")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Auto Next" })).toBeVisible();
+
+  const canvasAfter = await canvas.boundingBox();
+  if (!canvasAfter) {
+    throw new Error("Expected intersection canvas to remain mounted.");
+  }
+  expect(canvasAfter.x).toBeCloseTo(canvasBefore.x, 1);
+  expect(canvasAfter.y).toBeCloseTo(canvasBefore.y, 1);
+  expect(canvasAfter.width).toBeCloseTo(canvasBefore.width, 1);
 });
 
 test("cross-axis double drill scores a mark on the full guide", async ({
