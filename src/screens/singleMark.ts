@@ -318,18 +318,27 @@ function createAnchorDirectionCue(
   anchorScalar: number,
   directionSign: -1 | 1,
 ): SVGGElement {
-  const startScalar = anchorScalar + directionSign * 14;
-  const endScalar = anchorScalar + directionSign * 52;
-  const start = linePointAtScalar(axis, line, startScalar);
-  const end = linePointAtScalar(axis, line, endScalar);
+  const startScalar = anchorScalar + directionSign * 12;
+  const endScalar = anchorScalar + directionSign * 50;
   const unit = lineUnit(line);
   const normal = lineNormal(line);
-  const headBase = {
-    x: end.x - unit.x * directionSign * 10,
-    y: end.y - unit.y * directionSign * 10,
+  const offset = 28;
+  const baseStart = linePointAtScalar(axis, line, startScalar);
+  const baseEnd = linePointAtScalar(axis, line, endScalar);
+  const start = {
+    x: baseStart.x + normal.x * offset,
+    y: baseStart.y + normal.y * offset,
   };
-  const headA = { x: headBase.x + normal.x * 7, y: headBase.y + normal.y * 7 };
-  const headB = { x: headBase.x - normal.x * 7, y: headBase.y - normal.y * 7 };
+  const end = {
+    x: baseEnd.x + normal.x * offset,
+    y: baseEnd.y + normal.y * offset,
+  };
+  const headBase = {
+    x: end.x - unit.x * directionSign * 8,
+    y: end.y - unit.y * directionSign * 8,
+  };
+  const headA = { x: headBase.x + normal.x * 5, y: headBase.y + normal.y * 5 };
+  const headB = { x: headBase.x - normal.x * 5, y: headBase.y - normal.y * 5 };
 
   return s("g", { class: "anchor-direction-cue" }, [
     s("line", { x1: start.x, y1: start.y, x2: end.x, y2: end.y }),
@@ -344,7 +353,7 @@ function createTick(
   scalar: number,
   className: string,
 ): SVGLineElement {
-  const len = 30;
+  const len = tickLength(className);
   const point = linePointAtScalar(axis, line, scalar);
   const normal = lineNormal(line);
   return s("line", {
@@ -354,6 +363,13 @@ function createTick(
     y2: point.y + normal.y * len,
     class: className,
   });
+}
+
+function tickLength(className: string): number {
+  if (className === "endpoint-tick") return 18;
+  if (className === "reference-endpoint-tick") return 14;
+  if (className === "anchor-tick") return 20;
+  return 30;
 }
 
 function linePoint(
