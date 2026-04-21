@@ -628,8 +628,10 @@ test("ellipse drill scores a drawn stroke and auto-clears", async ({
   ).toHaveCount(0);
   await expect(page.locator(".freehand-history-stroke").first()).toBeVisible();
 
-  await expect(page.getByText(/Draw one ellipse in the field/i)).toBeVisible({
-    timeout: 2500,
+  await expect(
+    page.getByTestId("freehand-canvas").locator(".freehand-fit-ellipse"),
+  ).toBeHidden({
+    timeout: 4000,
   });
 
   await page.getByRole("button", { name: "Back to List" }).click();
@@ -689,8 +691,10 @@ test("circle drill scores a drawn stroke and auto-clears", async ({ page }) => {
   await expect(page.getByText(/\d+ deg/)).toBeVisible();
   await expect(page.locator(".freehand-history-item")).toHaveCount(1);
 
-  await expect(page.getByText(/Draw one circle in the field/i)).toBeVisible({
-    timeout: 2500,
+  await expect(
+    page.getByTestId("freehand-canvas").locator(".freehand-fit-circle"),
+  ).toBeHidden({
+    timeout: 4000,
   });
 
   await page.getByRole("button", { name: "Back to List" }).click();
@@ -771,15 +775,75 @@ test("straight line drill scores a drawn stroke and auto-clears", async ({
   ).toBeVisible();
 
   await expect(
-    page.getByText(/Draw one straight line in the field/i),
-  ).toBeVisible({
-    timeout: 2500,
+    page.getByTestId("freehand-canvas").locator(".freehand-fit-line"),
+  ).toBeHidden({
+    timeout: 4000,
   });
 
   await page.getByRole("button", { name: "Back to List" }).click();
   await expect(
     page.locator(".score-chip").filter({ hasText: /^\d+\.\d$/ }),
   ).toHaveCount(1);
+});
+
+test("pause keeps freehand result visible past the auto-repeat delay", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "draftsman-eye.settings.v1",
+      JSON.stringify({ autoRepeatDelayMs: 1500 }),
+    );
+  });
+  await page.goto("/");
+
+  await page
+    .getByRole("article")
+    .filter({
+      has: page.getByRole("heading", { level: 3, name: "Straight Line" }),
+    })
+    .getByRole("button", { name: "Practice" })
+    .click();
+
+  await drawFreehandStraightLineAttempt(page);
+  await expect(page.getByText(/Straightness \d+\.\d/)).toBeVisible();
+
+  await page.getByRole("button", { name: "Pause" }).click();
+  await expect(page.getByRole("button", { name: "Resume" })).toBeVisible();
+  await page.waitForTimeout(1900);
+
+  await expect(page.getByText(/Straightness \d+\.\d/)).toBeVisible();
+  await expect(
+    page.getByTestId("freehand-canvas").locator(".freehand-fit-line"),
+  ).toBeVisible();
+  await expect(page.locator(".freehand-history-item")).toHaveCount(1);
+});
+
+test("changing auto-repeat delay affects freehand clear timing", async ({
+  page,
+}) => {
+  await page.goto("/settings");
+  await page.getByLabel("Auto-repeat delay").selectOption({ label: "4.0s" });
+  await page.getByRole("button", { name: "Back to list" }).click();
+
+  await page
+    .getByRole("article")
+    .filter({
+      has: page.getByRole("heading", { level: 3, name: "Straight Line" }),
+    })
+    .getByRole("button", { name: "Practice" })
+    .click();
+
+  await drawFreehandStraightLineAttempt(page);
+  await expect(page.getByText(/Straightness \d+\.\d/)).toBeVisible();
+
+  await page.waitForTimeout(1900);
+  await expect(page.getByText(/Straightness \d+\.\d/)).toBeVisible();
+  await expect(
+    page.getByTestId("freehand-canvas").locator(".freehand-fit-line"),
+  ).toBeHidden({
+    timeout: 3500,
+  });
 });
 
 test("horizontal halves drill can be completed and updates score on return", async ({
@@ -1240,6 +1304,22 @@ async function drawPolyline(
     await page.mouse.move(point.x, point.y);
   }
   await page.mouse.up();
+}
+
+async function drawFreehandStraightLineAttempt(page: Page): Promise<void> {
+  const canvasBox = await page
+    .locator('[data-testid="freehand-canvas"]')
+    .boundingBox();
+  if (!canvasBox) {
+    throw new Error("Expected freehand canvas to have a bounding box.");
+  }
+
+  await drawPolyline(page, [
+    { x: canvasBox.x + 120, y: canvasBox.y + 220 },
+    { x: canvasBox.x + 280, y: canvasBox.y + 221 },
+    { x: canvasBox.x + 440, y: canvasBox.y + 219 },
+    { x: canvasBox.x + 600, y: canvasBox.y + 222 },
+  ]);
 }
 
 async function drawCircle(

@@ -1,6 +1,7 @@
 /** Freehand exercise screen used by Freehand Control, Target Drawing, and Trace Control. */
 import type { ExerciseDefinition } from '../practice/catalog';
 import { updateStoredProgress } from '../storage/progress';
+import { getSettings } from '../storage/settings';
 import { s, h } from '../render/h';
 import { pageShell, exerciseHeader, actionButton } from '../render/components';
 import {
@@ -50,9 +51,15 @@ export function mountFreehandScreen(
   let drawingPointerId: number | null = null;
   let result: FreehandResult | null = null;
   let resetTimer: number | null = null;
+  let resetAnimation: number | null = null;
+  let resetStartedAt = 0;
+  let resetDurationMs = 0;
+  let resetRemainingMs = 0;
+  let isResultPaused = false;
   let escapeListener: ((e: KeyboardEvent) => void) | null = null;
   let nextAttemptId = 1;
   let target: FreehandTarget | null = config.createTarget();
+  const autoRepeatDelayMs = getSettings().autoRepeatDelayMs;
   const attempts: FreehandAttemptSnapshot[] = [];
   const MAX_ATTEMPTS = 36;
 
@@ -65,6 +72,17 @@ export function mountFreehandScreen(
   const toolbar = h('div', { class: 'freehand-toolbar' });
   const prompt = h('p', { class: 'exercise-prompt' }, [config.promptText]);
 
+  const pauseBtn = actionButton('Pause', () => {
+    if (!result || autoRepeatDelayMs === null) return;
+    if (isResultPaused) {
+      resumeAutoReset();
+    } else {
+      pauseAutoReset();
+    }
+  });
+  pauseBtn.classList.add('auto-repeat-action');
+  pauseBtn.disabled = true;
+
   const fullscreenBtn = actionButton('Fullscreen', () => {
     void toggleFullscreen(stage, fullscreenBtn);
   });
@@ -74,7 +92,7 @@ export function mountFreehandScreen(
     onNavigate({ screen: 'list' });
   });
 
-  toolbar.append(prompt, fullscreenBtn, backBtn);
+  toolbar.append(prompt, pauseBtn, fullscreenBtn, backBtn);
 
   const feedback = h('p', { class: 'feedback-banner' }, [config.readyText]);
   const summary = h('div', { class: 'result-summary' });
@@ -181,7 +199,7 @@ export function mountFreehandScreen(
 
   return () => {
     cancelled = true;
-    if (resetTimer !== null) window.clearTimeout(resetTimer);
+    clearAutoResetTimer();
     if (escapeListener !== null) {
       document.removeEventListener('keydown', escapeListener);
       escapeListener = null;
@@ -244,28 +262,92 @@ export function mountFreehandScreen(
     summary.hidden = false;
     summary.replaceChildren(...freehandResultStats(result));
 
-    // Reset to a fresh trial after 1.5 s. The cancelled flag is set by cleanup on unmount.
-    resetTimer = window.setTimeout(() => {
-      if (cancelled) return;
-      points = [];
-      result = null;
-      target = config.createTarget();
+    scheduleAutoReset();
+  }
+
+  function resetToFreshTrial(): void {
+    if (cancelled) return;
+    clearAutoResetTimer();
+    points = [];
+    result = null;
+    target = config.createTarget();
+    strokeLayer.replaceChildren();
+    renderFreehandTargetMarks(targetLayer, target);
+    hideFreehandCorrectionElements(
+      fittedLine,
+      fittedCircle,
+      fittedEllipse,
+      closureGap,
+      startTangent,
+      endTangent,
+    );
+    summary.hidden = true;
+    feedback.removeAttribute('data-tone');
+    summary.removeAttribute('data-tone');
+    feedback.textContent = config.promptText;
+    updateAutoRepeatButton();
+  }
+
+  function scheduleAutoReset(durationMs: number | null = autoRepeatDelayMs): void {
+    clearAutoResetTimer();
+    if (durationMs === null) {
+      updateAutoRepeatButton();
+      return;
+    }
+
+    resetStartedAt = performance.now();
+    resetDurationMs = durationMs;
+    resetRemainingMs = durationMs;
+    isResultPaused = false;
+
+    resetTimer = window.setTimeout(resetToFreshTrial, durationMs);
+    updateAutoRepeatButton();
+    renderTimerProgress();
+  }
+
+  function pauseAutoReset(): void {
+    if (resetTimer === null || result === null) return;
+    const elapsed = performance.now() - resetStartedAt;
+    resetRemainingMs = Math.max(0, resetDurationMs - elapsed);
+    clearAutoResetTimer();
+    isResultPaused = true;
+    updateAutoRepeatButton();
+  }
+
+  function resumeAutoReset(): void {
+    if (result === null || autoRepeatDelayMs === null) return;
+    scheduleAutoReset(Math.max(resetRemainingMs, 250));
+  }
+
+  function clearAutoResetTimer(): void {
+    if (resetTimer !== null) {
+      window.clearTimeout(resetTimer);
       resetTimer = null;
-      strokeLayer.replaceChildren();
-      renderFreehandTargetMarks(targetLayer, target);
-      hideFreehandCorrectionElements(
-        fittedLine,
-        fittedCircle,
-        fittedEllipse,
-        closureGap,
-        startTangent,
-        endTangent,
-      );
-      summary.hidden = true;
-      feedback.removeAttribute('data-tone');
-      summary.removeAttribute('data-tone');
-      feedback.textContent = config.promptText;
-    }, 1500);
+    }
+    if (resetAnimation !== null) {
+      window.cancelAnimationFrame(resetAnimation);
+      resetAnimation = null;
+    }
+  }
+
+  function renderTimerProgress(): void {
+    if (resetTimer === null || resetDurationMs <= 0) return;
+    const elapsed = performance.now() - resetStartedAt;
+    const remainingRatio = Math.max(0, 1 - elapsed / resetDurationMs);
+    pauseBtn.style.setProperty('--timer-progress', remainingRatio.toFixed(3));
+    if (remainingRatio > 0) {
+      resetAnimation = window.requestAnimationFrame(renderTimerProgress);
+    }
+  }
+
+  function updateAutoRepeatButton(): void {
+    pauseBtn.disabled = result === null || autoRepeatDelayMs === null;
+    pauseBtn.textContent = isResultPaused ? 'Resume' : 'Pause';
+    pauseBtn.classList.toggle('is-running', resetTimer !== null && !isResultPaused);
+    pauseBtn.classList.toggle('is-paused', isResultPaused);
+    if (resetTimer === null || isResultPaused) {
+      pauseBtn.style.removeProperty('--timer-progress');
+    }
   }
 
   function renderHistory(): void {

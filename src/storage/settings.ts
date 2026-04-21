@@ -10,17 +10,27 @@ export type Settings = {
   visualizePressureWidth: boolean;
   /** Vary stroke colour by drawing speed. */
   visualizeSpeedColor: boolean;
+  /** Delay before a completed exercise resets; null means manual advance only. */
+  autoRepeatDelayMs: AutoRepeatDelayMs;
 };
 
 const STORAGE_KEY = 'draftsman-eye.settings.v1';
+export const AUTO_REPEAT_DELAYS = [null, 1500, 2500, 4000] as const;
+export type AutoRepeatDelayMs = (typeof AUTO_REPEAT_DELAYS)[number];
 
 const DEFAULTS: Settings = {
   allowTouchDrawing: false,
   visualizePressureWidth: true,
   visualizeSpeedColor: true,
+  autoRepeatDelayMs: 2500,
 };
 
 let cache: Settings | null = null;
+
+/** Clears the in-memory cache. Only for tests that reset localStorage between cases. */
+export function _resetSettingsCache(): void {
+  cache = null;
+}
 
 export function getSettings(): Settings {
   if (cache) return cache;
@@ -61,5 +71,12 @@ function mergeWithDefaults(raw: unknown): Settings {
     visualizeSpeedColor: typeof src['visualizeSpeedColor'] === 'boolean'
       ? src['visualizeSpeedColor']
       : DEFAULTS.visualizeSpeedColor,
+    autoRepeatDelayMs: parseAutoRepeatDelay(src['autoRepeatDelayMs']),
   };
+}
+
+function parseAutoRepeatDelay(raw: unknown): AutoRepeatDelayMs {
+  return AUTO_REPEAT_DELAYS.includes(raw as AutoRepeatDelayMs)
+    ? (raw as AutoRepeatDelayMs)
+    : DEFAULTS.autoRepeatDelayMs;
 }

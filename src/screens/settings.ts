@@ -1,5 +1,10 @@
 /** Settings screen: user-facing toggles and progress reset. */
-import { getSettings, updateSetting } from '../storage/settings';
+import {
+  AUTO_REPEAT_DELAYS,
+  type AutoRepeatDelayMs,
+  getSettings,
+  updateSetting,
+} from '../storage/settings';
 import { resetStoredProgress } from '../storage/progress';
 import { pageShell, actionButton } from '../render/components';
 import { h } from '../render/h';
@@ -10,6 +15,15 @@ export function mountSettingsScreen(
   onNavigate: (next: AppState) => void,
 ): () => void {
   const settings = getSettings();
+
+  const loopSection = h('section', { class: 'settings-section' }, [
+    h('h2', {}, ['Practice loop']),
+    delaySelect(
+      'auto-repeat-delay',
+      settings.autoRepeatDelayMs,
+      (v) => updateSetting('autoRepeatDelayMs', v),
+    ),
+  ]);
 
   const togglesSection = h('section', { class: 'settings-section' }, [
     h('h2', {}, ['Drawing input']),
@@ -57,11 +71,57 @@ export function mountSettingsScreen(
 
   root.append(pageShell(
     h('h1', { class: 'settings-heading' }, ['Settings']),
+    loopSection,
     togglesSection,
     dangerSection,
     backBtn,
   ));
   return () => {};
+}
+
+function delaySelect(
+  id: string,
+  initialValue: AutoRepeatDelayMs,
+  onChange: (value: AutoRepeatDelayMs) => void,
+): HTMLElement {
+  const select = h('select', {
+    id,
+    class: 'settings-select',
+  });
+  select.append(
+    ...AUTO_REPEAT_DELAYS.map((delay) => {
+      const value = delay === null ? 'off' : String(delay);
+      return h('option', {
+        value,
+        selected: delay === initialValue,
+      }, [formatDelay(delay)]);
+    }),
+  );
+  select.addEventListener('change', () => {
+    onChange(parseDelayValue(select.value));
+  });
+
+  return h('div', { class: 'settings-row' }, [
+    h('div', { class: 'settings-label-group' }, [
+      h('label', { htmlFor: id, class: 'settings-label' }, ['Auto-repeat delay']),
+      h('p', { class: 'settings-note' }, [
+        'Controls how long completed drills stay visible before the next attempt.',
+      ]),
+    ]),
+    select,
+  ]);
+}
+
+function parseDelayValue(value: string): AutoRepeatDelayMs {
+  if (value === 'off') return null;
+  const numeric = Number(value);
+  return AUTO_REPEAT_DELAYS.includes(numeric as AutoRepeatDelayMs)
+    ? (numeric as AutoRepeatDelayMs)
+    : 2500;
+}
+
+function formatDelay(delay: AutoRepeatDelayMs): string {
+  return delay === null ? 'Off' : `${(delay / 1000).toFixed(1)}s`;
 }
 
 function settingToggle(

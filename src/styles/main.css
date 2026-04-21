@@ -787,6 +787,36 @@ button {
   transform: none;
 }
 
+.auto-repeat-action {
+  position: relative;
+  overflow: hidden;
+}
+
+.auto-repeat-action.is-running::after {
+  content: "";
+  position: absolute;
+  left: 0.72rem;
+  right: 0.72rem;
+  bottom: 0.32rem;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(122, 77, 34, 0.44);
+  transform: scaleX(var(--timer-progress, 1));
+  transform-origin: left center;
+}
+
+.settings-select {
+  flex-shrink: 0;
+  min-width: 7rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-strong);
+  color: #46382d;
+  font: inherit;
+  cursor: pointer;
+}
+
 .hero-settings-link {
   margin-top: 1rem;
   padding: 0;
