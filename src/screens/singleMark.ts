@@ -4,7 +4,6 @@
  * — the result overlay shares the same element pool as the pre-reveal canvas, so a
  * full rebuild is simpler than toggling visibility on many elements.
  */
-import { getAutoExercise } from "../practice/catalog";
 import type {
   SingleMarkExerciseDefinition,
   LineAxis,
@@ -12,7 +11,7 @@ import type {
   TrialLine,
   SingleMarkTrialResult,
 } from "../practice/catalog";
-import { getStoredProgress, updateStoredProgress } from "../storage/progress";
+import { updateStoredProgress } from "../storage/progress";
 import { getSettings } from "../storage/settings";
 import { localSvgPoint } from "../render/svg";
 import { s, h } from "../render/h";
@@ -84,15 +83,9 @@ export function mountSingleMarkScreen(
   });
   backBtn.hidden = true;
 
-  const autoBtn = actionButton("Auto Next", () => {
-    const { exercise: next } = getAutoExercise(getStoredProgress());
-    onNavigate({ screen: "exercise", exerciseId: next.id, source: "auto" });
-  });
-  autoBtn.hidden = true;
-
   let svg = renderTrialSvg(trial, () => result, onSelect, onPointSelect);
 
-  actions.append(pauseBtn, againBtn, backBtn, autoBtn);
+  actions.append(pauseBtn, againBtn, backBtn);
   stage.append(prompt, svg, feedback, summary, actions);
   screen.append(header, stage);
   root.append(screen);
@@ -196,7 +189,6 @@ export function mountSingleMarkScreen(
 
     againBtn.hidden = false;
     backBtn.hidden = false;
-    autoBtn.hidden = false;
     rerenderSvg();
     scheduleAutoReset();
     // Result controls can make the document taller; keep the canvas visually
@@ -221,7 +213,6 @@ export function mountSingleMarkScreen(
     pauseBtn.hidden = true;
     againBtn.hidden = true;
     backBtn.hidden = true;
-    autoBtn.hidden = true;
     updateAutoRepeatButton();
     rerenderSvg();
   }

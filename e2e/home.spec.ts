@@ -1117,7 +1117,7 @@ test("horizontal halves drill can be completed and updates score on return", asy
   await expect(
     page.getByRole("button", { name: "Back to List" }),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Auto Next" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Auto Next" })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Back to List" }).click();
   await expect(
@@ -1263,7 +1263,7 @@ test("intersection drill scores the marked crossing by angle", async ({
   await expect(page.getByText(/Angle error \d+\.\d°/)).toBeVisible();
   await expect(page.getByText(/Offset .* px/i)).toBeVisible();
   await expect(page.locator(".projection-result-ray")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Auto Next" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Auto Next" })).toHaveCount(0);
 
   const canvasAfter = await canvas.boundingBox();
   if (!canvasAfter) {
@@ -1311,7 +1311,7 @@ test("extrapolated intersection drill scores a free point mark", async ({
   await expect(page.locator(".target-point-mark")).toHaveCount(0);
   await expect(page.locator(".point-error-gap")).toBeVisible();
   await expect(page.locator(".projection-result-ray")).toHaveCount(2);
-  await expect(page.getByRole("button", { name: "Auto Next" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Auto Next" })).toHaveCount(0);
 });
 
 test("cross-axis double drill scores a mark on the full guide", async ({
@@ -1370,7 +1370,7 @@ test("cross-axis double drill scores a mark on the full guide", async ({
 
   await expect(page.getByText(/Error .* px/i)).toBeVisible();
   await expect(page.getByText(/Too high|Too low|Exact/)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Auto Next" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Auto Next" })).toHaveCount(0);
 });
 
 async function locatorCenter(locator: Locator): Promise<{
@@ -1766,12 +1766,11 @@ test("Again re-runs the same drill without returning to the list", async ({
   await expect(page.getByRole("button", { name: "Again" })).toHaveCount(0);
 });
 
-test("Auto Next navigates to a different drill after completion", async ({
+test("Auto Next is not shown after completion", async ({
   page,
 }) => {
   await page.goto("/");
 
-  // Practice one drill to give Auto something to pick against
   await page
     .getByRole("article")
     .filter({
@@ -1787,18 +1786,11 @@ test("Auto Next navigates to a different drill after completion", async ({
     lineBox.x + lineBox.width / 2,
     lineBox.y + lineBox.height / 2,
   );
-  await expect(page.getByRole("button", { name: "Auto Next" })).toBeVisible();
-
-  await page.getByRole("button", { name: "Auto Next" }).click();
-
-  // Should land on an exercise screen — not the list
+  await expect(page.getByRole("button", { name: "Auto Next" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Again" })).toBeVisible();
   await expect(
-    page.getByRole("heading", { level: 1, name: /choose a drill/i }),
-  ).toHaveCount(0);
-  // And the heading should not be the one we just came from
-  await expect(
-    page.getByRole("heading", { level: 1, name: "Horizontal Halves" }),
-  ).toHaveCount(0);
+    page.getByRole("button", { name: "Back to List" }),
+  ).toBeVisible();
 });
 
 test("progress persists across a full page reload", async ({ page }) => {
