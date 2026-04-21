@@ -15,6 +15,7 @@ import {
   freehandPointsFromPointerEvent,
   renderFreehandStroke,
   appendIncrementalSegments,
+  appendFreehandStroke,
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
 } from '../exercises/freehand/input';
@@ -118,6 +119,8 @@ export function mountFreehandScreen(
   const targetLayer = s('g', { class: 'freehand-target-layer' });
   renderFreehandTargetMarks(targetLayer, target);
 
+  const ghostLayer = s('g', { class: 'freehand-ghost-result-layer' });
+
   const strokeLayer = s('g', { class: 'freehand-user-stroke-layer' });
 
   const fittedLine = s('line', { class: 'freehand-fit-line' });
@@ -146,6 +149,7 @@ export function mountFreehandScreen(
   }, [
     s('rect', { x: 1, y: 1, width: CANVAS_WIDTH - 2, height: CANVAS_HEIGHT - 2, rx: 18, class: 'canvas-frame' }),
     targetLayer,
+    ghostLayer,
     fittedLine,
     fittedCircle,
     fittedEllipse,
@@ -157,7 +161,12 @@ export function mountFreehandScreen(
   svg.dataset.testid = 'freehand-canvas';
 
   svg.addEventListener('pointerdown', (event) => {
-    if (drawingPointerId !== null || result) return;
+    if (drawingPointerId !== null) return;
+    if (result) {
+      if (!isUnguidedResult(result)) return;
+      startEarlyNextAttempt(event);
+      return;
+    }
     if (!canStartFreehandStroke(event)) {
       feedback.textContent = 'Use Apple Pencil or mouse to draw.';
       return;
@@ -226,6 +235,7 @@ export function mountFreehandScreen(
     nextAttemptId += 1;
     if (attempts.length > MAX_ATTEMPTS) attempts.length = MAX_ATTEMPTS;
     renderHistory();
+    ghostLayer.replaceChildren();
 
     hideFreehandCorrectionElements(
       fittedLine,
@@ -271,6 +281,7 @@ export function mountFreehandScreen(
     points = [];
     result = null;
     target = config.createTarget();
+    ghostLayer.replaceChildren();
     strokeLayer.replaceChildren();
     renderFreehandTargetMarks(targetLayer, target);
     hideFreehandCorrectionElements(
@@ -286,6 +297,46 @@ export function mountFreehandScreen(
     summary.removeAttribute('data-tone');
     feedback.textContent = config.promptText;
     updateAutoRepeatButton();
+  }
+
+  function startEarlyNextAttempt(event: PointerEvent): void {
+    if (!canStartFreehandStroke(event)) {
+      feedback.textContent = 'Use Apple Pencil or mouse to draw.';
+      return;
+    }
+    const point = freehandPointFromEvent(svg, event);
+    if (!point) return;
+
+    renderGhostResult();
+    clearAutoResetTimer();
+    result = null;
+    points = [point];
+    target = null;
+    drawingPointerId = event.pointerId;
+    strokeLayer.replaceChildren();
+    hideFreehandCorrectionElements(
+      fittedLine,
+      fittedCircle,
+      fittedEllipse,
+      closureGap,
+      startTangent,
+      endTangent,
+    );
+    summary.hidden = true;
+    feedback.removeAttribute('data-tone');
+    summary.removeAttribute('data-tone');
+    feedback.textContent = 'Keep the stroke continuous, then lift.';
+    updateAutoRepeatButton();
+    renderFreehandStroke(strokeLayer, points, 'freehand-user-stroke');
+    svg.setPointerCapture(event.pointerId);
+  }
+
+  function renderGhostResult(): void {
+    const previous = attempts[0];
+    if (!previous || !isUnguidedResult(previous.result)) return;
+    ghostLayer.replaceChildren();
+    appendFreehandStroke(ghostLayer, previous.points, 'freehand-ghost-stroke');
+    appendUnguidedGhostCorrection(ghostLayer, previous.result);
   }
 
   function scheduleAutoReset(durationMs: number | null = autoRepeatDelayMs): void {
@@ -383,6 +434,45 @@ export function mountFreehandScreen(
     };
     document.addEventListener('keydown', escapeListener);
     document.body.append(modal);
+  }
+}
+
+function isUnguidedResult(result: FreehandResult): boolean {
+  return result.kind === 'line' || result.kind === 'circle' || result.kind === 'ellipse';
+}
+
+function appendUnguidedGhostCorrection(
+  parent: SVGGElement,
+  result: FreehandResult,
+): void {
+  if (result.kind === 'line') {
+    parent.append(s('line', {
+      class: 'freehand-ghost-correction',
+      x1: result.fitStart.x,
+      y1: result.fitStart.y,
+      x2: result.fitEnd.x,
+      y2: result.fitEnd.y,
+    }));
+    return;
+  }
+  if (result.kind === 'circle') {
+    parent.append(s('circle', {
+      class: 'freehand-ghost-correction',
+      cx: result.center.x,
+      cy: result.center.y,
+      r: result.radius,
+    }));
+    return;
+  }
+  if (result.kind === 'ellipse') {
+    parent.append(s('ellipse', {
+      class: 'freehand-ghost-correction',
+      cx: result.center.x,
+      cy: result.center.y,
+      rx: result.majorRadius,
+      ry: result.minorRadius,
+      transform: `rotate(${(result.rotationRadians * 180 / Math.PI).toFixed(3)} ${result.center.x.toFixed(2)} ${result.center.y.toFixed(2)})`,
+    }));
   }
 }
 

@@ -786,6 +786,65 @@ test("straight line drill scores a drawn stroke and auto-clears", async ({
   ).toHaveCount(1);
 });
 
+test("unguided freehand accepts a second stroke before timeout", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "draftsman-eye.settings.v1",
+      JSON.stringify({ autoRepeatDelayMs: 4000 }),
+    );
+  });
+  await page.goto("/");
+
+  await openStraightLine(page);
+  await drawFreehandStraightLineAttempt(page);
+  await expect(page.getByText(/Straightness \d+\.\d/)).toBeVisible();
+  await expect(page.locator(".freehand-history-item")).toHaveCount(1);
+
+  const canvasBox = await freehandCanvasBox(page);
+  await page.mouse.move(canvasBox.x + 130, canvasBox.y + 320);
+  await page.mouse.down();
+  await expect(page.locator(".freehand-ghost-stroke").first()).toBeVisible();
+  await expect(
+    page.getByTestId("freehand-canvas").locator(".freehand-fit-line"),
+  ).toBeHidden();
+  await page.mouse.move(canvasBox.x + 300, canvasBox.y + 318);
+  await page.mouse.move(canvasBox.x + 470, canvasBox.y + 321);
+  await page.mouse.move(canvasBox.x + 640, canvasBox.y + 319);
+  await page.mouse.up();
+
+  await expect(page.getByText(/Straightness \d+\.\d/)).toBeVisible();
+  await expect(page.locator(".freehand-history-item")).toHaveCount(2);
+});
+
+test("early freehand next attempt scores only fresh input", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "draftsman-eye.settings.v1",
+      JSON.stringify({ autoRepeatDelayMs: 4000 }),
+    );
+  });
+  await page.goto("/");
+
+  await openStraightLine(page);
+  await drawFreehandStraightLineAttempt(page);
+  await expect(page.getByText(/Straightness \d+\.\d/)).toBeVisible();
+  await expect(page.locator(".freehand-history-item")).toHaveCount(1);
+
+  const canvasBox = await freehandCanvasBox(page);
+  await page.mouse.move(canvasBox.x + 160, canvasBox.y + 330);
+  await page.mouse.down();
+  await page.mouse.move(canvasBox.x + 162, canvasBox.y + 331);
+  await page.mouse.up();
+
+  await expect(page.getByText("Stroke was too short. Draw a longer line.")).toBeVisible();
+  await expect(page.locator(".freehand-history-item")).toHaveCount(1);
+  await expect(
+    page.getByTestId("freehand-canvas").locator(".freehand-fit-line"),
+  ).toBeHidden();
+});
+
 test("pause keeps freehand result visible past the auto-repeat delay", async ({
   page,
 }) => {
@@ -1372,12 +1431,7 @@ async function drawPolyline(
 }
 
 async function drawFreehandStraightLineAttempt(page: Page): Promise<void> {
-  const canvasBox = await page
-    .locator('[data-testid="freehand-canvas"]')
-    .boundingBox();
-  if (!canvasBox) {
-    throw new Error("Expected freehand canvas to have a bounding box.");
-  }
+  const canvasBox = await freehandCanvasBox(page);
 
   await drawPolyline(page, [
     { x: canvasBox.x + 120, y: canvasBox.y + 220 },
@@ -1385,6 +1439,32 @@ async function drawFreehandStraightLineAttempt(page: Page): Promise<void> {
     { x: canvasBox.x + 440, y: canvasBox.y + 219 },
     { x: canvasBox.x + 600, y: canvasBox.y + 222 },
   ]);
+}
+
+async function openStraightLine(page: Page): Promise<void> {
+  await page
+    .getByRole("article")
+    .filter({
+      has: page.getByRole("heading", { level: 3, name: "Straight Line" }),
+    })
+    .getByRole("button", { name: "Practice" })
+    .click();
+
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Straight Line" }),
+  ).toBeVisible();
+}
+
+async function freehandCanvasBox(
+  page: Page,
+): Promise<{ x: number; y: number; width: number; height: number }> {
+  const canvasBox = await page
+    .locator('[data-testid="freehand-canvas"]')
+    .boundingBox();
+  if (!canvasBox) {
+    throw new Error("Expected freehand canvas to have a bounding box.");
+  }
+  return canvasBox;
 }
 
 async function openHorizontalHalves(page: Page): Promise<void> {
