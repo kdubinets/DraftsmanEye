@@ -368,6 +368,10 @@ button {
   vector-effect: non-scaling-stroke;
 }
 
+.freehand-ghost-user-fit {
+  stroke: rgba(122, 77, 34, 0.32);
+}
+
 .freehand-fit-line {
   stroke: #18b75a;
   stroke-width: 2;

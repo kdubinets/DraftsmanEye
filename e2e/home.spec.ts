@@ -792,7 +792,7 @@ test("unguided freehand accepts a second stroke before timeout", async ({
   await page.addInitScript(() => {
     window.localStorage.setItem(
       "draftsman-eye.settings.v1",
-      JSON.stringify({ autoRepeatDelayMs: 4000 }),
+      JSON.stringify({ autoRepeatDelayMs: null }),
     );
   });
   await page.goto("/");
@@ -843,6 +843,119 @@ test("early freehand next attempt scores only fresh input", async ({ page }) => 
   await expect(
     page.getByTestId("freehand-canvas").locator(".freehand-fit-line"),
   ).toBeHidden();
+});
+
+test("target line early next activates new target geometry", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "draftsman-eye.settings.v1",
+      JSON.stringify({ autoRepeatDelayMs: 4000 }),
+    );
+  });
+  await page.goto("/");
+
+  await openTargetLine(page);
+  const canvas = page.getByTestId("freehand-canvas");
+  const oldMarks = canvas.locator(".freehand-target-mark");
+  const oldTargets = await svgPointsToClient(page, [
+    await targetPlusCenter(oldMarks.nth(0)),
+    await targetPlusCenter(oldMarks.nth(1)),
+  ]);
+  await drawPolyline(page, interpolatedPoints(oldTargets[0], oldTargets[1], 8));
+
+  await expect(page.getByText(/Target line \d+\.\d/)).toBeVisible();
+  await expect(page.locator(".freehand-history-item")).toHaveCount(1);
+
+  await canvas.click({ position: { x: 40, y: 40 } });
+
+  await expect(canvas.locator(".freehand-ghost-stroke").first()).toBeVisible();
+  await expect(canvas.locator(".freehand-target-correction-line")).toBeHidden();
+  await expect(canvas.locator(".freehand-target-mark")).toHaveCount(2);
+
+  const newMarks = canvas.locator(".freehand-target-mark");
+  const newTargets = await svgPointsToClient(page, [
+    await targetPlusCenter(newMarks.nth(0)),
+    await targetPlusCenter(newMarks.nth(1)),
+  ]);
+  expect(distance(oldTargets[0], newTargets[0])).toBeGreaterThan(4);
+
+  await drawPolyline(page, interpolatedPoints(newTargets[0], newTargets[1], 8));
+
+  await expect(page.getByText(/Target line \d+\.\d/)).toBeVisible();
+  await expect(page.locator(".freehand-history-item")).toHaveCount(2);
+});
+
+test("trace circle early next fades prior result behind new guide", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "draftsman-eye.settings.v1",
+      JSON.stringify({ autoRepeatDelayMs: null }),
+    );
+  });
+  await page.goto("/");
+
+  await openTraceCircle(page);
+  const canvas = page.getByTestId("freehand-canvas");
+  const firstGuide = await svgCircleClientGeometry(
+    page,
+    canvas.locator(".freehand-trace-guide"),
+  );
+  await drawCircle(page, firstGuide.center, firstGuide.radius, 36);
+
+  await expect(page.getByText(/Target circle \d+\.\d/)).toBeVisible();
+  await expect(page.locator(".freehand-history-item")).toHaveCount(1);
+
+  await canvas.click({ position: { x: 40, y: 40 } });
+  await expect(canvas.locator(".freehand-ghost-stroke").first()).toBeVisible();
+  await expect(canvas.locator(".freehand-ghost-correction").first()).toBeVisible();
+  await expect(canvas.locator(".freehand-trace-guide")).toHaveCount(1);
+
+  const nextGuide = await svgCircleClientGeometry(
+    page,
+    canvas.locator(".freehand-trace-guide"),
+  );
+  await drawCircle(page, nextGuide.center, nextGuide.radius, 36);
+
+  await expect(page.getByText(/Target circle \d+\.\d/)).toBeVisible();
+  await expect(page.locator(".freehand-history-item")).toHaveCount(2);
+});
+
+test("angle copy early next scores against the new target", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "draftsman-eye.settings.v1",
+      JSON.stringify({ autoRepeatDelayMs: null }),
+    );
+  });
+  await page.goto("/");
+
+  await openAngleCopy(page);
+  const canvas = page.getByTestId("freehand-canvas");
+  const oldVertex = await locatorCenter(canvas.locator(".freehand-angle-target-vertex"));
+  const oldBaseEnd = await svgLineEnd(canvas.locator(".freehand-angle-target-base"));
+  const [oldBaseEndClient] = await svgPointsToClient(page, [oldBaseEnd]);
+  await drawPolyline(page, interpolatedPoints(oldVertex, oldBaseEndClient, 8));
+
+  await expect(page.getByText(/Angle copy \d+\.\d/)).toBeVisible();
+  await expect(page.locator(".freehand-history-item")).toHaveCount(1);
+
+  await canvas.click({ position: { x: 40, y: 40 } });
+
+  await expect(canvas.locator(".freehand-ghost-stroke").first()).toBeVisible();
+  await expect(canvas.locator(".freehand-target-correction-line")).toBeHidden();
+  const newVertex = await locatorCenter(canvas.locator(".freehand-angle-target-vertex"));
+  expect(distance(oldVertex, newVertex)).toBeGreaterThan(4);
+
+  const newBaseEnd = await svgLineEnd(canvas.locator(".freehand-angle-target-base"));
+  const [newBaseEndClient] = await svgPointsToClient(page, [newBaseEnd]);
+  await drawPolyline(page, interpolatedPoints(newVertex, newBaseEndClient, 8));
+
+  await expect(page.getByText(/Angle copy \d+\.\d/)).toBeVisible();
+  await expect(page.locator(".freehand-history-item")).toHaveCount(2);
 });
 
 test("pause keeps freehand result visible past the auto-repeat delay", async ({
@@ -1069,6 +1182,12 @@ test("vertical thirds drill can be completed", async ({ page }) => {
 test("random thirds drill can be completed on an arbitrary segment", async ({
   page,
 }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "draftsman-eye.settings.v1",
+      JSON.stringify({ autoRepeatDelayMs: null }),
+    );
+  });
   await page.goto("/");
 
   await page
@@ -1340,6 +1459,31 @@ async function svgLineEndpoints(locator: Locator): Promise<{
   return { start: { x: x1, y: y1 }, end: { x: x2, y: y2 } };
 }
 
+async function svgCircleClientGeometry(
+  page: Page,
+  locator: Locator,
+): Promise<{ center: { x: number; y: number }; radius: number }> {
+  const cx = Number(await locator.getAttribute("cx"));
+  const cy = Number(await locator.getAttribute("cy"));
+  const r = Number(await locator.getAttribute("r"));
+  if (!Number.isFinite(cx) || !Number.isFinite(cy) || !Number.isFinite(r)) {
+    throw new Error("Expected SVG circle to expose cx/cy/r coordinates.");
+  }
+
+  const [center, edge] = await svgPointsToClient(page, [
+    { x: cx, y: cy },
+    { x: cx + r, y: cy },
+  ]);
+  return { center, radius: distance(center, edge) };
+}
+
+function distance(
+  first: { x: number; y: number },
+  second: { x: number; y: number },
+): number {
+  return Math.hypot(first.x - second.x, first.y - second.y);
+}
+
 function lineIntersection(
   first: { start: { x: number; y: number }; end: { x: number; y: number } },
   second: { start: { x: number; y: number }; end: { x: number; y: number } },
@@ -1430,6 +1574,22 @@ async function drawPolyline(
   await page.mouse.up();
 }
 
+function interpolatedPoints(
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+  steps: number,
+): { x: number; y: number }[] {
+  const points = [start];
+  for (let index = 1; index <= steps; index += 1) {
+    const ratio = index / steps;
+    points.push({
+      x: start.x + (end.x - start.x) * ratio,
+      y: start.y + (end.y - start.y) * ratio,
+    });
+  }
+  return points;
+}
+
 async function drawFreehandStraightLineAttempt(page: Page): Promise<void> {
   const canvasBox = await freehandCanvasBox(page);
 
@@ -1452,6 +1612,57 @@ async function openStraightLine(page: Page): Promise<void> {
 
   await expect(
     page.getByRole("heading", { level: 1, name: "Straight Line" }),
+  ).toBeVisible();
+}
+
+async function openTargetLine(page: Page): Promise<void> {
+  await page
+    .getByRole("article")
+    .filter({
+      has: page.getByRole("heading", {
+        level: 3,
+        name: "Line Through Two Points",
+      }),
+    })
+    .getByRole("button", { name: "Practice" })
+    .click();
+
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Line Through Two Points" }),
+  ).toBeVisible();
+}
+
+async function openTraceCircle(page: Page): Promise<void> {
+  await page
+    .getByRole("article")
+    .filter({
+      has: page.getByRole("heading", { level: 3, name: "Trace Circle" }),
+    })
+    .getByRole("button", { name: "Practice" })
+    .click();
+
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Trace Circle" }),
+  ).toBeVisible();
+}
+
+async function openAngleCopy(page: Page): Promise<void> {
+  await page
+    .getByRole("article")
+    .filter({
+      has: page.getByRole("heading", {
+        level: 3,
+        name: "Horizontal Reference, Rotated Base",
+      }),
+    })
+    .getByRole("button", { name: "Practice" })
+    .click();
+
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Horizontal Reference, Rotated Base",
+    }),
   ).toBeVisible();
 }
 

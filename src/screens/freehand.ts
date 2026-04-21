@@ -163,7 +163,6 @@ export function mountFreehandScreen(
   svg.addEventListener('pointerdown', (event) => {
     if (drawingPointerId !== null) return;
     if (result) {
-      if (!isUnguidedResult(result)) return;
       startEarlyNextAttempt(event);
       return;
     }
@@ -311,9 +310,10 @@ export function mountFreehandScreen(
     clearAutoResetTimer();
     result = null;
     points = [point];
-    target = null;
+    target = config.createTarget();
     drawingPointerId = event.pointerId;
     strokeLayer.replaceChildren();
+    renderFreehandTargetMarks(targetLayer, target);
     hideFreehandCorrectionElements(
       fittedLine,
       fittedCircle,
@@ -333,10 +333,10 @@ export function mountFreehandScreen(
 
   function renderGhostResult(): void {
     const previous = attempts[0];
-    if (!previous || !isUnguidedResult(previous.result)) return;
+    if (!previous) return;
     ghostLayer.replaceChildren();
     appendFreehandStroke(ghostLayer, previous.points, 'freehand-ghost-stroke');
-    appendUnguidedGhostCorrection(ghostLayer, previous.result);
+    appendGhostCorrection(ghostLayer, previous.result);
   }
 
   function scheduleAutoReset(durationMs: number | null = autoRepeatDelayMs): void {
@@ -437,41 +437,70 @@ export function mountFreehandScreen(
   }
 }
 
-function isUnguidedResult(result: FreehandResult): boolean {
-  return result.kind === 'line' || result.kind === 'circle' || result.kind === 'ellipse';
-}
-
-function appendUnguidedGhostCorrection(
+function appendGhostCorrection(
   parent: SVGGElement,
   result: FreehandResult,
 ): void {
-  if (result.kind === 'line') {
+  if (result.kind === 'line' || result.kind === 'target-line') {
+    const start = result.kind === 'target-line' ? result.target.start : result.fitStart;
+    const end = result.kind === 'target-line' ? result.target.end : result.fitEnd;
     parent.append(s('line', {
       class: 'freehand-ghost-correction',
-      x1: result.fitStart.x,
-      y1: result.fitStart.y,
-      x2: result.fitEnd.x,
-      y2: result.fitEnd.y,
+      x1: start.x,
+      y1: start.y,
+      x2: end.x,
+      y2: end.y,
     }));
     return;
   }
-  if (result.kind === 'circle') {
+  if (result.kind === 'target-angle') {
+    parent.append(
+      s('line', {
+        class: 'freehand-ghost-correction',
+        x1: result.target.target.vertex.x,
+        y1: result.target.target.vertex.y,
+        x2: result.target.target.correctEnd.x,
+        y2: result.target.target.correctEnd.y,
+      }),
+      s('line', {
+        class: 'freehand-ghost-correction freehand-ghost-user-fit',
+        x1: result.userRayStart.x,
+        y1: result.userRayStart.y,
+        x2: result.userRayEnd.x,
+        y2: result.userRayEnd.y,
+      }),
+    );
+    return;
+  }
+  if (result.kind === 'circle' || result.kind === 'target-circle') {
+    const center = result.kind === 'target-circle' ? result.target.center : result.center;
+    const radius = result.kind === 'target-circle' ? result.target.radius : result.radius;
     parent.append(s('circle', {
       class: 'freehand-ghost-correction',
-      cx: result.center.x,
-      cy: result.center.y,
-      r: result.radius,
+      cx: center.x,
+      cy: center.y,
+      r: radius,
     }));
     return;
   }
-  if (result.kind === 'ellipse') {
+  if (result.kind === 'ellipse' || result.kind === 'target-ellipse') {
+    const center = result.kind === 'target-ellipse' ? result.target.center : result.center;
+    const majorRadius = result.kind === 'target-ellipse'
+      ? result.target.majorRadius
+      : result.majorRadius;
+    const minorRadius = result.kind === 'target-ellipse'
+      ? result.target.minorRadius
+      : result.minorRadius;
+    const rotationRadians = result.kind === 'target-ellipse'
+      ? result.target.rotationRadians
+      : result.rotationRadians;
     parent.append(s('ellipse', {
       class: 'freehand-ghost-correction',
-      cx: result.center.x,
-      cy: result.center.y,
-      rx: result.majorRadius,
-      ry: result.minorRadius,
-      transform: `rotate(${(result.rotationRadians * 180 / Math.PI).toFixed(3)} ${result.center.x.toFixed(2)} ${result.center.y.toFixed(2)})`,
+      cx: center.x,
+      cy: center.y,
+      rx: majorRadius,
+      ry: minorRadius,
+      transform: `rotate(${(rotationRadians * 180 / Math.PI).toFixed(3)} ${center.x.toFixed(2)} ${center.y.toFixed(2)})`,
     }));
   }
 }
