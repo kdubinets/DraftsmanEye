@@ -719,7 +719,7 @@ test("straight line drill scores a drawn stroke and auto-clears", async ({
   await expect(
     page.getByRole("heading", { level: 1, name: "Straight Line" }),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Fullscreen" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Full" })).toBeVisible();
 
   const canvasBox = await page
     .locator('[data-testid="freehand-canvas"]')
@@ -818,7 +818,9 @@ test("unguided freehand accepts a second stroke before timeout", async ({
   await expect(page.locator(".freehand-history-item")).toHaveCount(2);
 });
 
-test("early freehand next attempt scores only fresh input", async ({ page }) => {
+test("early freehand next attempt scores only fresh input", async ({
+  page,
+}) => {
   await page.addInitScript(() => {
     window.localStorage.setItem(
       "draftsman-eye.settings.v1",
@@ -838,7 +840,9 @@ test("early freehand next attempt scores only fresh input", async ({ page }) => 
   await page.mouse.move(canvasBox.x + 162, canvasBox.y + 331);
   await page.mouse.up();
 
-  await expect(page.getByText("Stroke was too short. Draw a longer line.")).toBeVisible();
+  await expect(
+    page.getByText("Stroke was too short. Draw a longer line."),
+  ).toBeVisible();
   await expect(page.locator(".freehand-history-item")).toHaveCount(1);
   await expect(
     page.getByTestId("freehand-canvas").locator(".freehand-fit-line"),
@@ -911,7 +915,9 @@ test("trace circle early next fades prior result behind new guide", async ({
 
   await canvas.click({ position: { x: 40, y: 40 } });
   await expect(canvas.locator(".freehand-ghost-stroke").first()).toBeVisible();
-  await expect(canvas.locator(".freehand-ghost-correction").first()).toBeVisible();
+  await expect(
+    canvas.locator(".freehand-ghost-correction").first(),
+  ).toBeVisible();
   await expect(canvas.locator(".freehand-trace-guide")).toHaveCount(1);
 
   const nextGuide = await svgCircleClientGeometry(
@@ -924,7 +930,9 @@ test("trace circle early next fades prior result behind new guide", async ({
   await expect(page.locator(".freehand-history-item")).toHaveCount(2);
 });
 
-test("angle copy early next scores against the new target", async ({ page }) => {
+test("angle copy early next scores against the new target", async ({
+  page,
+}) => {
   await page.addInitScript(() => {
     window.localStorage.setItem(
       "draftsman-eye.settings.v1",
@@ -935,8 +943,12 @@ test("angle copy early next scores against the new target", async ({ page }) => 
 
   await openAngleCopy(page);
   const canvas = page.getByTestId("freehand-canvas");
-  const oldVertex = await locatorCenter(canvas.locator(".freehand-angle-target-vertex"));
-  const oldBaseEnd = await svgLineEnd(canvas.locator(".freehand-angle-target-base"));
+  const oldVertex = await locatorCenter(
+    canvas.locator(".freehand-angle-target-vertex"),
+  );
+  const oldBaseEnd = await svgLineEnd(
+    canvas.locator(".freehand-angle-target-base"),
+  );
   const [oldBaseEndClient] = await svgPointsToClient(page, [oldBaseEnd]);
   await drawPolyline(page, interpolatedPoints(oldVertex, oldBaseEndClient, 8));
 
@@ -947,10 +959,14 @@ test("angle copy early next scores against the new target", async ({ page }) => 
 
   await expect(canvas.locator(".freehand-ghost-stroke").first()).toBeVisible();
   await expect(canvas.locator(".freehand-target-correction-line")).toBeHidden();
-  const newVertex = await locatorCenter(canvas.locator(".freehand-angle-target-vertex"));
+  const newVertex = await locatorCenter(
+    canvas.locator(".freehand-angle-target-vertex"),
+  );
   expect(distance(oldVertex, newVertex)).toBeGreaterThan(4);
 
-  const newBaseEnd = await svgLineEnd(canvas.locator(".freehand-angle-target-base"));
+  const newBaseEnd = await svgLineEnd(
+    canvas.locator(".freehand-angle-target-base"),
+  );
   const [newBaseEndClient] = await svgPointsToClient(page, [newBaseEnd]);
   await drawPolyline(page, interpolatedPoints(newVertex, newBaseEndClient, 8));
 
@@ -1038,6 +1054,67 @@ test("division drill auto-advances after the configured delay", async ({
     timeout: 2500,
   });
   await expect(page.getByRole("button", { name: "Again" })).toHaveCount(0);
+});
+
+test("single-mark toolbar is available before and after an attempt", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await openHorizontalHalves(page);
+  await expect(
+    page.getByRole("button", { name: "Back to List" }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Full" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pause" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Again" })).toHaveCount(0);
+
+  await completeHorizontalHalves(page);
+
+  await expect(
+    page.getByRole("button", { name: "Back to List" }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Full" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Again" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Auto Next" })).toHaveCount(0);
+});
+
+test("freehand toolbar hides inactive actions and Again resets cleanly", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "draftsman-eye.settings.v1",
+      JSON.stringify({ autoRepeatDelayMs: null }),
+    );
+  });
+  await page.goto("/");
+
+  await openStraightLine(page);
+  await expect(
+    page.getByRole("button", { name: "Back to List" }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Full" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pause" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Again" })).toHaveCount(0);
+
+  await drawFreehandStraightLineAttempt(page);
+  await expect(page.getByText(/Straightness \d+\.\d/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pause" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Again" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Again" }).click();
+
+  await expect(
+    page.getByText("Use Pencil, touch, or mouse to draw one line."),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Again" })).toHaveCount(0);
+  await expect(
+    page.getByTestId("freehand-canvas").locator(".freehand-fit-line"),
+  ).toBeHidden();
+  await expect(page.locator(".freehand-ghost-stroke")).toHaveCount(0);
+  await expect(page.locator(".freehand-history-item")).toHaveCount(1);
 });
 
 test("pause keeps single-mark result visible past the delay", async ({
@@ -1766,9 +1843,7 @@ test("Again re-runs the same drill without returning to the list", async ({
   await expect(page.getByRole("button", { name: "Again" })).toHaveCount(0);
 });
 
-test("Auto Next is not shown after completion", async ({
-  page,
-}) => {
+test("Auto Next is not shown after completion", async ({ page }) => {
   await page.goto("/");
 
   await page

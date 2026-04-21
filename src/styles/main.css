@@ -251,6 +251,8 @@ button {
 }
 
 .exercise-stage {
+  display: grid;
+  gap: 1rem;
   margin-top: 1.5rem;
   overflow-anchor: none;
 }
@@ -296,12 +298,7 @@ button {
   pointer-events: none;
 }
 
-.freehand-stage {
-  display: grid;
-  gap: 1rem;
-}
-
-.freehand-stage.is-maximized {
+.exercise-stage.is-maximized {
   position: fixed;
   inset: 0;
   z-index: 10;
@@ -311,13 +308,13 @@ button {
   background: #f8f3ea;
 }
 
-.freehand-toolbar {
+.exercise-toolbar {
   display: flex;
   align-items: center;
   gap: 0.8rem;
 }
 
-.freehand-toolbar .exercise-prompt {
+.exercise-toolbar .exercise-prompt {
   flex: 1;
   margin: 0;
 }
@@ -332,9 +329,13 @@ button {
   user-select: none;
 }
 
-.freehand-stage.is-maximized .freehand-canvas {
+.exercise-stage.is-maximized .freehand-canvas {
   height: min(100dvh - 13rem, 900px);
   min-height: 0;
+}
+
+.exercise-stage.is-maximized .exercise-canvas {
+  max-height: min(100dvh - 13rem, 900px);
 }
 
 .freehand-user-stroke {
@@ -706,7 +707,7 @@ button {
 
 .feedback-banner {
   --result-accent: rgba(77, 58, 37, 0.24);
-  margin: 1rem 0 0;
+  margin: 0;
   padding: 0.85rem 1rem;
   border-radius: 16px;
   background: var(--surface-strong);
@@ -736,7 +737,7 @@ button {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 0.8rem;
-  margin-top: 1rem;
+  margin-top: 0;
 }
 
 .result-stat {
@@ -764,13 +765,6 @@ button {
 .result-value {
   margin-top: 0.3rem;
   color: #332720;
-}
-
-.session-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.8rem;
-  margin-top: 1rem;
 }
 
 .card-footer {
@@ -957,11 +951,7 @@ button {
     align-items: stretch;
   }
 
-  .session-actions {
-    flex-direction: column;
-  }
-
-  .freehand-toolbar {
+  .exercise-toolbar {
     align-items: stretch;
     flex-direction: column;
   }

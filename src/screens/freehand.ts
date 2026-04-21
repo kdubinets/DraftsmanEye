@@ -1,14 +1,20 @@
 /** Freehand exercise screen used by Freehand Control, Target Drawing, and Trace Control. */
-import type { ExerciseDefinition } from '../practice/catalog';
-import { updateStoredProgress } from '../storage/progress';
-import { getSettings } from '../storage/settings';
-import { s, h } from '../render/h';
-import { pageShell, exerciseHeader, actionButton } from '../render/components';
+import type { ExerciseDefinition } from "../practice/catalog";
+import { updateStoredProgress } from "../storage/progress";
+import { getSettings } from "../storage/settings";
+import { s, h } from "../render/h";
+import {
+  pageShell,
+  exerciseHeader,
+  actionButton,
+  exerciseToolbar,
+  fullscreenButton,
+} from "../render/components";
 import {
   feedbackHueForError,
   feedbackBandClass,
   feedbackLabel,
-} from '../scoring/bands';
+} from "../scoring/bands";
 import {
   canStartFreehandStroke,
   freehandPointFromEvent,
@@ -18,33 +24,36 @@ import {
   appendFreehandStroke,
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
-} from '../exercises/freehand/input';
+} from "../exercises/freehand/input";
 import {
   applyFreehandCorrectionElements,
   hideFreehandCorrectionElements,
   showClosedShapeMarkers,
   isClosedFreehandResult,
   renderFreehandTargetMarks,
-} from '../exercises/freehand/correction';
+} from "../exercises/freehand/correction";
 import {
   renderFreehandAttemptThumbnail,
   renderFreehandHistoryModal,
-} from '../exercises/freehand/history';
-import { freehandScoreLabel, freehandResultStats } from '../exercises/freehand/stats';
+} from "../exercises/freehand/history";
+import {
+  freehandScoreLabel,
+  freehandResultStats,
+} from "../exercises/freehand/stats";
 import type {
   FreehandPoint,
   FreehandResult,
   FreehandTarget,
   FreehandAttemptSnapshot,
   FreehandExerciseConfig,
-} from '../exercises/freehand/types';
-import type { AppState } from '../app/state';
+} from "../exercises/freehand/types";
+import type { AppState } from "../app/state";
 
 export function mountFreehandScreen(
   root: HTMLElement,
   exercise: ExerciseDefinition,
   config: FreehandExerciseConfig,
-  source: 'direct' | 'auto',
+  source: "direct" | "auto",
   onNavigate: (next: AppState) => void,
 ): () => void {
   let cancelled = false;
@@ -68,12 +77,11 @@ export function mountFreehandScreen(
 
   const screen = pageShell();
   const header = exerciseHeader(exercise, source);
-  const stage = h('section', { class: 'exercise-stage freehand-stage' });
+  const stage = h("section", { class: "exercise-stage freehand-stage" });
 
-  const toolbar = h('div', { class: 'freehand-toolbar' });
-  const prompt = h('p', { class: 'exercise-prompt' }, [config.promptText]);
+  const prompt = h("p", { class: "exercise-prompt" }, [config.promptText]);
 
-  const pauseBtn = actionButton('Pause', () => {
+  const pauseBtn = actionButton("Pause", () => {
     if (!result || autoRepeatDelayMs === null) return;
     if (isResultPaused) {
       resumeAutoReset();
@@ -81,111 +89,139 @@ export function mountFreehandScreen(
       pauseAutoReset();
     }
   });
-  pauseBtn.classList.add('auto-repeat-action');
-  pauseBtn.disabled = true;
+  pauseBtn.classList.add("auto-repeat-action");
+  pauseBtn.hidden = true;
 
-  const fullscreenBtn = actionButton('Fullscreen', () => {
-    void toggleFullscreen(stage, fullscreenBtn);
+  const againBtn = actionButton("Again", () => {
+    resetToFreshTrial();
   });
-  fullscreenBtn.classList.add('freehand-fullscreen-action');
+  againBtn.hidden = true;
 
-  const backBtn = actionButton('Back to List', () => {
-    onNavigate({ screen: 'list' });
+  const fullBtn = fullscreenButton(stage);
+
+  const backBtn = actionButton("Back to List", () => {
+    onNavigate({ screen: "list" });
   });
 
-  toolbar.append(prompt, pauseBtn, fullscreenBtn, backBtn);
+  const toolbar = exerciseToolbar(prompt, pauseBtn, againBtn, fullBtn, backBtn);
 
-  const feedback = h('p', { class: 'feedback-banner' }, [config.readyText]);
-  const summary = h('div', { class: 'result-summary' });
+  const feedback = h("p", { class: "feedback-banner" }, [config.readyText]);
+  const summary = h("div", { class: "result-summary" });
   summary.hidden = true;
 
-  const historySection = h('section', { class: 'freehand-history', dataset: { empty: 'true' } });
+  const historySection = h("section", {
+    class: "freehand-history",
+    dataset: { empty: "true" },
+  });
 
-  const correctionToggle = h('input', { type: 'checkbox', checked: true, on: { change: renderHistory } });
+  const correctionToggle = h("input", {
+    type: "checkbox",
+    checked: true,
+    on: { change: renderHistory },
+  });
 
-  const historyHeader = h('div', { class: 'freehand-history-header' }, [
-    h('h2', {}, ['History']),
-    h('label', { class: 'freehand-history-toggle' }, [
+  const historyHeader = h("div", { class: "freehand-history-header" }, [
+    h("h2", {}, ["History"]),
+    h("label", { class: "freehand-history-toggle" }, [
       correctionToggle,
-      h('span', {}, ['Show fitted shapes']),
+      h("span", {}, ["Show fitted shapes"]),
     ]),
   ]);
 
-  const historyGrid = h('div', { class: 'freehand-history-grid', dataset: { testid: 'freehand-history', variant: isClosedShapeExercise ? 'closed' : 'line' } });
-  const historyEmpty = h('p', { class: 'freehand-history-empty' }, ['Completed attempts will collect here.']);
+  const historyGrid = h("div", {
+    class: "freehand-history-grid",
+    dataset: {
+      testid: "freehand-history",
+      variant: isClosedShapeExercise ? "closed" : "line",
+    },
+  });
+  const historyEmpty = h("p", { class: "freehand-history-empty" }, [
+    "Completed attempts will collect here.",
+  ]);
 
   historySection.append(historyHeader, historyEmpty, historyGrid);
 
-  const targetLayer = s('g', { class: 'freehand-target-layer' });
+  const targetLayer = s("g", { class: "freehand-target-layer" });
   renderFreehandTargetMarks(targetLayer, target);
 
-  const ghostLayer = s('g', { class: 'freehand-ghost-result-layer' });
+  const ghostLayer = s("g", { class: "freehand-ghost-result-layer" });
 
-  const strokeLayer = s('g', { class: 'freehand-user-stroke-layer' });
+  const strokeLayer = s("g", { class: "freehand-user-stroke-layer" });
 
-  const fittedLine = s('line', { class: 'freehand-fit-line' });
-  fittedLine.style.display = 'none';
+  const fittedLine = s("line", { class: "freehand-fit-line" });
+  fittedLine.style.display = "none";
 
-  const fittedCircle = s('circle', { class: 'freehand-fit-circle' });
-  fittedCircle.style.display = 'none';
+  const fittedCircle = s("circle", { class: "freehand-fit-circle" });
+  fittedCircle.style.display = "none";
 
-  const fittedEllipse = s('ellipse', { class: 'freehand-fit-ellipse' });
-  fittedEllipse.style.display = 'none';
+  const fittedEllipse = s("ellipse", { class: "freehand-fit-ellipse" });
+  fittedEllipse.style.display = "none";
 
-  const closureGap = s('line', { class: 'freehand-closure-gap' });
-  closureGap.style.display = 'none';
+  const closureGap = s("line", { class: "freehand-closure-gap" });
+  closureGap.style.display = "none";
 
-  const startTangent = s('line', { class: 'freehand-join-tangent' });
-  startTangent.style.display = 'none';
+  const startTangent = s("line", { class: "freehand-join-tangent" });
+  startTangent.style.display = "none";
 
-  const endTangent = s('line', { class: 'freehand-join-tangent' });
-  endTangent.style.display = 'none';
+  const endTangent = s("line", { class: "freehand-join-tangent" });
+  endTangent.style.display = "none";
 
-  const svg = s('svg', {
-    class: 'freehand-canvas',
-    viewBox: `0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`,
-    role: 'img',
-    'aria-label': config.canvasLabel,
-  }, [
-    s('rect', { x: 1, y: 1, width: CANVAS_WIDTH - 2, height: CANVAS_HEIGHT - 2, rx: 18, class: 'canvas-frame' }),
-    targetLayer,
-    ghostLayer,
-    fittedLine,
-    fittedCircle,
-    fittedEllipse,
-    strokeLayer,
-    closureGap,
-    startTangent,
-    endTangent,
-  ]);
-  svg.dataset.testid = 'freehand-canvas';
+  const svg = s(
+    "svg",
+    {
+      class: "freehand-canvas",
+      viewBox: `0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`,
+      role: "img",
+      "aria-label": config.canvasLabel,
+    },
+    [
+      s("rect", {
+        x: 1,
+        y: 1,
+        width: CANVAS_WIDTH - 2,
+        height: CANVAS_HEIGHT - 2,
+        rx: 18,
+        class: "canvas-frame",
+      }),
+      targetLayer,
+      ghostLayer,
+      fittedLine,
+      fittedCircle,
+      fittedEllipse,
+      strokeLayer,
+      closureGap,
+      startTangent,
+      endTangent,
+    ],
+  );
+  svg.dataset.testid = "freehand-canvas";
 
-  svg.addEventListener('pointerdown', (event) => {
+  svg.addEventListener("pointerdown", (event) => {
     if (drawingPointerId !== null) return;
     if (result) {
       startEarlyNextAttempt(event);
       return;
     }
     if (!canStartFreehandStroke(event)) {
-      feedback.textContent = 'Use Apple Pencil or mouse to draw.';
+      feedback.textContent = "Use Apple Pencil or mouse to draw.";
       return;
     }
     const point = freehandPointFromEvent(svg, event);
     if (!point) return;
     drawingPointerId = event.pointerId;
     points = [point];
-    renderFreehandStroke(strokeLayer, points, 'freehand-user-stroke');
+    renderFreehandStroke(strokeLayer, points, "freehand-user-stroke");
     svg.setPointerCapture(event.pointerId);
-    feedback.textContent = 'Keep the stroke continuous, then lift.';
+    feedback.textContent = "Keep the stroke continuous, then lift.";
   });
 
-  svg.addEventListener('pointermove', (event) => {
+  svg.addEventListener("pointermove", (event) => {
     if (drawingPointerId !== event.pointerId || result) return;
     const next = freehandPointsFromPointerEvent(svg, event);
     if (next.length === 0) return;
     const tail = points[points.length - 1];
     points.push(...next);
-    appendIncrementalSegments(strokeLayer, tail, next, 'freehand-user-stroke');
+    appendIncrementalSegments(strokeLayer, tail, next, "freehand-user-stroke");
   });
 
   const finishStroke = (event: PointerEvent): void => {
@@ -198,8 +234,8 @@ export function mountFreehandScreen(
     revealFreehandResult();
   };
 
-  svg.addEventListener('pointerup', finishStroke);
-  svg.addEventListener('pointercancel', finishStroke);
+  svg.addEventListener("pointerup", finishStroke);
+  svg.addEventListener("pointercancel", finishStroke);
 
   stage.append(toolbar, svg, feedback, summary);
   screen.append(header, stage, historySection);
@@ -209,7 +245,7 @@ export function mountFreehandScreen(
     cancelled = true;
     clearAutoResetTimer();
     if (escapeListener !== null) {
-      document.removeEventListener('keydown', escapeListener);
+      document.removeEventListener("keydown", escapeListener);
       escapeListener = null;
     }
   };
@@ -261,8 +297,8 @@ export function mountFreehandScreen(
 
     feedback.dataset.tone = cls;
     summary.dataset.tone = cls;
-    feedback.style.setProperty('--result-accent', accent);
-    summary.style.setProperty('--result-accent', accent);
+    feedback.style.setProperty("--result-accent", accent);
+    summary.style.setProperty("--result-accent", accent);
     feedback.textContent =
       `${feedbackLabel(errorPercent)} · ` +
       `${freehandScoreLabel(result.kind)} ${result.score.toFixed(1)} · ` +
@@ -271,6 +307,7 @@ export function mountFreehandScreen(
     summary.hidden = false;
     summary.replaceChildren(...freehandResultStats(result));
 
+    againBtn.hidden = false;
     scheduleAutoReset();
   }
 
@@ -292,15 +329,16 @@ export function mountFreehandScreen(
       endTangent,
     );
     summary.hidden = true;
-    feedback.removeAttribute('data-tone');
-    summary.removeAttribute('data-tone');
-    feedback.textContent = config.promptText;
+    feedback.removeAttribute("data-tone");
+    summary.removeAttribute("data-tone");
+    feedback.textContent = config.readyText;
+    againBtn.hidden = true;
     updateAutoRepeatButton();
   }
 
   function startEarlyNextAttempt(event: PointerEvent): void {
     if (!canStartFreehandStroke(event)) {
-      feedback.textContent = 'Use Apple Pencil or mouse to draw.';
+      feedback.textContent = "Use Apple Pencil or mouse to draw.";
       return;
     }
     const point = freehandPointFromEvent(svg, event);
@@ -323,11 +361,12 @@ export function mountFreehandScreen(
       endTangent,
     );
     summary.hidden = true;
-    feedback.removeAttribute('data-tone');
-    summary.removeAttribute('data-tone');
-    feedback.textContent = 'Keep the stroke continuous, then lift.';
+    feedback.removeAttribute("data-tone");
+    summary.removeAttribute("data-tone");
+    feedback.textContent = "Keep the stroke continuous, then lift.";
+    againBtn.hidden = true;
     updateAutoRepeatButton();
-    renderFreehandStroke(strokeLayer, points, 'freehand-user-stroke');
+    renderFreehandStroke(strokeLayer, points, "freehand-user-stroke");
     svg.setPointerCapture(event.pointerId);
   }
 
@@ -335,11 +374,13 @@ export function mountFreehandScreen(
     const previous = attempts[0];
     if (!previous) return;
     ghostLayer.replaceChildren();
-    appendFreehandStroke(ghostLayer, previous.points, 'freehand-ghost-stroke');
+    appendFreehandStroke(ghostLayer, previous.points, "freehand-ghost-stroke");
     appendGhostCorrection(ghostLayer, previous.result);
   }
 
-  function scheduleAutoReset(durationMs: number | null = autoRepeatDelayMs): void {
+  function scheduleAutoReset(
+    durationMs: number | null = autoRepeatDelayMs,
+  ): void {
     clearAutoResetTimer();
     if (durationMs === null) {
       updateAutoRepeatButton();
@@ -385,30 +426,36 @@ export function mountFreehandScreen(
     if (resetTimer === null || resetDurationMs <= 0) return;
     const elapsed = performance.now() - resetStartedAt;
     const remainingRatio = Math.max(0, 1 - elapsed / resetDurationMs);
-    pauseBtn.style.setProperty('--timer-progress', remainingRatio.toFixed(3));
+    pauseBtn.style.setProperty("--timer-progress", remainingRatio.toFixed(3));
     if (remainingRatio > 0) {
       resetAnimation = window.requestAnimationFrame(renderTimerProgress);
     }
   }
 
   function updateAutoRepeatButton(): void {
-    pauseBtn.disabled = result === null || autoRepeatDelayMs === null;
-    pauseBtn.textContent = isResultPaused ? 'Resume' : 'Pause';
-    pauseBtn.classList.toggle('is-running', resetTimer !== null && !isResultPaused);
-    pauseBtn.classList.toggle('is-paused', isResultPaused);
+    pauseBtn.hidden = result === null || autoRepeatDelayMs === null;
+    pauseBtn.disabled = pauseBtn.hidden;
+    pauseBtn.textContent = isResultPaused ? "Resume" : "Pause";
+    pauseBtn.classList.toggle(
+      "is-running",
+      resetTimer !== null && !isResultPaused,
+    );
+    pauseBtn.classList.toggle("is-paused", isResultPaused);
     if (resetTimer === null || isResultPaused) {
-      pauseBtn.style.removeProperty('--timer-progress');
+      pauseBtn.style.removeProperty("--timer-progress");
     }
   }
 
   function renderHistory(): void {
-    historySection.dataset.empty = attempts.length === 0 ? 'true' : 'false';
+    historySection.dataset.empty = attempts.length === 0 ? "true" : "false";
     historyGrid.replaceChildren(
       ...attempts.map((attempt) =>
         renderFreehandAttemptThumbnail(
           attempt,
           correctionToggle.checked,
-          () => { openModal(attempt); },
+          () => {
+            openModal(attempt);
+          },
         ),
       ),
     );
@@ -423,16 +470,16 @@ export function mountFreehandScreen(
 
     function closeModal(): void {
       if (escapeListener !== null) {
-        document.removeEventListener('keydown', escapeListener);
+        document.removeEventListener("keydown", escapeListener);
         escapeListener = null;
       }
       modal.remove();
     }
 
     escapeListener = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeModal();
+      if (event.key === "Escape") closeModal();
     };
-    document.addEventListener('keydown', escapeListener);
+    document.addEventListener("keydown", escapeListener);
     document.body.append(modal);
   }
 }
@@ -441,29 +488,33 @@ function appendGhostCorrection(
   parent: SVGGElement,
   result: FreehandResult,
 ): void {
-  if (result.kind === 'line' || result.kind === 'target-line') {
-    const start = result.kind === 'target-line' ? result.target.start : result.fitStart;
-    const end = result.kind === 'target-line' ? result.target.end : result.fitEnd;
-    parent.append(s('line', {
-      class: 'freehand-ghost-correction',
-      x1: start.x,
-      y1: start.y,
-      x2: end.x,
-      y2: end.y,
-    }));
+  if (result.kind === "line" || result.kind === "target-line") {
+    const start =
+      result.kind === "target-line" ? result.target.start : result.fitStart;
+    const end =
+      result.kind === "target-line" ? result.target.end : result.fitEnd;
+    parent.append(
+      s("line", {
+        class: "freehand-ghost-correction",
+        x1: start.x,
+        y1: start.y,
+        x2: end.x,
+        y2: end.y,
+      }),
+    );
     return;
   }
-  if (result.kind === 'target-angle') {
+  if (result.kind === "target-angle") {
     parent.append(
-      s('line', {
-        class: 'freehand-ghost-correction',
+      s("line", {
+        class: "freehand-ghost-correction",
         x1: result.target.target.vertex.x,
         y1: result.target.target.vertex.y,
         x2: result.target.target.correctEnd.x,
         y2: result.target.target.correctEnd.y,
       }),
-      s('line', {
-        class: 'freehand-ghost-correction freehand-ghost-user-fit',
+      s("line", {
+        class: "freehand-ghost-correction freehand-ghost-user-fit",
         x1: result.userRayStart.x,
         y1: result.userRayStart.y,
         x2: result.userRayEnd.x,
@@ -472,65 +523,45 @@ function appendGhostCorrection(
     );
     return;
   }
-  if (result.kind === 'circle' || result.kind === 'target-circle') {
-    const center = result.kind === 'target-circle' ? result.target.center : result.center;
-    const radius = result.kind === 'target-circle' ? result.target.radius : result.radius;
-    parent.append(s('circle', {
-      class: 'freehand-ghost-correction',
-      cx: center.x,
-      cy: center.y,
-      r: radius,
-    }));
+  if (result.kind === "circle" || result.kind === "target-circle") {
+    const center =
+      result.kind === "target-circle" ? result.target.center : result.center;
+    const radius =
+      result.kind === "target-circle" ? result.target.radius : result.radius;
+    parent.append(
+      s("circle", {
+        class: "freehand-ghost-correction",
+        cx: center.x,
+        cy: center.y,
+        r: radius,
+      }),
+    );
     return;
   }
-  if (result.kind === 'ellipse' || result.kind === 'target-ellipse') {
-    const center = result.kind === 'target-ellipse' ? result.target.center : result.center;
-    const majorRadius = result.kind === 'target-ellipse'
-      ? result.target.majorRadius
-      : result.majorRadius;
-    const minorRadius = result.kind === 'target-ellipse'
-      ? result.target.minorRadius
-      : result.minorRadius;
-    const rotationRadians = result.kind === 'target-ellipse'
-      ? result.target.rotationRadians
-      : result.rotationRadians;
-    parent.append(s('ellipse', {
-      class: 'freehand-ghost-correction',
-      cx: center.x,
-      cy: center.y,
-      rx: majorRadius,
-      ry: minorRadius,
-      transform: `rotate(${(rotationRadians * 180 / Math.PI).toFixed(3)} ${center.x.toFixed(2)} ${center.y.toFixed(2)})`,
-    }));
-  }
-}
-
-async function toggleFullscreen(
-  stage: HTMLElement,
-  button: HTMLButtonElement,
-): Promise<void> {
-  const isMax = stage.classList.contains('is-maximized');
-  try {
-    if (isMax) {
-      stage.classList.remove('is-maximized');
-      button.textContent = 'Fullscreen';
-      if (document.fullscreenElement === stage) {
-        await document.exitFullscreen();
-      }
-      return;
-    }
-    stage.classList.add('is-maximized');
-    button.textContent = 'Exit Fullscreen';
-    if (!document.fullscreenElement && stage.requestFullscreen) {
-      await stage.requestFullscreen();
-    }
-  } catch (error) {
-    // Fullscreen can be blocked by the browser or OS; revert the CSS class
-    // so is-maximized stays in sync with the actual fullscreen state.
-    stage.classList.toggle('is-maximized', !!document.fullscreenElement);
-    button.textContent = document.fullscreenElement
-      ? 'Exit Fullscreen'
-      : 'Fullscreen';
-    console.error('Failed to toggle fullscreen mode.', error);
+  if (result.kind === "ellipse" || result.kind === "target-ellipse") {
+    const center =
+      result.kind === "target-ellipse" ? result.target.center : result.center;
+    const majorRadius =
+      result.kind === "target-ellipse"
+        ? result.target.majorRadius
+        : result.majorRadius;
+    const minorRadius =
+      result.kind === "target-ellipse"
+        ? result.target.minorRadius
+        : result.minorRadius;
+    const rotationRadians =
+      result.kind === "target-ellipse"
+        ? result.target.rotationRadians
+        : result.rotationRadians;
+    parent.append(
+      s("ellipse", {
+        class: "freehand-ghost-correction",
+        cx: center.x,
+        cy: center.y,
+        rx: majorRadius,
+        ry: minorRadius,
+        transform: `rotate(${((rotationRadians * 180) / Math.PI).toFixed(3)} ${center.x.toFixed(2)} ${center.y.toFixed(2)})`,
+      }),
+    );
   }
 }
