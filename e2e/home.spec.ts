@@ -846,6 +846,71 @@ test("changing auto-repeat delay affects freehand clear timing", async ({
   });
 });
 
+test("division drill auto-advances after the configured delay", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "draftsman-eye.settings.v1",
+      JSON.stringify({ autoRepeatDelayMs: 1500 }),
+    );
+  });
+  await page.goto("/");
+
+  await openHorizontalHalves(page);
+  await completeHorizontalHalves(page);
+
+  await expect(page.locator(".target-tick")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Again" })).toBeVisible();
+  await expect(page.locator(".target-tick")).toHaveCount(0, {
+    timeout: 2500,
+  });
+  await expect(page.getByRole("button", { name: "Again" })).toHaveCount(0);
+});
+
+test("pause keeps single-mark result visible past the delay", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "draftsman-eye.settings.v1",
+      JSON.stringify({ autoRepeatDelayMs: 1500 }),
+    );
+  });
+  await page.goto("/");
+
+  await openHorizontalHalves(page);
+  await completeHorizontalHalves(page);
+
+  await page.getByRole("button", { name: "Pause" }).click();
+  await expect(page.getByRole("button", { name: "Resume" })).toBeVisible();
+  await page.waitForTimeout(1900);
+
+  await expect(page.locator(".target-tick")).toHaveCount(1);
+  await expect(page.getByText(/Error .* px/i)).toBeVisible();
+});
+
+test("quick repeated single-mark clicks do not duplicate score updates", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await openHorizontalHalves(page);
+  const midpoint = await completeHorizontalHalves(page);
+  await expect(page.getByText(/Error .* px/i)).toBeVisible();
+
+  await page.mouse.click(midpoint.x, midpoint.y);
+  await expect(page.getByRole("button", { name: "Again" })).toHaveCount(0);
+
+  const attempts = await page.evaluate(() => {
+    const raw = window.localStorage.getItem("draftsman-eye.progress.v2");
+    if (!raw) return 0;
+    const parsed = JSON.parse(raw) as { attempts?: unknown[] };
+    return Array.isArray(parsed.attempts) ? parsed.attempts.length : 0;
+  });
+  expect(attempts).toBe(1);
+});
+
 test("horizontal halves drill can be completed and updates score on return", async ({
   page,
 }) => {
@@ -1320,6 +1385,35 @@ async function drawFreehandStraightLineAttempt(page: Page): Promise<void> {
     { x: canvasBox.x + 440, y: canvasBox.y + 219 },
     { x: canvasBox.x + 600, y: canvasBox.y + 222 },
   ]);
+}
+
+async function openHorizontalHalves(page: Page): Promise<void> {
+  await page
+    .getByRole("article")
+    .filter({
+      has: page.getByRole("heading", { level: 3, name: "Horizontal Halves" }),
+    })
+    .getByRole("button", { name: "Practice" })
+    .click();
+
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Horizontal Halves" }),
+  ).toBeVisible();
+}
+
+async function completeHorizontalHalves(
+  page: Page,
+): Promise<{ x: number; y: number }> {
+  const line = page.locator(".exercise-line");
+  const lineBox = await line.boundingBox();
+  if (!lineBox) {
+    throw new Error("Expected rendered exercise line to have a bounding box.");
+  }
+
+  const midpoint = await svgLineMidpoint(line);
+  const [midpointClient] = await exerciseSvgPointsToClient(page, [midpoint]);
+  await page.mouse.click(midpointClient.x, midpointClient.y);
+  return midpointClient;
 }
 
 async function drawCircle(

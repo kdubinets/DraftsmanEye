@@ -8,10 +8,12 @@ import { getAutoExercise } from "../practice/catalog";
 import type {
   SingleMarkExerciseDefinition,
   LineAxis,
+  SingleMarkTrial,
   TrialLine,
   SingleMarkTrialResult,
 } from "../practice/catalog";
 import { getStoredProgress, updateStoredProgress } from "../storage/progress";
+import { getSettings } from "../storage/settings";
 import { localSvgPoint } from "../render/svg";
 import { s, h } from "../render/h";
 import {
@@ -34,8 +36,16 @@ export function mountSingleMarkScreen(
   source: "direct" | "auto",
   onNavigate: (next: AppState) => void,
 ): () => void {
-  const trial = exercise.createTrial();
+  let cancelled = false;
+  let trial: SingleMarkTrial = exercise.createTrial();
   let result: SingleMarkTrialResult | null = null;
+  let resetTimer: number | null = null;
+  let resetAnimation: number | null = null;
+  let resetStartedAt = 0;
+  let resetDurationMs = 0;
+  let resetRemainingMs = 0;
+  let isResultPaused = false;
+  const autoRepeatDelayMs = getSettings().autoRepeatDelayMs;
 
   const screen = pageShell();
   const header = exerciseHeader(exercise, source);
@@ -51,6 +61,18 @@ export function mountSingleMarkScreen(
   summary.hidden = true;
 
   const actions = h("div", { class: "session-actions" });
+
+  const pauseBtn = actionButton("Pause", () => {
+    if (!result || autoRepeatDelayMs === null) return;
+    if (isResultPaused) {
+      resumeAutoReset();
+    } else {
+      pauseAutoReset();
+    }
+  });
+  pauseBtn.classList.add("auto-repeat-action");
+  pauseBtn.disabled = true;
+  pauseBtn.hidden = true;
 
   const againBtn = actionButton("Again", () => {
     onNavigate({ screen: "exercise", exerciseId: exercise.id, source });
@@ -70,19 +92,29 @@ export function mountSingleMarkScreen(
 
   let svg = renderTrialSvg(trial, () => result, onSelect, onPointSelect);
 
-  actions.append(againBtn, backBtn, autoBtn);
+  actions.append(pauseBtn, againBtn, backBtn, autoBtn);
   stage.append(prompt, svg, feedback, summary, actions);
   screen.append(header, stage);
   root.append(screen);
-  return () => {};
+  return () => {
+    cancelled = true;
+    clearAutoResetTimer();
+  };
 
   function onSelect(scalar: number): void {
-    if (result) return;
+    if (result) {
+      resetToFreshTrial();
+      return;
+    }
     revealResult(trial.scoreSelection(scalar));
   }
 
   function onPointSelect(point: { x: number; y: number }): void {
-    if (result || !trial.scorePoint) return;
+    if (result) {
+      resetToFreshTrial();
+      return;
+    }
+    if (!trial.scorePoint) return;
     const next = trial.scorePoint(point);
     if (!next) return;
     revealResult(next);
@@ -166,14 +198,100 @@ export function mountSingleMarkScreen(
     backBtn.hidden = false;
     autoBtn.hidden = false;
     rerenderSvg();
+    scheduleAutoReset();
     // Result controls can make the document taller; keep the canvas visually
     // stationary instead of letting scroll anchoring move the marked geometry.
     window.scrollTo(revealScrollX, revealScrollY);
   }
+
+  function resetToFreshTrial(): void {
+    if (cancelled) return;
+    clearAutoResetTimer();
+    trial = exercise.createTrial();
+    result = null;
+    prompt.textContent = trial.prompt;
+    feedback.removeAttribute("data-tone");
+    summary.removeAttribute("data-tone");
+    feedback.textContent = trial.scorePoint
+      ? "Place one mark in the field."
+      : "Place one mark on the line.";
+    summary.hidden = true;
+    summary.replaceChildren();
+    isResultPaused = false;
+    pauseBtn.hidden = true;
+    againBtn.hidden = true;
+    backBtn.hidden = true;
+    autoBtn.hidden = true;
+    updateAutoRepeatButton();
+    rerenderSvg();
+  }
+
+  function scheduleAutoReset(durationMs: number | null = autoRepeatDelayMs): void {
+    clearAutoResetTimer();
+    if (durationMs === null) {
+      updateAutoRepeatButton();
+      return;
+    }
+
+    resetStartedAt = performance.now();
+    resetDurationMs = durationMs;
+    resetRemainingMs = durationMs;
+    isResultPaused = false;
+
+    resetTimer = window.setTimeout(resetToFreshTrial, durationMs);
+    updateAutoRepeatButton();
+    renderTimerProgress();
+  }
+
+  function pauseAutoReset(): void {
+    if (resetTimer === null || result === null) return;
+    const elapsed = performance.now() - resetStartedAt;
+    resetRemainingMs = Math.max(0, resetDurationMs - elapsed);
+    clearAutoResetTimer();
+    isResultPaused = true;
+    updateAutoRepeatButton();
+  }
+
+  function resumeAutoReset(): void {
+    if (result === null || autoRepeatDelayMs === null) return;
+    scheduleAutoReset(Math.max(resetRemainingMs, 250));
+  }
+
+  function clearAutoResetTimer(): void {
+    if (resetTimer !== null) {
+      window.clearTimeout(resetTimer);
+      resetTimer = null;
+    }
+    if (resetAnimation !== null) {
+      window.cancelAnimationFrame(resetAnimation);
+      resetAnimation = null;
+    }
+  }
+
+  function renderTimerProgress(): void {
+    if (resetTimer === null || resetDurationMs <= 0) return;
+    const elapsed = performance.now() - resetStartedAt;
+    const remainingRatio = Math.max(0, 1 - elapsed / resetDurationMs);
+    pauseBtn.style.setProperty("--timer-progress", remainingRatio.toFixed(3));
+    if (remainingRatio > 0) {
+      resetAnimation = window.requestAnimationFrame(renderTimerProgress);
+    }
+  }
+
+  function updateAutoRepeatButton(): void {
+    pauseBtn.hidden = result === null;
+    pauseBtn.disabled = result === null || autoRepeatDelayMs === null;
+    pauseBtn.textContent = isResultPaused ? "Resume" : "Pause";
+    pauseBtn.classList.toggle("is-running", resetTimer !== null && !isResultPaused);
+    pauseBtn.classList.toggle("is-paused", isResultPaused);
+    if (resetTimer === null || isResultPaused) {
+      pauseBtn.style.removeProperty("--timer-progress");
+    }
+  }
 }
 
 function renderTrialSvg(
-  trial: import("../practice/catalog").SingleMarkTrial,
+  trial: SingleMarkTrial,
   getResult: () => SingleMarkTrialResult | null,
   onSelect: (scalar: number) => void,
   onPointSelect: (point: { x: number; y: number }) => void,
