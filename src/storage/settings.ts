@@ -10,11 +10,15 @@ export type Settings = {
   visualizePressureWidth: boolean;
   /** Vary stroke colour by drawing speed. */
   visualizeSpeedColor: boolean;
+  /** Show the compact result headline after a completed trial. */
+  showResultString: boolean;
+  /** Show the detailed score box grid after a completed trial. */
+  showScoreBoxes: boolean;
   /** Delay before a completed exercise resets; null means manual advance only. */
   autoRepeatDelayMs: AutoRepeatDelayMs;
 };
 
-const STORAGE_KEY = 'draftsman-eye.settings.v1';
+const STORAGE_KEY = "draftsman-eye.settings.v1";
 export const AUTO_REPEAT_DELAYS = [null, 1500, 2500, 4000] as const;
 export type AutoRepeatDelayMs = (typeof AUTO_REPEAT_DELAYS)[number];
 
@@ -22,6 +26,8 @@ const DEFAULTS: Settings = {
   allowTouchDrawing: false,
   visualizePressureWidth: true,
   visualizeSpeedColor: true,
+  showResultString: true,
+  showScoreBoxes: true,
   autoRepeatDelayMs: 2500,
 };
 
@@ -40,38 +46,53 @@ export function getSettings(): Settings {
     const parsed = JSON.parse(raw) as unknown;
     return (cache = mergeWithDefaults(parsed));
   } catch {
-    console.error('Failed to parse stored settings; using defaults.');
+    console.error("Failed to parse stored settings; using defaults.");
     return (cache = { ...DEFAULTS });
   }
 }
 
-export function updateSetting<K extends keyof Settings>(key: K, value: Settings[K]): void {
+export function updateSetting<K extends keyof Settings>(
+  key: K,
+  value: Settings[K],
+): void {
   const current = getSettings();
   const next: Settings = { ...current, [key]: value };
   cache = next;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   } catch (error) {
-    console.error('Failed to persist settings.', error);
+    console.error("Failed to persist settings.", error);
   }
 }
 
 /** Fill missing or invalid keys from defaults rather than rejecting the whole payload. */
 function mergeWithDefaults(raw: unknown): Settings {
-  const src = raw && typeof raw === 'object' && !Array.isArray(raw)
-    ? (raw as Record<string, unknown>)
-    : {};
+  const src =
+    raw && typeof raw === "object" && !Array.isArray(raw)
+      ? (raw as Record<string, unknown>)
+      : {};
   return {
-    allowTouchDrawing: typeof src['allowTouchDrawing'] === 'boolean'
-      ? src['allowTouchDrawing']
-      : DEFAULTS.allowTouchDrawing,
-    visualizePressureWidth: typeof src['visualizePressureWidth'] === 'boolean'
-      ? src['visualizePressureWidth']
-      : DEFAULTS.visualizePressureWidth,
-    visualizeSpeedColor: typeof src['visualizeSpeedColor'] === 'boolean'
-      ? src['visualizeSpeedColor']
-      : DEFAULTS.visualizeSpeedColor,
-    autoRepeatDelayMs: parseAutoRepeatDelay(src['autoRepeatDelayMs']),
+    allowTouchDrawing:
+      typeof src["allowTouchDrawing"] === "boolean"
+        ? src["allowTouchDrawing"]
+        : DEFAULTS.allowTouchDrawing,
+    visualizePressureWidth:
+      typeof src["visualizePressureWidth"] === "boolean"
+        ? src["visualizePressureWidth"]
+        : DEFAULTS.visualizePressureWidth,
+    visualizeSpeedColor:
+      typeof src["visualizeSpeedColor"] === "boolean"
+        ? src["visualizeSpeedColor"]
+        : DEFAULTS.visualizeSpeedColor,
+    showResultString:
+      typeof src["showResultString"] === "boolean"
+        ? src["showResultString"]
+        : DEFAULTS.showResultString,
+    showScoreBoxes:
+      typeof src["showScoreBoxes"] === "boolean"
+        ? src["showScoreBoxes"]
+        : DEFAULTS.showScoreBoxes,
+    autoRepeatDelayMs: parseAutoRepeatDelay(src["autoRepeatDelayMs"]),
   };
 }
 

@@ -16,7 +16,11 @@ import {
   showClosedShapeMarkers,
   isClosedFreehandResult,
 } from "./correction";
-import { freehandScoreLabel, freehandResultStats } from "./stats";
+import {
+  freehandResultLine,
+  freehandScoreLabel,
+  freehandResultStats,
+} from "./stats";
 import type { FreehandAttemptSnapshot } from "./types";
 
 /** CANVAS_WIDTH/HEIGHT thumbnail viewport constants. */
@@ -70,8 +74,12 @@ export function renderFreehandAttemptThumbnail(
 
 export function renderFreehandHistoryModal(
   attempt: FreehandAttemptSnapshot,
-  showCorrections: boolean,
-  onClose: () => void,
+  options: {
+    showCorrections: boolean;
+    showResultString: boolean;
+    showScoreBoxes: boolean;
+    onClose: () => void;
+  },
 ): HTMLElement {
   const feedbackError = 100 - attempt.result.score;
   const feedbackHue = feedbackHueForError(feedbackError);
@@ -87,12 +95,9 @@ export function renderFreehandHistoryModal(
         "--result-accent": accent,
       } as unknown as Partial<CSSStyleDeclaration>,
     },
-    [
-      `${feedbackLabel(feedbackError)} · ` +
-        `${freehandScoreLabel(attempt.result.kind)} ${attempt.result.score.toFixed(1)} · ` +
-        `Mean drift ${attempt.result.meanErrorPixels.toFixed(1)} px`,
-    ],
+    [freehandResultLine(attempt.result, feedbackLabel(feedbackError))],
   );
+  feedback.hidden = !options.showResultString;
 
   const summary = h("div", {
     class: "result-summary",
@@ -102,9 +107,10 @@ export function renderFreehandHistoryModal(
     } as unknown as Partial<CSSStyleDeclaration>,
   });
   summary.replaceChildren(...freehandResultStats(attempt.result));
+  summary.hidden = !options.showScoreBoxes;
 
   const panel = h("div", { class: "freehand-history-modal-panel" }, [
-    renderAttemptPreview(attempt, showCorrections),
+    renderAttemptPreview(attempt, options.showCorrections),
     feedback,
     summary,
   ]);
@@ -114,7 +120,7 @@ export function renderFreehandHistoryModal(
     {
       class: "freehand-history-modal",
       dataset: { testid: "freehand-history-modal" },
-      on: { click: onClose },
+      on: { click: options.onClose },
     },
     [panel],
   );

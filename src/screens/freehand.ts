@@ -37,7 +37,7 @@ import {
   renderFreehandHistoryModal,
 } from "../exercises/freehand/history";
 import {
-  freehandScoreLabel,
+  freehandResultLine,
   freehandResultStats,
 } from "../exercises/freehand/stats";
 import type {
@@ -69,7 +69,10 @@ export function mountFreehandScreen(
   let escapeListener: ((e: KeyboardEvent) => void) | null = null;
   let nextAttemptId = 1;
   let target: FreehandTarget | null = config.createTarget();
-  const autoRepeatDelayMs = getSettings().autoRepeatDelayMs;
+  const settings = getSettings();
+  const autoRepeatDelayMs = settings.autoRepeatDelayMs;
+  const showResultString = settings.showResultString;
+  const showScoreBoxes = settings.showScoreBoxes;
   const attempts: FreehandAttemptSnapshot[] = [];
   const MAX_ATTEMPTS = 36;
 
@@ -203,6 +206,7 @@ export function mountFreehandScreen(
       return;
     }
     if (!canStartFreehandStroke(event)) {
+      feedback.hidden = false;
       feedback.textContent = "Use Apple Pencil or mouse to draw.";
       return;
     }
@@ -212,6 +216,7 @@ export function mountFreehandScreen(
     points = [point];
     renderFreehandStroke(strokeLayer, points, "freehand-user-stroke");
     svg.setPointerCapture(event.pointerId);
+    feedback.hidden = false;
     feedback.textContent = "Keep the stroke continuous, then lift.";
   });
 
@@ -299,12 +304,13 @@ export function mountFreehandScreen(
     summary.dataset.tone = cls;
     feedback.style.setProperty("--result-accent", accent);
     summary.style.setProperty("--result-accent", accent);
-    feedback.textContent =
-      `${feedbackLabel(errorPercent)} · ` +
-      `${freehandScoreLabel(result.kind)} ${result.score.toFixed(1)} · ` +
-      `Mean drift ${result.meanErrorPixels.toFixed(1)} px`;
+    feedback.textContent = freehandResultLine(
+      result,
+      feedbackLabel(errorPercent),
+    );
+    feedback.hidden = !showResultString;
 
-    summary.hidden = false;
+    summary.hidden = !showScoreBoxes;
     summary.replaceChildren(...freehandResultStats(result));
 
     againBtn.hidden = false;
@@ -331,6 +337,7 @@ export function mountFreehandScreen(
     summary.hidden = true;
     feedback.removeAttribute("data-tone");
     summary.removeAttribute("data-tone");
+    feedback.hidden = false;
     feedback.textContent = config.readyText;
     againBtn.hidden = true;
     updateAutoRepeatButton();
@@ -338,6 +345,7 @@ export function mountFreehandScreen(
 
   function startEarlyNextAttempt(event: PointerEvent): void {
     if (!canStartFreehandStroke(event)) {
+      feedback.hidden = false;
       feedback.textContent = "Use Apple Pencil or mouse to draw.";
       return;
     }
@@ -363,6 +371,7 @@ export function mountFreehandScreen(
     summary.hidden = true;
     feedback.removeAttribute("data-tone");
     summary.removeAttribute("data-tone");
+    feedback.hidden = false;
     feedback.textContent = "Keep the stroke continuous, then lift.";
     againBtn.hidden = true;
     updateAutoRepeatButton();
@@ -462,11 +471,12 @@ export function mountFreehandScreen(
   }
 
   function openModal(attempt: FreehandAttemptSnapshot): void {
-    const modal = renderFreehandHistoryModal(
-      attempt,
-      correctionToggle.checked,
-      closeModal,
-    );
+    const modal = renderFreehandHistoryModal(attempt, {
+      showCorrections: correctionToggle.checked,
+      showResultString,
+      showScoreBoxes,
+      onClose: closeModal,
+    });
 
     function closeModal(): void {
       if (escapeListener !== null) {

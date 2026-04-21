@@ -25,6 +25,10 @@
   --accent-soft-strong: #deccb0;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 * {
   box-sizing: border-box;
 }

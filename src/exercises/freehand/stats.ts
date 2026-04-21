@@ -26,55 +26,74 @@ export function freehandScoreLabel(kind: FreehandResult["kind"]): string {
 }
 
 export function freehandResultStats(result: FreehandResult): HTMLElement[] {
-  const header = [
+  const stats = [
     stat("Score", result.score.toFixed(1)),
-    stat("Mean drift", `${result.meanErrorPixels.toFixed(1)} px`),
-    stat("Max drift", `${result.maxErrorPixels.toFixed(1)} px`),
-  ];
-  const footer = [
-    stat("Length", `${Math.round(result.strokeLengthPixels)} px`),
-    stat("Samples", String(result.pointCount)),
+    stat("Drift", formatDrift(result)),
   ];
 
-  let kindStats: HTMLElement[];
   if (result.kind === "circle") {
-    kindStats = [
-      stat("Radius", `${Math.round(result.radius)} px`),
+    return [
+      ...stats,
       stat("Closure", `${Math.round(result.closureGapPixels)} px`),
       stat("Join", `${Math.round(result.joinAngleDegrees)} deg`),
     ];
-  } else if (result.kind === "target-circle") {
-    kindStats = [
+  }
+
+  if (result.kind === "target-circle") {
+    if (result.target.trace) {
+      return [
+        ...stats,
+        stat("Closure", `${Math.round(result.closureGapPixels)} px`),
+        stat("Join", `${Math.round(result.joinAngleDegrees)} deg`),
+      ];
+    }
+    return [
+      ...stats,
       stat("Center miss", `${Math.round(result.centerErrorPixels)} px`),
       stat("Radius miss", `${Math.round(result.radiusErrorPixels)} px`),
+    ];
+  }
+
+  if (result.kind === "target-ellipse") {
+    if (result.target.trace) {
+      return [
+        ...stats,
+        stat("Closure", `${Math.round(result.closureGapPixels)} px`),
+        stat("Join", `${Math.round(result.joinAngleDegrees)} deg`),
+      ];
+    }
+    return [
+      ...stats,
+      stat(
+        "Size miss",
+        `${Math.round(result.majorRadiusErrorPixels)} / ${Math.round(result.minorRadiusErrorPixels)} px`,
+      ),
+      stat("Closure", `${Math.round(result.closureGapPixels)} px`),
+    ];
+  }
+
+  if (result.kind === "ellipse") {
+    return [
+      ...stats,
       stat("Closure", `${Math.round(result.closureGapPixels)} px`),
       stat("Join", `${Math.round(result.joinAngleDegrees)} deg`),
     ];
-  } else if (result.kind === "target-ellipse") {
-    kindStats = [
-      stat("Center miss", `${Math.round(result.centerErrorPixels)} px`),
-      stat("Major miss", `${Math.round(result.majorRadiusErrorPixels)} px`),
-      stat("Minor miss", `${Math.round(result.minorRadiusErrorPixels)} px`),
-      stat("Rotation", `${Math.round(result.rotationErrorDegrees)} deg`),
-      stat("Closure", `${Math.round(result.closureGapPixels)} px`),
-      stat("Join", `${Math.round(result.joinAngleDegrees)} deg`),
+  }
+
+  if (result.kind === "target-line") {
+    return [
+      ...stats,
+      stat(
+        "Endpoint miss",
+        `${Math.round(result.startErrorPixels)} / ${Math.round(result.endErrorPixels)} px`,
+      ),
+      stat("Length", `${Math.round(result.strokeLengthPixels)} px`),
     ];
-  } else if (result.kind === "ellipse") {
-    kindStats = [
-      stat("Major", `${Math.round(result.majorRadius)} px`),
-      stat("Minor", `${Math.round(result.minorRadius)} px`),
-      stat("Closure", `${Math.round(result.closureGapPixels)} px`),
-      stat("Join", `${Math.round(result.joinAngleDegrees)} deg`),
-    ];
-  } else if (result.kind === "target-line") {
-    kindStats = [
-      stat("Start miss", `${Math.round(result.startErrorPixels)} px`),
-      stat("End miss", `${Math.round(result.endErrorPixels)} px`),
-      stat("Angle miss", `${Math.round(result.angleErrorDegrees)} deg`),
-    ];
-  } else if (result.kind === "target-angle") {
-    kindStats = [
-      stat("Start miss", `${Math.round(result.startErrorPixels)} px`),
+  }
+
+  if (result.kind === "target-angle") {
+    return [
+      stat("Score", result.score.toFixed(1)),
       stat("Angle miss", `${result.angleErrorDegrees.toFixed(1)} deg`),
       stat(
         "Opening",
@@ -84,12 +103,51 @@ export function freehandResultStats(result: FreehandResult): HTMLElement[] {
             ? "Too narrow"
             : "Exact",
       ),
+      stat("Start miss", `${Math.round(result.startErrorPixels)} px`),
     ];
-  } else {
-    kindStats = [];
   }
 
-  return [...header, ...kindStats, ...footer];
+  return [
+    ...stats,
+    stat("Length", `${Math.round(result.strokeLengthPixels)} px`),
+  ];
+}
+
+export function freehandResultLine(
+  result: FreehandResult,
+  bandLabel: string,
+): string {
+  return `${bandLabel} · Score ${result.score.toFixed(1)} · ${primaryResultDetail(result)}`;
+}
+
+function primaryResultDetail(result: FreehandResult): string {
+  if (result.kind === "target-angle") {
+    const opening =
+      result.signedOpenErrorDegrees > 0
+        ? "too open"
+        : result.signedOpenErrorDegrees < 0
+          ? "too narrow"
+          : "exact";
+    return `Angle miss ${result.angleErrorDegrees.toFixed(1)} deg · ${opening}`;
+  }
+
+  if (result.kind === "target-line") {
+    return `Endpoint miss ${Math.round(result.startErrorPixels)} / ${Math.round(result.endErrorPixels)} px`;
+  }
+
+  if (result.kind === "target-circle" && !result.target.trace) {
+    return `Center ${Math.round(result.centerErrorPixels)} px · Radius ${Math.round(result.radiusErrorPixels)} px`;
+  }
+
+  if (result.kind === "target-ellipse" && !result.target.trace) {
+    return `Size ${Math.round(result.majorRadiusErrorPixels)} / ${Math.round(result.minorRadiusErrorPixels)} px`;
+  }
+
+  return `Mean drift ${result.meanErrorPixels.toFixed(1)} px`;
+}
+
+function formatDrift(result: FreehandResult): string {
+  return `${result.meanErrorPixels.toFixed(1)} / ${result.maxErrorPixels.toFixed(1)} px`;
 }
 
 function stat(label: string, value: string): HTMLElement {

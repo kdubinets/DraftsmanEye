@@ -197,8 +197,8 @@ test("target line drill scores a stroke connecting two marks", async ({
   }
   await page.mouse.up();
 
-  await expect(page.getByText(/Target line \d+\.\d/)).toBeVisible();
-  await expect(page.getByText("Start miss")).toBeVisible();
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
+  await expect(page.getByText("Endpoint miss", { exact: true })).toBeVisible();
   await expect(
     page
       .getByTestId("freehand-canvas")
@@ -253,8 +253,8 @@ test("angle copy drill scores a drawn ray from the target vertex", async ({
   }
   await page.mouse.up();
 
-  await expect(page.getByText(/Angle copy \d+\.\d/)).toBeVisible();
-  await expect(page.getByText("Angle miss")).toBeVisible();
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
+  await expect(page.getByText("Angle miss", { exact: true })).toBeVisible();
   await expect(
     canvas.locator(".freehand-target-correction-line"),
   ).toBeVisible();
@@ -297,8 +297,8 @@ test("angle copy drill accepts a ray drawn toward the target vertex", async ({
   }
   await page.mouse.up();
 
-  await expect(page.getByText(/Angle copy \d+\.\d/)).toBeVisible();
-  await expect(page.getByText("Angle miss")).toBeVisible();
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
+  await expect(page.getByText("Angle miss", { exact: true })).toBeVisible();
 });
 
 test("target circle drill scores a circle from center and radius point", async ({
@@ -327,7 +327,7 @@ test("target circle drill scores a circle from center and radius point", async (
 
   await drawCircle(page, center, radius, 40);
 
-  await expect(page.getByText(/Target circle \d+\.\d/)).toBeVisible();
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await expect(page.getByText("Center miss")).toBeVisible();
   await expect(
     canvas.locator(".freehand-target-correction-circle"),
@@ -372,7 +372,7 @@ test("target circle drill scores a circle through three points", async ({
 
   await drawCircle(page, circle.center, circle.radius, 40);
 
-  await expect(page.getByText(/Target circle \d+\.\d/)).toBeVisible();
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await expect(page.getByText("Radius miss")).toBeVisible();
   await expect(
     page
@@ -426,7 +426,7 @@ test("trace line drill scores a stroke against the faint guide", async ({
 
   await drawPolyline(page, points);
 
-  await expect(page.getByText(/Target line \d+\.\d/)).toBeVisible();
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await expect(
     canvas.locator(".freehand-target-correction-line"),
   ).toBeVisible();
@@ -474,8 +474,8 @@ test("trace circle drill scores a stroke against the faint guide", async ({
 
   await drawPolyline(page, points);
 
-  await expect(page.getByText(/Target circle \d+\.\d/)).toBeVisible();
-  await expect(page.getByText("Center miss")).toBeVisible();
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
+  await expect(page.getByText("Closure")).toBeVisible();
   await expect(
     canvas.locator(".freehand-target-correction-circle"),
   ).toBeVisible();
@@ -536,8 +536,8 @@ test("trace ellipse drill scores a stroke against the faint guide", async ({
 
   await drawPolyline(page, points);
 
-  await expect(page.getByText(/Target ellipse \d+\.\d/)).toBeVisible();
-  await expect(page.getByText("Major miss")).toBeVisible();
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
+  await expect(page.getByText("Join")).toBeVisible();
   await expect(
     canvas.locator(".freehand-target-correction-ellipse"),
   ).toBeVisible();
@@ -597,7 +597,7 @@ test("ellipse drill scores a drawn stroke and auto-clears", async ({
   }
   await page.mouse.up();
 
-  await expect(page.getByText(/Ellipse fit \d+\.\d/)).toBeVisible();
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await expect(
     page.getByTestId("freehand-canvas").locator(".freehand-fit-ellipse"),
   ).toBeVisible();
@@ -617,9 +617,14 @@ test("ellipse drill scores a drawn stroke and auto-clears", async ({
     page.getByTestId("freehand-history-modal").locator(".freehand-fit-ellipse"),
   ).toBeVisible();
   await expect(
-    page.getByTestId("freehand-history-modal").getByText("Score"),
+    page.getByTestId("freehand-history-modal").getByText("Score", {
+      exact: true,
+    }),
   ).toBeVisible();
-  await page.getByTestId("freehand-history-modal").getByText("Score").click();
+  await page
+    .getByTestId("freehand-history-modal")
+    .getByText("Score", { exact: true })
+    .click();
   await expect(page.getByTestId("freehand-history-modal")).toHaveCount(0);
 
   await page.getByLabel("Show fitted shapes").uncheck();
@@ -681,7 +686,7 @@ test("circle drill scores a drawn stroke and auto-clears", async ({ page }) => {
   }
   await page.mouse.up();
 
-  await expect(page.getByText(/Roundness \d+\.\d/)).toBeVisible();
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await expect(
     page.getByTestId("freehand-canvas").locator(".freehand-fit-circle"),
   ).toBeVisible();
@@ -759,7 +764,7 @@ test("straight line drill scores a drawn stroke and auto-clears", async ({
   await page.mouse.move(canvasBox.x + 600, canvasBox.y + 222);
   await page.mouse.up();
 
-  await expect(page.getByText(/Straightness \d+\.\d/)).toBeVisible();
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await expect(
     page.getByTestId("freehand-canvas").locator(".freehand-fit-line"),
   ).toBeVisible();
@@ -799,7 +804,7 @@ test("unguided freehand accepts a second stroke before timeout", async ({
 
   await openStraightLine(page);
   await drawFreehandStraightLineAttempt(page);
-  await expect(page.getByText(/Straightness \d+\.\d/)).toBeVisible();
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await expect(page.locator(".freehand-history-item")).toHaveCount(1);
 
   const canvasBox = await freehandCanvasBox(page);
@@ -814,7 +819,7 @@ test("unguided freehand accepts a second stroke before timeout", async ({
   await page.mouse.move(canvasBox.x + 640, canvasBox.y + 319);
   await page.mouse.up();
 
-  await expect(page.getByText(/Straightness \d+\.\d/)).toBeVisible();
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await expect(page.locator(".freehand-history-item")).toHaveCount(2);
 });
 
@@ -831,7 +836,7 @@ test("early freehand next attempt scores only fresh input", async ({
 
   await openStraightLine(page);
   await drawFreehandStraightLineAttempt(page);
-  await expect(page.getByText(/Straightness \d+\.\d/)).toBeVisible();
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await expect(page.locator(".freehand-history-item")).toHaveCount(1);
 
   const canvasBox = await freehandCanvasBox(page);
@@ -869,7 +874,7 @@ test("target line early next activates new target geometry", async ({
   ]);
   await drawPolyline(page, interpolatedPoints(oldTargets[0], oldTargets[1], 8));
 
-  await expect(page.getByText(/Target line \d+\.\d/)).toBeVisible();
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await expect(page.locator(".freehand-history-item")).toHaveCount(1);
 
   await canvas.click({ position: { x: 40, y: 40 } });
@@ -887,7 +892,7 @@ test("target line early next activates new target geometry", async ({
 
   await drawPolyline(page, interpolatedPoints(newTargets[0], newTargets[1], 8));
 
-  await expect(page.getByText(/Target line \d+\.\d/)).toBeVisible();
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await expect(page.locator(".freehand-history-item")).toHaveCount(2);
 });
 
@@ -910,7 +915,7 @@ test("trace circle early next fades prior result behind new guide", async ({
   );
   await drawCircle(page, firstGuide.center, firstGuide.radius, 36);
 
-  await expect(page.getByText(/Target circle \d+\.\d/)).toBeVisible();
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await expect(page.locator(".freehand-history-item")).toHaveCount(1);
 
   await canvas.click({ position: { x: 40, y: 40 } });
@@ -926,7 +931,7 @@ test("trace circle early next fades prior result behind new guide", async ({
   );
   await drawCircle(page, nextGuide.center, nextGuide.radius, 36);
 
-  await expect(page.getByText(/Target circle \d+\.\d/)).toBeVisible();
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await expect(page.locator(".freehand-history-item")).toHaveCount(2);
 });
 
@@ -952,7 +957,7 @@ test("angle copy early next scores against the new target", async ({
   const [oldBaseEndClient] = await svgPointsToClient(page, [oldBaseEnd]);
   await drawPolyline(page, interpolatedPoints(oldVertex, oldBaseEndClient, 8));
 
-  await expect(page.getByText(/Angle copy \d+\.\d/)).toBeVisible();
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await expect(page.locator(".freehand-history-item")).toHaveCount(1);
 
   await canvas.click({ position: { x: 40, y: 40 } });
@@ -970,7 +975,7 @@ test("angle copy early next scores against the new target", async ({
   const [newBaseEndClient] = await svgPointsToClient(page, [newBaseEnd]);
   await drawPolyline(page, interpolatedPoints(newVertex, newBaseEndClient, 8));
 
-  await expect(page.getByText(/Angle copy \d+\.\d/)).toBeVisible();
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await expect(page.locator(".freehand-history-item")).toHaveCount(2);
 });
 
@@ -994,13 +999,13 @@ test("pause keeps freehand result visible past the auto-repeat delay", async ({
     .click();
 
   await drawFreehandStraightLineAttempt(page);
-  await expect(page.getByText(/Straightness \d+\.\d/)).toBeVisible();
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
 
   await page.getByRole("button", { name: "Pause" }).click();
   await expect(page.getByRole("button", { name: "Resume" })).toBeVisible();
   await page.waitForTimeout(1900);
 
-  await expect(page.getByText(/Straightness \d+\.\d/)).toBeVisible();
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await expect(
     page.getByTestId("freehand-canvas").locator(".freehand-fit-line"),
   ).toBeVisible();
@@ -1023,15 +1028,56 @@ test("changing auto-repeat delay affects freehand clear timing", async ({
     .click();
 
   await drawFreehandStraightLineAttempt(page);
-  await expect(page.getByText(/Straightness \d+\.\d/)).toBeVisible();
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
 
   await page.waitForTimeout(1900);
-  await expect(page.getByText(/Straightness \d+\.\d/)).toBeVisible();
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await expect(
     page.getByTestId("freehand-canvas").locator(".freehand-fit-line"),
   ).toBeHidden({
     timeout: 3500,
   });
+});
+
+test("result display settings can hide headline and score boxes", async ({
+  page,
+}) => {
+  await page.goto("/settings");
+  await page.getByLabel("Auto-repeat delay").selectOption({ label: "Off" });
+  await page.getByLabel("Show result string").uncheck();
+  await page.getByLabel("Show score boxes").uncheck();
+  await expect(page.getByLabel("Show result string")).not.toBeChecked();
+  await expect(page.getByLabel("Show score boxes")).not.toBeChecked();
+  await expect
+    .poll(async () =>
+      page.evaluate(() =>
+        JSON.parse(
+          window.localStorage.getItem("draftsman-eye.settings.v1") ?? "{}",
+        ),
+      ),
+    )
+    .toMatchObject({
+      showResultString: false,
+      showScoreBoxes: false,
+    });
+  await page.getByRole("button", { name: "Back to list" }).click();
+
+  await page
+    .getByRole("article")
+    .filter({
+      has: page.getByRole("heading", { level: 3, name: "Horizontal Halves" }),
+    })
+    .getByRole("button", { name: "Practice" })
+    .click();
+
+  const line = page.locator(".exercise-line");
+  const midpoint = await svgLineMidpoint(line);
+  const [midpointClient] = await exerciseSvgPointsToClient(page, [midpoint]);
+  await page.mouse.click(midpointClient.x, midpointClient.y);
+
+  await expect(page.getByRole("button", { name: "Again" })).toBeVisible();
+  await expect(page.getByText(/Score \d+\.\d/)).toBeHidden();
+  await expect(page.locator(".result-summary")).toBeHidden();
 });
 
 test("division drill auto-advances after the configured delay", async ({
@@ -1100,7 +1146,7 @@ test("freehand toolbar hides inactive actions and Again resets cleanly", async (
   await expect(page.getByRole("button", { name: "Again" })).toHaveCount(0);
 
   await drawFreehandStraightLineAttempt(page);
-  await expect(page.getByText(/Straightness \d+\.\d/)).toBeVisible();
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Pause" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Again" })).toBeVisible();
 
@@ -1935,7 +1981,7 @@ test("Escape key dismisses the history modal", async ({ page }) => {
   }
   await page.mouse.up();
 
-  await expect(page.getByText(/Roundness \d+\.\d/)).toBeVisible();
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
 
   // Open history modal
   await page.locator(".freehand-history-item").first().click();

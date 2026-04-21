@@ -46,7 +46,10 @@ export function mountSingleMarkScreen(
   let resetDurationMs = 0;
   let resetRemainingMs = 0;
   let isResultPaused = false;
-  const autoRepeatDelayMs = getSettings().autoRepeatDelayMs;
+  const settings = getSettings();
+  const autoRepeatDelayMs = settings.autoRepeatDelayMs;
+  const showResultString = settings.showResultString;
+  const showScoreBoxes = settings.showScoreBoxes;
 
   const screen = pageShell();
   const header = exerciseHeader(exercise, source);
@@ -144,16 +147,20 @@ export function mountSingleMarkScreen(
     feedback.textContent =
       result.distanceErrorPixels !== undefined
         ? `${feedbackLabel(result.relativeErrorPercent)} · ` +
+          `Score ${result.relativeAccuracyPercent.toFixed(1)} · ` +
           `Error ${result.distanceErrorPixels.toFixed(1)} px`
         : result.angleErrorDegrees === undefined
           ? `${feedbackLabel(result.relativeErrorPercent)} · ` +
+            `Score ${result.relativeAccuracyPercent.toFixed(1)} · ` +
             `Error ${formatSignedValue(result.signedErrorPixels)} px · ` +
             `${result.relativeErrorPercent.toFixed(1)}% of line length`
           : `${feedbackLabel(result.relativeErrorPercent)} · ` +
+            `Score ${result.relativeAccuracyPercent.toFixed(1)} · ` +
             `Angle error ${result.angleErrorDegrees.toFixed(1)}° · ` +
             `Offset ${formatSignedValue(result.signedErrorPixels)} px`;
+    feedback.hidden = !showResultString;
 
-    summary.hidden = false;
+    summary.hidden = !showScoreBoxes;
     const resultStats =
       result.distanceErrorPixels !== undefined
         ? [
@@ -165,7 +172,10 @@ export function mountSingleMarkScreen(
         : result.angleErrorDegrees === undefined
           ? [
               resultStat("Score", result.relativeAccuracyPercent.toFixed(1)),
-              resultStat("Placed", `${Math.round(result.placedScalar)} px`),
+              resultStat(
+                "Error",
+                `${formatSignedValue(result.signedErrorPixels)} px`,
+              ),
               resultStat("Target", `${Math.round(result.targetScalar)} px`),
               resultStat(
                 "Direction",
@@ -207,6 +217,7 @@ export function mountSingleMarkScreen(
     prompt.textContent = trial.prompt;
     feedback.removeAttribute("data-tone");
     summary.removeAttribute("data-tone");
+    feedback.hidden = false;
     feedback.textContent = trial.scorePoint
       ? "Place one mark in the field."
       : "Place one mark on the line.";
