@@ -21,6 +21,8 @@
   --muted: #6f6357;
   --accent: #7a4d22;
   --accent-strong: #5d3817;
+  --accent-soft: #e9dcc7;
+  --accent-soft-strong: #deccb0;
 }
 
 * {
@@ -127,8 +129,8 @@ button {
 .primary-action {
   margin-top: 1rem;
   padding: 0.8rem 1.3rem;
-  background: var(--accent);
-  color: #fff8ef;
+  background: var(--accent-soft);
+  color: #4e2f12;
 }
 
 .primary-action:hover,
@@ -137,11 +139,91 @@ button {
 }
 
 .primary-action:hover {
-  background: var(--accent-strong);
+  background: var(--accent-soft-strong);
 }
 
 .exercise-section {
   margin-top: 2rem;
+}
+
+.exercise-filter-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.exercise-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.25rem;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-strong);
+  color: #4e4136;
+  cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.exercise-filter:hover {
+  transform: translateY(-1px);
+  border-color: rgba(122, 77, 34, 0.34);
+}
+
+.exercise-filter.is-active {
+  background: var(--accent-soft);
+  border-color: rgba(122, 77, 34, 0.22);
+  color: #3f3127;
+}
+
+.exercise-filter-count {
+  min-width: 1.4rem;
+  padding: 0.08rem 0.38rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.46);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.exercise-group-list {
+  display: grid;
+  gap: 1.75rem;
+  margin-top: 1.5rem;
+}
+
+.exercise-family-section {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.exercise-family-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.55rem;
+}
+
+.exercise-family-header h3 {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.exercise-family-count {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
 }
 
 .exercise-header + .exercise-stage {
@@ -152,7 +234,6 @@ button {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 1rem;
-  margin-top: 1rem;
 }
 
 .exercise-card {
@@ -679,6 +760,15 @@ button {
   background: var(--surface-strong);
   border: 1px solid var(--border);
   color: #46382d;
+  font-size: 0.9rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.score-chip.has-score {
+  background: rgba(47, 85, 125, 0.1);
+  border-color: rgba(47, 85, 125, 0.24);
+  color: #27435f;
 }
 
 .secondary-action {

@@ -112,7 +112,7 @@ test("home page lists drills and auto entry point", async ({ page }) => {
       name: "Extrapolated Segment Intersection",
     }),
   ).toBeVisible();
-  await expect(page.getByText("No score yet")).toHaveCount(39);
+  await expect(page.getByText("New")).toHaveCount(39);
   await expect(page.getByRole("button", { name: "Coming soon" })).toHaveCount(
     0,
   );
@@ -128,6 +128,33 @@ test("home page lists drills and auto entry point", async ({ page }) => {
       })
       .getByRole("button", { name: "Practice" }),
   ).toBeEnabled();
+});
+
+test("home page groups drills and filters by family", async ({ page }) => {
+  await page.goto("/");
+
+  const familyHeadings = page.locator(".exercise-family-header h3");
+  await expect(familyHeadings).toHaveText([
+    "Division",
+    "Length Transfer",
+    "Angle Copy",
+    "Intersection",
+    "Freehand Control",
+    "Trace Control",
+    "Target Drawing",
+  ]);
+
+  await page.getByRole("button", { name: "Trace Control 3" }).click();
+  await expect(familyHeadings).toHaveText(["Trace Control"]);
+  await expect(
+    page.getByRole("heading", { level: 3, name: "Trace Line" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 3, name: "Line Through Two Points" }),
+  ).toBeHidden();
+
+  await page.getByRole("button", { name: "All 39" }).click();
+  await expect(familyHeadings).toHaveCount(7);
 });
 
 test("target line drill scores a stroke connecting two marks", async ({

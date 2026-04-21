@@ -34,7 +34,7 @@ export function actionButton(
 }
 
 export function formatScore(score: number | undefined): string {
-  return score === undefined ? 'No score yet' : score.toFixed(1);
+  return score === undefined ? 'New' : score.toFixed(1);
 }
 
 export function formatSignedValue(value: number): string {
