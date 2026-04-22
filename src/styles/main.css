@@ -67,7 +67,27 @@ button {
 }
 
 .hero {
+  display: flex;
+  align-items: stretch;
+  padding: 0;
+  overflow: hidden;
+  background: #f4e5d4;
+}
+
+.hero-content {
+  flex: 1;
   padding: 1.75rem;
+  min-width: 0;
+}
+
+.hero-image {
+  width: min(42%, 460px);
+  object-fit: cover;
+  object-position: right center;
+  display: block;
+  flex-shrink: 0;
+  mask-image: linear-gradient(to right, transparent 0%, black 22%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 22%);
 }
 
 .exercise-header,
@@ -948,6 +968,14 @@ button {
   .exercise-header,
   .exercise-stage {
     border-radius: 18px;
+  }
+
+  .hero-image {
+    display: none;
+  }
+
+  .hero-content {
+    padding: 1.25rem;
   }
 
   .card-footer {

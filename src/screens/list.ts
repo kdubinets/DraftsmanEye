@@ -61,15 +61,20 @@ export function mountListScreen(
 }
 
 function headerBlock(onNavigate: (next: AppState) => void): HTMLElement {
+  const img = h('img', { class: 'hero-image', alt: '' });
+  img.setAttribute('src', '/title-image.webp');
   return h('header', { class: 'hero' }, [
-    h('p', { class: 'eyebrow' }, ['Draftsman Eye']),
-    h('h1', {}, ['Choose a drill and keep the loop short.']),
-    h('p', { class: 'hero-copy' }, [
-      'Practice one skill at a time, review the result immediately, then repeat, return to the list, or let Auto choose the next drill.',
+    h('div', { class: 'hero-content' }, [
+      h('p', { class: 'eyebrow' }, ['Draftsman Eye']),
+      h('h1', {}, ['Choose a drill and keep the loop short.']),
+      h('p', { class: 'hero-copy' }, [
+        'Practice one skill at a time, review the result immediately, then repeat, return to the list, or let Auto choose the next drill.',
+      ]),
+      h('button', { type: 'button', class: 'hero-settings-link', on: { click: () => onNavigate({ screen: 'settings' }) } }, [
+        'Settings',
+      ]),
     ]),
-    h('button', { type: 'button', class: 'hero-settings-link', on: { click: () => onNavigate({ screen: 'settings' }) } }, [
-      'Settings',
-    ]),
+    img,
   ]);
 }
 
