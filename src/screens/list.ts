@@ -84,16 +84,37 @@ function headerBlock(onNavigate: (next: AppState) => void, installButton: HTMLBu
 }
 
 function installActionButton(): { button: HTMLButtonElement; cleanup: () => void } {
+  const helpText = h('span', { class: 'install-help', hidden: true }, [
+    installHelpText(),
+  ]);
   const button = h('button', {
     type: 'button',
     class: 'hero-settings-link',
-    hidden: true,
-    on: { click: () => void promptPwaInstall() },
+    on: {
+      click: () => {
+        void promptPwaInstall().then((shownNativePrompt) => {
+          helpText.hidden = shownNativePrompt;
+        });
+      },
+    },
   }, ['Install app']);
+  button.append(helpText);
   const cleanup = subscribeInstallPrompt((state) => {
-    button.hidden = !state.canInstall;
+    button.hidden = state.isInstalled;
+    helpText.hidden = true;
   });
   return { button, cleanup };
+}
+
+function installHelpText(): string {
+  const userAgent = navigator.userAgent.toLowerCase();
+  if (/iphone|ipad|ipod/.test(userAgent)) {
+    return 'Use Share, then Add to Home Screen.';
+  }
+  if (userAgent.includes('firefox')) {
+    return 'Use the browser menu, then Add to Home screen if available.';
+  }
+  return 'Use the install icon in the address bar or the browser menu.';
 }
 
 function autoCard(

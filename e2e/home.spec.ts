@@ -136,7 +136,11 @@ test("home page exposes install affordance when the browser allows it", async ({
   await page.goto("/");
 
   const installButton = page.getByRole("button", { name: "Install app" });
-  await expect(installButton).toBeHidden();
+  await expect(installButton).toBeVisible();
+  await installButton.click();
+  await expect(
+    page.getByText("Use the install icon in the address bar or the browser menu."),
+  ).toBeVisible();
 
   await page.evaluate(() => {
     const event = new Event("beforeinstallprompt", { cancelable: true });

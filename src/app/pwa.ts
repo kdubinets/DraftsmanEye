@@ -1,6 +1,6 @@
 /**
- * PWA installation helpers: registers the static service worker and exposes the
- * browser install prompt only when the platform says this app is installable.
+ * PWA installation helpers: registers the static service worker and uses the
+ * native browser install prompt when the platform makes one available.
  */
 
 type InstallOutcome = "accepted" | "dismissed";
@@ -59,8 +59,8 @@ export function subscribeInstallPrompt(
   };
 }
 
-export async function promptPwaInstall(): Promise<void> {
-  if (!deferredPrompt) return;
+export async function promptPwaInstall(): Promise<boolean> {
+  if (!deferredPrompt) return false;
 
   const promptEvent = deferredPrompt;
   deferredPrompt = null;
@@ -77,6 +77,7 @@ export async function promptPwaInstall(): Promise<void> {
   } finally {
     notifyInstallPromptListeners();
   }
+  return true;
 }
 
 function getInstallPromptState(): InstallPromptState {
