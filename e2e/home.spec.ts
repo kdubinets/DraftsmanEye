@@ -130,6 +130,47 @@ test("home page lists drills and auto entry point", async ({ page }) => {
   ).toBeEnabled();
 });
 
+test("home page exposes install affordance when the browser allows it", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  const installButton = page.getByRole("button", { name: "Install app" });
+  await expect(installButton).toBeHidden();
+
+  await page.evaluate(() => {
+    const event = new Event("beforeinstallprompt", { cancelable: true });
+    Object.assign(event, {
+      platforms: ["web"],
+      prompt: () => Promise.resolve(),
+      userChoice: Promise.resolve({ outcome: "dismissed", platform: "web" }),
+    });
+    window.dispatchEvent(event);
+  });
+
+  await expect(installButton).toBeVisible();
+});
+
+test("serves web app manifest metadata", async ({ page }) => {
+  await page.goto("/");
+
+  await expect(page.locator('link[rel="manifest"]')).toHaveAttribute(
+    "href",
+    "/manifest.webmanifest",
+  );
+
+  const response = await page.request.get("/manifest.webmanifest");
+  expect(response.ok()).toBe(true);
+  const manifest = (await response.json()) as Record<string, unknown>;
+  expect(manifest).toEqual(
+    expect.objectContaining({
+      name: "Draftsman Eye",
+      display: "standalone",
+      start_url: "/",
+    }),
+  );
+});
+
 test("home page groups drills and filters by family", async ({ page }) => {
   await page.goto("/");
 

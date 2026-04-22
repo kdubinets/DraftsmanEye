@@ -10,6 +10,7 @@ import type { ProgressStore } from '../storage/progress';
 import { pageShell, formatScore, actionButton } from '../render/components';
 import { h } from '../render/h';
 import type { AppState } from '../app/state';
+import { promptPwaInstall, subscribeInstallPrompt } from '../app/pwa';
 
 const FAMILY_ORDER = [
   'Division',
@@ -28,6 +29,7 @@ export function mountListScreen(
   const knownIds = new Set(EXERCISES.map((e) => e.id));
   const progress = filterStaleAggregates(getStoredProgress(), knownIds);
   let activeFamily: string | null = null;
+  const { button: installButton, cleanup: cleanupInstallButton } = installActionButton();
   const familyNav = h('div', { class: 'exercise-filter-list' });
   const groupedList = h('div', { class: 'exercise-group-list' });
 
@@ -52,15 +54,15 @@ export function mountListScreen(
 
   root.append(
     pageShell(
-      headerBlock(onNavigate),
+      headerBlock(onNavigate, installButton),
       autoCard(onNavigate, progress),
       exerciseIndex(familyNav, groupedList),
     ),
   );
-  return () => {};
+  return cleanupInstallButton;
 }
 
-function headerBlock(onNavigate: (next: AppState) => void): HTMLElement {
+function headerBlock(onNavigate: (next: AppState) => void, installButton: HTMLButtonElement): HTMLElement {
   const img = h('img', { class: 'hero-image', alt: '' });
   img.setAttribute('src', '/title-image.webp');
   return h('header', { class: 'hero' }, [
@@ -70,12 +72,28 @@ function headerBlock(onNavigate: (next: AppState) => void): HTMLElement {
       h('p', { class: 'hero-copy' }, [
         'Practice one skill at a time, review the result immediately, then repeat, return to the list, or let Auto choose the next drill.',
       ]),
-      h('button', { type: 'button', class: 'hero-settings-link', on: { click: () => onNavigate({ screen: 'settings' }) } }, [
-        'Settings',
+      h('div', { class: 'hero-link-row' }, [
+        h('button', { type: 'button', class: 'hero-settings-link', on: { click: () => onNavigate({ screen: 'settings' }) } }, [
+          'Settings',
+        ]),
+        installButton,
       ]),
     ]),
     img,
   ]);
+}
+
+function installActionButton(): { button: HTMLButtonElement; cleanup: () => void } {
+  const button = h('button', {
+    type: 'button',
+    class: 'hero-settings-link',
+    hidden: true,
+    on: { click: () => void promptPwaInstall() },
+  }, ['Install app']);
+  const cleanup = subscribeInstallPrompt((state) => {
+    button.hidden = !state.canInstall;
+  });
+  return { button, cleanup };
 }
 
 function autoCard(

@@ -861,8 +861,14 @@ button {
   cursor: pointer;
 }
 
-.hero-settings-link {
+.hero-link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
   margin-top: 1rem;
+}
+
+.hero-settings-link {
   padding: 0;
   border: 0;
   background: none;

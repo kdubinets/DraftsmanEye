@@ -13,6 +13,7 @@ import { getMountableById } from './exercises/registry';
 import { mountScreen } from './app/screens';
 import { mountListScreen } from './screens/list';
 import { mountSettingsScreen } from './screens/settings';
+import { initializePwa } from './app/pwa';
 import type { AppState } from './app/state';
 import type { ExerciseId } from './practice/catalog';
 
@@ -23,6 +24,8 @@ if (!rootEl) {
 const root: HTMLElement = rootEl;
 
 let currentCleanup: () => void = () => {};
+
+initializePwa();
 
 // Parse the current URL into an AppState, falling back to list for unknown paths.
 function stateFromUrl(): AppState {
