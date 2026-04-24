@@ -10,7 +10,6 @@ import type { ProgressStore } from '../storage/progress';
 import { pageShell, formatScore, actionButton } from '../render/components';
 import { h } from '../render/h';
 import type { AppState } from '../app/state';
-import { promptPwaInstall, subscribeInstallPrompt } from '../app/pwa';
 
 const FAMILY_ORDER = [
   'Division',
@@ -29,7 +28,6 @@ export function mountListScreen(
   const knownIds = new Set(EXERCISES.map((e) => e.id));
   const progress = filterStaleAggregates(getStoredProgress(), knownIds);
   let activeFamily: string | null = null;
-  const { button: installButton, cleanup: cleanupInstallButton } = installActionButton();
   const familyNav = h('div', { class: 'exercise-filter-list' });
   const groupedList = h('div', { class: 'exercise-group-list' });
 
@@ -54,15 +52,15 @@ export function mountListScreen(
 
   root.append(
     pageShell(
-      headerBlock(onNavigate, installButton),
+      headerBlock(onNavigate),
       autoCard(onNavigate, progress),
       exerciseIndex(familyNav, groupedList),
     ),
   );
-  return cleanupInstallButton;
+  return () => {};
 }
 
-function headerBlock(onNavigate: (next: AppState) => void, installButton: HTMLButtonElement): HTMLElement {
+function headerBlock(onNavigate: (next: AppState) => void): HTMLElement {
   const img = h('img', { class: 'hero-image', alt: '' });
   img.setAttribute('src', '/title-image.webp');
   return h('header', { class: 'hero' }, [
@@ -76,45 +74,10 @@ function headerBlock(onNavigate: (next: AppState) => void, installButton: HTMLBu
         h('button', { type: 'button', class: 'hero-settings-link', on: { click: () => onNavigate({ screen: 'settings' }) } }, [
           'Settings',
         ]),
-        installButton,
       ]),
     ]),
     img,
   ]);
-}
-
-function installActionButton(): { button: HTMLButtonElement; cleanup: () => void } {
-  const helpText = h('span', { class: 'install-help', hidden: true }, [
-    installHelpText(),
-  ]);
-  const button = h('button', {
-    type: 'button',
-    class: 'hero-settings-link',
-    on: {
-      click: () => {
-        void promptPwaInstall().then((shownNativePrompt) => {
-          helpText.hidden = shownNativePrompt;
-        });
-      },
-    },
-  }, ['Install app']);
-  button.append(helpText);
-  const cleanup = subscribeInstallPrompt((state) => {
-    button.hidden = state.isInstalled;
-    helpText.hidden = true;
-  });
-  return { button, cleanup };
-}
-
-function installHelpText(): string {
-  const userAgent = navigator.userAgent.toLowerCase();
-  if (/iphone|ipad|ipod/.test(userAgent)) {
-    return 'Use Share, then Add to Home Screen.';
-  }
-  if (userAgent.includes('firefox')) {
-    return 'Use the browser menu, then Add to Home screen if available.';
-  }
-  return 'Use the install icon in the address bar or the browser menu.';
 }
 
 function autoCard(

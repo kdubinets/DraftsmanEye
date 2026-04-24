@@ -9,12 +9,15 @@ import { resetStoredProgress } from "../storage/progress";
 import { pageShell, actionButton } from "../render/components";
 import { h } from "../render/h";
 import type { AppState } from "../app/state";
+import { promptPwaInstall, subscribeInstallPrompt } from "../app/pwa";
 
 export function mountSettingsScreen(
   root: HTMLElement,
   onNavigate: (next: AppState) => void,
 ): () => void {
   const settings = getSettings();
+  const { section: installSection, cleanup: cleanupInstallButton } =
+    installSectionBlock();
 
   const loopSection = h("section", { class: "settings-section" }, [
     h("h2", {}, ["Practice loop"]),
@@ -101,10 +104,65 @@ export function mountSettingsScreen(
       resultSection,
       togglesSection,
       dangerSection,
+      installSection,
       backBtn,
     ),
   );
-  return () => {};
+  return cleanupInstallButton;
+}
+
+function installSectionBlock(): { section: HTMLElement; cleanup: () => void } {
+  const helpText = h("span", { class: "install-help", hidden: true }, [
+    installHelpText(),
+  ]);
+  const button = h(
+    "button",
+    {
+      type: "button",
+      class: "hero-settings-link",
+      on: {
+        click: () => {
+          void promptPwaInstall().then((shownNativePrompt) => {
+            helpText.hidden = shownNativePrompt;
+          });
+        },
+      },
+    },
+    ["Install app"],
+  );
+  button.append(helpText);
+
+  const cleanup = subscribeInstallPrompt((state) => {
+    button.hidden = state.isInstalled;
+    helpText.hidden = true;
+  });
+
+  return {
+    section: h("section", { class: "settings-section" }, [
+      h("h2", {}, ["App"]),
+      h("div", { class: "settings-row" }, [
+        h("div", { class: "settings-label-group" }, [
+          h("p", { class: "settings-label" }, ["Installation"]),
+          h("p", { class: "settings-note" }, [
+            "Adds Draftsman Eye to your device when the browser supports it.",
+          ]),
+        ]),
+        button,
+      ]),
+    ]),
+    cleanup,
+  };
+}
+
+function installHelpText(): string {
+  const userAgent = navigator.userAgent.toLowerCase();
+  if (/iphone|ipad|ipod/.test(userAgent)) {
+    return "Use Share, then Add to Home Screen.";
+  }
+  if (userAgent.includes("firefox")) {
+    return "Use the browser menu, then Add to Home screen if available.";
+  }
+  return "Use the install icon in the address bar or the browser menu.";
 }
 
 function delaySelect(

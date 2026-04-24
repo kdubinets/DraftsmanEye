@@ -130,10 +130,10 @@ test("home page lists drills and auto entry point", async ({ page }) => {
   ).toBeEnabled();
 });
 
-test("home page exposes install affordance when the browser allows it", async ({
+test("settings page exposes install affordance when the browser allows it", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("/settings");
 
   const installButton = page.getByRole("button", { name: "Install app" });
   await expect(installButton).toBeVisible();
