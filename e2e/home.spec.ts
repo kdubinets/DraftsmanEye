@@ -8,7 +8,11 @@ test("home page lists drills and auto entry point", async ({ page }) => {
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "Start Auto" })).toBeVisible();
   await expect(
-    page.getByRole("heading", { level: 3, name: "Horizontal Halves" }),
+    page.getByRole("heading", {
+      level: 3,
+      name: "Horizontal Halves",
+      exact: true,
+    }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { level: 3, name: "Straight Line" }),
@@ -55,51 +59,73 @@ test("home page lists drills and auto entry point", async ({ page }) => {
     }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { level: 3, name: "Horizontal Thirds" }),
+    page.getByRole("heading", {
+      level: 3,
+      name: "Horizontal Thirds",
+      exact: true,
+    }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { level: 3, name: "Vertical Halves" }),
+    page.getByRole("heading", {
+      level: 3,
+      name: "Vertical Halves",
+      exact: true,
+    }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { level: 3, name: "Vertical Fifths" }),
+    page.getByRole("heading", {
+      level: 3,
+      name: "Vertical Fifths",
+      exact: true,
+    }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { level: 3, name: "Random Thirds" }),
+    page.getByRole("heading", {
+      level: 3,
+      name: "Random Thirds",
+      exact: true,
+    }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", {
       level: 3,
       name: "Copy Horizontal to Vertical",
+      exact: true,
     }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", {
       level: 3,
       name: "Copy Vertical to Horizontal",
+      exact: true,
     }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", {
       level: 3,
       name: "Double Horizontal on Horizontal",
+      exact: true,
     }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", {
       level: 3,
       name: "Double Vertical on Horizontal",
+      exact: true,
     }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", {
       level: 3,
       name: "Copy Distance on Random Lines",
+      exact: true,
     }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", {
       level: 3,
       name: "Double Distance on Random Lines",
+      exact: true,
     }),
   ).toBeVisible();
   await expect(
@@ -114,11 +140,11 @@ test("home page lists drills and auto entry point", async ({ page }) => {
       name: "Extrapolated Segment Intersection",
     }),
   ).toBeVisible();
-  await expect(page.getByText("New")).toHaveCount(51);
+  await expect(page.getByText("New")).toHaveCount(73);
   await expect(page.getByRole("button", { name: "Coming soon" })).toHaveCount(
     0,
   );
-  await expect(page.getByRole("button", { name: "Practice" })).toHaveCount(51);
+  await expect(page.getByRole("button", { name: "Practice" })).toHaveCount(73);
   await expect(
     page
       .getByRole("article")
@@ -126,6 +152,7 @@ test("home page lists drills and auto entry point", async ({ page }) => {
         has: page.getByRole("heading", {
           level: 3,
           name: "Double Horizontal on Horizontal",
+          exact: true,
         }),
       })
       .getByRole("button", { name: "Practice" }),
@@ -200,7 +227,7 @@ test("home page groups drills and filters by family", async ({ page }) => {
     page.getByRole("heading", { level: 3, name: "Line Through Two Points" }),
   ).toBeHidden();
 
-  await page.getByRole("button", { name: "All 51" }).click();
+  await page.getByRole("button", { name: "All 73" }).click();
   await expect(familyHeadings).toHaveCount(7);
 });
 
@@ -1224,7 +1251,11 @@ test("result display settings can hide headline and score boxes", async ({
   await page
     .getByRole("article")
     .filter({
-      has: page.getByRole("heading", { level: 3, name: "Horizontal Halves" }),
+      has: page.getByRole("heading", {
+        level: 3,
+        name: "Horizontal Halves",
+        exact: true,
+      }),
     })
     .getByRole("button", { name: "Practice" })
     .click();
@@ -1283,6 +1314,109 @@ test("single-mark toolbar is available before and after an attempt", async ({
   await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Again" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Auto Next" })).toHaveCount(0);
+});
+
+test("division unlimited adjustment commits only after revisions", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "draftsman-eye.settings.v1",
+      JSON.stringify({ autoRepeatDelayMs: null }),
+    );
+  });
+  await page.goto("/");
+
+  await page
+    .getByRole("article")
+    .filter({
+      has: page.getByRole("heading", {
+        level: 3,
+        name: "Horizontal Halves - Unlimited Adjustment",
+      }),
+    })
+    .getByRole("button", { name: "Practice" })
+    .click();
+
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Horizontal Halves - Unlimited Adjustment",
+    }),
+  ).toBeVisible();
+
+  const lineBox = await page.locator(".exercise-line").boundingBox();
+  if (!lineBox) throw new Error("Expected exercise line bounding box");
+
+  await page.mouse.click(
+    lineBox.x + lineBox.width * 0.25,
+    lineBox.y + lineBox.height / 2,
+  );
+  await expect(page.getByText(/Score \d+\.\d/)).toHaveCount(0);
+  await expect(page.locator(".candidate-tick")).toHaveCount(1);
+
+  await page.mouse.click(
+    lineBox.x + lineBox.width * 0.55,
+    lineBox.y + lineBox.height / 2,
+  );
+  await expect(page.getByText(/Score \d+\.\d/)).toHaveCount(0);
+  await expect(page.locator(".candidate-tick")).toHaveCount(1);
+
+  await page.getByRole("button", { name: "Commit" }).click();
+
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Again" })).toBeVisible();
+});
+
+test("length transfer unlimited adjustment commits only after revisions", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "draftsman-eye.settings.v1",
+      JSON.stringify({ autoRepeatDelayMs: null }),
+    );
+  });
+  await page.goto("/");
+
+  await page
+    .getByRole("article")
+    .filter({
+      has: page.getByRole("heading", {
+        level: 3,
+        name: "Copy Horizontal to Vertical - Unlimited Adjustment",
+      }),
+    })
+    .getByRole("button", { name: "Practice" })
+    .click();
+
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Copy Horizontal to Vertical - Unlimited Adjustment",
+    }),
+  ).toBeVisible();
+
+  const lineBox = await page.locator(".exercise-line").boundingBox();
+  if (!lineBox) throw new Error("Expected exercise line bounding box");
+
+  await page.mouse.click(
+    lineBox.x + lineBox.width / 2,
+    lineBox.y + lineBox.height * 0.35,
+  );
+  await expect(page.getByText(/Score \d+\.\d/)).toHaveCount(0);
+  await expect(page.locator(".candidate-tick")).toHaveCount(1);
+
+  await page.mouse.click(
+    lineBox.x + lineBox.width / 2,
+    lineBox.y + lineBox.height * 0.7,
+  );
+  await expect(page.getByText(/Score \d+\.\d/)).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Commit" }).click();
+
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Again" })).toBeVisible();
 });
 
 test("freehand toolbar hides inactive actions and Again resets cleanly", async ({
@@ -1373,7 +1507,11 @@ test("horizontal halves drill can be completed and updates score on return", asy
   await page
     .getByRole("article")
     .filter({
-      has: page.getByRole("heading", { level: 3, name: "Horizontal Halves" }),
+      has: page.getByRole("heading", {
+        level: 3,
+        name: "Horizontal Halves",
+        exact: true,
+      }),
     })
     .getByRole("button", { name: "Practice" })
     .click();
@@ -1416,7 +1554,11 @@ test("vertical thirds drill can be completed", async ({ page }) => {
   await page
     .getByRole("article")
     .filter({
-      has: page.getByRole("heading", { level: 3, name: "Vertical Thirds" }),
+      has: page.getByRole("heading", {
+        level: 3,
+        name: "Vertical Thirds",
+        exact: true,
+      }),
     })
     .getByRole("button", { name: "Practice" })
     .click();
@@ -1475,7 +1617,11 @@ test("random thirds drill can be completed on an arbitrary segment", async ({
   await page
     .getByRole("article")
     .filter({
-      has: page.getByRole("heading", { level: 3, name: "Random Thirds" }),
+      has: page.getByRole("heading", {
+        level: 3,
+        name: "Random Thirds",
+        exact: true,
+      }),
     })
     .getByRole("button", { name: "Practice" })
     .click();
@@ -1607,6 +1753,7 @@ test("cross-axis double drill scores a mark on the full guide", async ({
       has: page.getByRole("heading", {
         level: 3,
         name: "Double Horizontal on Vertical",
+        exact: true,
       }),
     })
     .getByRole("button", { name: "Practice" })
@@ -1966,7 +2113,11 @@ async function openHorizontalHalves(page: Page): Promise<void> {
   await page
     .getByRole("article")
     .filter({
-      has: page.getByRole("heading", { level: 3, name: "Horizontal Halves" }),
+      has: page.getByRole("heading", {
+        level: 3,
+        name: "Horizontal Halves",
+        exact: true,
+      }),
     })
     .getByRole("button", { name: "Practice" })
     .click();
@@ -2019,7 +2170,11 @@ test("Again re-runs the same drill without returning to the list", async ({
   await page
     .getByRole("article")
     .filter({
-      has: page.getByRole("heading", { level: 3, name: "Horizontal Halves" }),
+      has: page.getByRole("heading", {
+        level: 3,
+        name: "Horizontal Halves",
+        exact: true,
+      }),
     })
     .getByRole("button", { name: "Practice" })
     .click();
@@ -2056,7 +2211,11 @@ test("Auto Next is not shown after completion", async ({ page }) => {
   await page
     .getByRole("article")
     .filter({
-      has: page.getByRole("heading", { level: 3, name: "Horizontal Halves" }),
+      has: page.getByRole("heading", {
+        level: 3,
+        name: "Horizontal Halves",
+        exact: true,
+      }),
     })
     .getByRole("button", { name: "Practice" })
     .click();
@@ -2082,7 +2241,11 @@ test("progress persists across a full page reload", async ({ page }) => {
   await page
     .getByRole("article")
     .filter({
-      has: page.getByRole("heading", { level: 3, name: "Horizontal Halves" }),
+      has: page.getByRole("heading", {
+        level: 3,
+        name: "Horizontal Halves",
+        exact: true,
+      }),
     })
     .getByRole("button", { name: "Practice" })
     .click();

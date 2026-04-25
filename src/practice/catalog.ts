@@ -48,16 +48,38 @@ export type ExerciseId =
   | "division-random-thirds"
   | "division-random-quarters"
   | "division-random-fifths"
+  | "division-horizontal-halves-unlimited"
+  | "division-horizontal-thirds-unlimited"
+  | "division-horizontal-quarters-unlimited"
+  | "division-horizontal-fifths-unlimited"
+  | "division-vertical-halves-unlimited"
+  | "division-vertical-thirds-unlimited"
+  | "division-vertical-quarters-unlimited"
+  | "division-vertical-fifths-unlimited"
+  | "division-random-halves-unlimited"
+  | "division-random-thirds-unlimited"
+  | "division-random-quarters-unlimited"
+  | "division-random-fifths-unlimited"
   | "copy-horizontal-horizontal"
   | "copy-horizontal-vertical"
   | "copy-vertical-vertical"
   | "copy-vertical-horizontal"
   | "copy-random-random"
+  | "copy-horizontal-horizontal-unlimited"
+  | "copy-horizontal-vertical-unlimited"
+  | "copy-vertical-vertical-unlimited"
+  | "copy-vertical-horizontal-unlimited"
+  | "copy-random-random-unlimited"
   | "double-horizontal-horizontal"
   | "double-horizontal-vertical"
   | "double-vertical-vertical"
   | "double-vertical-horizontal"
   | "double-random-random"
+  | "double-horizontal-horizontal-unlimited"
+  | "double-horizontal-vertical-unlimited"
+  | "double-vertical-vertical-unlimited"
+  | "double-vertical-horizontal-unlimited"
+  | "double-random-random-unlimited"
   | "intersection-random"
   | "intersection-extrapolated";
 
@@ -118,6 +140,7 @@ export type SingleMarkTrialResult = {
 export type SingleMarkExerciseDefinition = ExerciseBase & {
   implemented: true;
   kind: "single-mark";
+  inputMode?: "single-mark" | "unlimited-adjustment";
   createTrial: () => SingleMarkTrial;
 };
 
@@ -255,19 +278,19 @@ export const EXERCISES: ExerciseDefinition[] = [
     "Arbitrary Reference, Rotated Base",
     "Copy an angle from one random base orientation onto another.",
   ),
-  divisionExercise("division-horizontal-halves", "horizontal", 2),
-  divisionExercise("division-horizontal-thirds", "horizontal", 3),
-  divisionExercise("division-horizontal-quarters", "horizontal", 4),
-  divisionExercise("division-horizontal-fifths", "horizontal", 5),
-  divisionExercise("division-vertical-halves", "vertical", 2),
-  divisionExercise("division-vertical-thirds", "vertical", 3),
-  divisionExercise("division-vertical-quarters", "vertical", 4),
-  divisionExercise("division-vertical-fifths", "vertical", 5),
-  divisionExercise("division-random-halves", "free", 2),
-  divisionExercise("division-random-thirds", "free", 3),
-  divisionExercise("division-random-quarters", "free", 4),
-  divisionExercise("division-random-fifths", "free", 5),
-  transferExercise(
+  ...divisionExercises("division-horizontal-halves", "horizontal", 2),
+  ...divisionExercises("division-horizontal-thirds", "horizontal", 3),
+  ...divisionExercises("division-horizontal-quarters", "horizontal", 4),
+  ...divisionExercises("division-horizontal-fifths", "horizontal", 5),
+  ...divisionExercises("division-vertical-halves", "vertical", 2),
+  ...divisionExercises("division-vertical-thirds", "vertical", 3),
+  ...divisionExercises("division-vertical-quarters", "vertical", 4),
+  ...divisionExercises("division-vertical-fifths", "vertical", 5),
+  ...divisionExercises("division-random-halves", "free", 2),
+  ...divisionExercises("division-random-thirds", "free", 3),
+  ...divisionExercises("division-random-quarters", "free", 4),
+  ...divisionExercises("division-random-fifths", "free", 5),
+  ...transferExercises(
     "copy-horizontal-horizontal",
     "Same-Axis Transfer",
     "Copy Horizontal to Horizontal",
@@ -276,7 +299,7 @@ export const EXERCISES: ExerciseDefinition[] = [
     "horizontal",
     "horizontal",
   ),
-  transferExercise(
+  ...transferExercises(
     "copy-horizontal-vertical",
     "Cross-Axis Transfer",
     "Copy Horizontal to Vertical",
@@ -285,7 +308,7 @@ export const EXERCISES: ExerciseDefinition[] = [
     "horizontal",
     "vertical",
   ),
-  transferExercise(
+  ...transferExercises(
     "copy-vertical-vertical",
     "Same-Axis Transfer",
     "Copy Vertical to Vertical",
@@ -294,7 +317,7 @@ export const EXERCISES: ExerciseDefinition[] = [
     "vertical",
     "vertical",
   ),
-  transferExercise(
+  ...transferExercises(
     "copy-vertical-horizontal",
     "Cross-Axis Transfer",
     "Copy Vertical to Horizontal",
@@ -303,7 +326,7 @@ export const EXERCISES: ExerciseDefinition[] = [
     "vertical",
     "horizontal",
   ),
-  transferExercise(
+  ...transferExercises(
     "copy-random-random",
     "Random-Line Transfer",
     "Copy Distance on Random Lines",
@@ -312,7 +335,7 @@ export const EXERCISES: ExerciseDefinition[] = [
     "free",
     "free",
   ),
-  transferExercise(
+  ...transferExercises(
     "double-horizontal-horizontal",
     "Same-Axis Transfer",
     "Double Horizontal on Horizontal",
@@ -321,7 +344,7 @@ export const EXERCISES: ExerciseDefinition[] = [
     "horizontal",
     "horizontal",
   ),
-  transferExercise(
+  ...transferExercises(
     "double-horizontal-vertical",
     "Cross-Axis Transfer",
     "Double Horizontal on Vertical",
@@ -330,7 +353,7 @@ export const EXERCISES: ExerciseDefinition[] = [
     "horizontal",
     "vertical",
   ),
-  transferExercise(
+  ...transferExercises(
     "double-vertical-vertical",
     "Same-Axis Transfer",
     "Double Vertical on Vertical",
@@ -339,7 +362,7 @@ export const EXERCISES: ExerciseDefinition[] = [
     "vertical",
     "vertical",
   ),
-  transferExercise(
+  ...transferExercises(
     "double-vertical-horizontal",
     "Cross-Axis Transfer",
     "Double Vertical on Horizontal",
@@ -348,7 +371,7 @@ export const EXERCISES: ExerciseDefinition[] = [
     "vertical",
     "horizontal",
   ),
-  transferExercise(
+  ...transferExercises(
     "double-random-random",
     "Random-Line Transfer",
     "Double Distance on Random Lines",
@@ -484,6 +507,40 @@ function autoReason(weaknessBonus: number, recencyBonus: number): string {
   return "Not practiced recently";
 }
 
+type DivisionExerciseId = Extract<
+  ExerciseId,
+  | "division-horizontal-halves"
+  | "division-horizontal-thirds"
+  | "division-horizontal-quarters"
+  | "division-horizontal-fifths"
+  | "division-vertical-halves"
+  | "division-vertical-thirds"
+  | "division-vertical-quarters"
+  | "division-vertical-fifths"
+  | "division-random-halves"
+  | "division-random-thirds"
+  | "division-random-quarters"
+  | "division-random-fifths"
+>;
+
+function divisionExercises(
+  id: DivisionExerciseId,
+  axis: LineAxis,
+  denominator: 2 | 3 | 4 | 5,
+): SingleMarkExerciseDefinition[] {
+  const base = divisionExercise(id, axis, denominator);
+  return [
+    base,
+    {
+      ...base,
+      id: `${id}-unlimited` as ExerciseId,
+      label: `${base.label} - Unlimited Adjustment`,
+      description: `${base.description} Place and revise the mark before committing.`,
+      inputMode: "unlimited-adjustment",
+    },
+  ];
+}
+
 function divisionExercise(
   id: Extract<
     ExerciseId,
@@ -519,6 +576,7 @@ function divisionExercise(
     description: `Divide a ${axisDescription} into ${denominator} equal parts.`,
     implemented: true,
     kind: "single-mark",
+    inputMode: "single-mark",
     createTrial: () =>
       createDivisionTrial(
         axis,
@@ -661,6 +719,36 @@ type TransferExerciseId = Extract<
   | "double-random-random"
 >;
 
+function transferExercises(
+  id: TransferExerciseId,
+  family: string,
+  label: string,
+  description: string,
+  mode: "copy" | "double",
+  referenceAxis: LineAxis,
+  guideAxis: LineAxis,
+): SingleMarkExerciseDefinition[] {
+  const base = transferExercise(
+    id,
+    family,
+    label,
+    description,
+    mode,
+    referenceAxis,
+    guideAxis,
+  );
+  return [
+    base,
+    {
+      ...base,
+      id: `${id}-unlimited` as ExerciseId,
+      label: `${label} - Unlimited Adjustment`,
+      description: `${description} Place and revise the mark before committing.`,
+      inputMode: "unlimited-adjustment",
+    },
+  ];
+}
+
 function transferExercise(
   id: TransferExerciseId,
   family: string,
@@ -677,6 +765,7 @@ function transferExercise(
     description,
     implemented: true,
     kind: "single-mark",
+    inputMode: "single-mark",
     createTrial: () =>
       createTransferTrial(mode, referenceAxis, guideAxis, label),
   };

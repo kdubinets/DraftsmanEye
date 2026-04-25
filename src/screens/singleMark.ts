@@ -40,6 +40,7 @@ export function mountSingleMarkScreen(
   let cancelled = false;
   let trial: SingleMarkTrial = exercise.createTrial();
   let result: SingleMarkTrialResult | null = null;
+  let candidateScalar: number | null = null;
   let resetTimer: number | null = null;
   let resetAnimation: number | null = null;
   let resetStartedAt = 0;
@@ -74,23 +75,45 @@ export function mountSingleMarkScreen(
   });
   againBtn.hidden = true;
 
+  const commitBtn = actionButton("Commit", () => {
+    commitCandidate();
+  });
+  const isUnlimitedAdjustment = exercise.inputMode === "unlimited-adjustment";
+  commitBtn.hidden = !isUnlimitedAdjustment;
+  commitBtn.disabled = true;
+
   const fullBtn = fullscreenButton(stage);
 
   const backBtn = actionButton("Back to List", () => {
     onNavigate({ screen: "list" });
   });
 
-  const toolbar = exerciseToolbar(prompt, pauseBtn, againBtn, fullBtn, backBtn);
+  const toolbar = exerciseToolbar(
+    prompt,
+    commitBtn,
+    pauseBtn,
+    againBtn,
+    fullBtn,
+    backBtn,
+  );
 
   const feedback = h("p", { class: "feedback-banner" }, [
-    trial.scorePoint
+    isUnlimitedAdjustment
+      ? "Place a candidate mark, revise as needed, then commit."
+      : trial.scorePoint
       ? "Place one mark in the field."
       : "Place one mark on the line.",
   ]);
   const summary = h("div", { class: "result-summary" });
   summary.hidden = true;
 
-  let svg = renderTrialSvg(trial, () => result, onSelect, onPointSelect);
+  let svg = renderTrialSvg(
+    trial,
+    () => result,
+    () => candidateScalar,
+    onSelect,
+    onPointSelect,
+  );
 
   stage.append(toolbar, svg, feedback, summary);
   screen.append(header, stage);
@@ -103,6 +126,14 @@ export function mountSingleMarkScreen(
   function onSelect(scalar: number): void {
     if (result) {
       resetToFreshTrial();
+      return;
+    }
+    if (isUnlimitedAdjustment) {
+      candidateScalar = scalar;
+      commitBtn.disabled = false;
+      feedback.hidden = false;
+      feedback.textContent = "Candidate placed. Click again to revise, or commit.";
+      rerenderSvg();
       return;
     }
     revealResult(trial.scoreSelection(scalar));
@@ -120,9 +151,20 @@ export function mountSingleMarkScreen(
   }
 
   function rerenderSvg(): void {
-    const next = renderTrialSvg(trial, () => result, onSelect, onPointSelect);
+    const next = renderTrialSvg(
+      trial,
+      () => result,
+      () => candidateScalar,
+      onSelect,
+      onPointSelect,
+    );
     svg.replaceWith(next);
     svg = next;
+  }
+
+  function commitCandidate(): void {
+    if (candidateScalar === null || result) return;
+    revealResult(trial.scoreSelection(candidateScalar));
   }
 
   function revealResult(next: SingleMarkTrialResult): void {
@@ -200,6 +242,8 @@ export function mountSingleMarkScreen(
             ];
     summary.replaceChildren(...resultStats);
 
+    commitBtn.hidden = true;
+    commitBtn.disabled = true;
     againBtn.hidden = false;
     backBtn.hidden = false;
     rerenderSvg();
@@ -214,11 +258,14 @@ export function mountSingleMarkScreen(
     clearAutoResetTimer();
     trial = exercise.createTrial();
     result = null;
+    candidateScalar = null;
     prompt.textContent = trial.prompt;
     feedback.removeAttribute("data-tone");
     summary.removeAttribute("data-tone");
     feedback.hidden = false;
-    feedback.textContent = trial.scorePoint
+    feedback.textContent = isUnlimitedAdjustment
+      ? "Place a candidate mark, revise as needed, then commit."
+      : trial.scorePoint
       ? "Place one mark in the field."
       : "Place one mark on the line.";
     summary.hidden = true;
@@ -226,6 +273,8 @@ export function mountSingleMarkScreen(
     isResultPaused = false;
     pauseBtn.hidden = true;
     againBtn.hidden = true;
+    commitBtn.hidden = !isUnlimitedAdjustment;
+    commitBtn.disabled = true;
     updateAutoRepeatButton();
     rerenderSvg();
   }
@@ -302,6 +351,7 @@ export function mountSingleMarkScreen(
 function renderTrialSvg(
   trial: SingleMarkTrial,
   getResult: () => SingleMarkTrialResult | null,
+  getCandidateScalar: () => number | null,
   onSelect: (scalar: number) => void,
   onPointSelect: (point: { x: number; y: number }) => void,
 ): SVGSVGElement {
@@ -424,6 +474,17 @@ function renderTrialSvg(
   });
 
   const res = getResult();
+  const candidateScalar = getCandidateScalar();
+  if (!res && candidateScalar !== null) {
+    const candidateTick = createTick(
+      trial.line.axis,
+      trial.line,
+      candidateScalar,
+      "user-tick candidate-tick",
+    );
+    svg.append(candidateTick);
+  }
+
   if (res) {
     const accent = `hsl(${feedbackHueForError(res.relativeErrorPercent)} 55% 42%)`;
     if (res.placedPoint && res.targetPoint) {

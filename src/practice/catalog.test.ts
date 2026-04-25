@@ -200,7 +200,7 @@ describe("single-mark scoreSelection", () => {
         "createTrial" in e &&
         (e.id.startsWith("copy-") || e.id.startsWith("double-")),
     );
-    expect(transfer).toHaveLength(10);
+    expect(transfer).toHaveLength(20);
 
     for (const ex of transfer) {
       const trial = ex.createTrial();
@@ -230,11 +230,11 @@ describe("single-mark scoreSelection", () => {
       (e): e is SingleMarkExerciseDefinition =>
         e.implemented && "createTrial" in e && e.id.startsWith("division-"),
     );
-    expect(division).toHaveLength(12);
+    expect(division).toHaveLength(24);
 
     for (const ex of division) {
       const trial = ex.createTrial();
-      if (ex.id.endsWith("-halves")) {
+      if (ex.id.includes("-halves")) {
         expect(trial.anchorScalar).toBeUndefined();
         expect(trial.anchorDirectionSign).toBeUndefined();
       } else {
