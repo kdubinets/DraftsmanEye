@@ -236,11 +236,61 @@ button {
   padding-bottom: 0.55rem;
 }
 
+.exercise-family-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+}
+
 .exercise-family-header h3 {
   margin: 0;
   font-size: 1.35rem;
   font-weight: 600;
   letter-spacing: -0.01em;
+}
+
+.exercise-subfilter-list {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.7rem;
+}
+
+.exercise-subfilter-group {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.exercise-subfilter-label {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.exercise-subfilter {
+  min-height: 1.75rem;
+  padding: 0.28rem 0.52rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(255, 251, 245, 0.64);
+  color: #4e4136;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.exercise-subfilter:hover {
+  border-color: rgba(122, 77, 34, 0.34);
+}
+
+.exercise-subfilter.is-active {
+  background: var(--accent-soft);
+  border-color: rgba(122, 77, 34, 0.28);
+  color: #3f3127;
 }
 
 .exercise-family-count {

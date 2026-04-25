@@ -235,6 +235,100 @@ test("home page groups drills and filters by family", async ({ page }) => {
   await expect(familyHeadings).toHaveCount(7);
 });
 
+test("large family subfilters combine and persist after returning to list", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Division 24" }).click();
+  const division = page.locator(".exercise-family-section").filter({
+    has: page.getByRole("heading", { level: 3, name: "Division" }),
+  });
+  await division.getByRole("button", { name: "1-Shot" }).click();
+  await division.getByRole("button", { name: "Thirds" }).click();
+  await division.getByRole("button", { name: "Random" }).click();
+
+  await expect(division.locator(".exercise-family-count")).toHaveText(
+    "1 of 24 drills",
+  );
+  await expect(division.locator(".exercise-card")).toHaveCount(1);
+  await expect(
+    division.getByRole("heading", { level: 3, name: "Random Thirds 1-Shot" }),
+  ).toBeVisible();
+
+  await division.getByRole("button", { name: "Practice" }).click();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Random Thirds 1-Shot" }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Back to List" }).click();
+
+  const restoredHeadings = page.locator(".exercise-family-header h3");
+  await expect(restoredHeadings).toHaveText(["Division"]);
+  const restoredDivision = page.locator(".exercise-family-section").filter({
+    has: page.getByRole("heading", { level: 3, name: "Division" }),
+  });
+  await expect(restoredDivision.locator(".exercise-family-count")).toHaveText(
+    "1 of 24 drills",
+  );
+  await expect(restoredDivision.locator(".exercise-card")).toHaveCount(1);
+  await expect(
+    restoredDivision.getByRole("button", { name: "1-Shot" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    restoredDivision.getByRole("button", { name: "Thirds" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    restoredDivision.getByRole("button", { name: "Random" }),
+  ).toHaveAttribute("aria-pressed", "true");
+});
+
+test("length transfer and angle copy expose family-specific subfilters", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Length Transfer 20" }).click();
+  const transfer = page.locator(".exercise-family-section").filter({
+    has: page.getByRole("heading", { level: 3, name: "Length Transfer" }),
+  });
+  await transfer.getByRole("button", { name: "Adjust" }).click();
+  await transfer.getByRole("button", { name: "Copy" }).click();
+  await transfer.getByRole("button", { name: "Cross Axis" }).click();
+
+  await expect(transfer.locator(".exercise-family-count")).toHaveText(
+    "2 of 20 drills",
+  );
+  await expect(transfer.locator(".exercise-card")).toHaveCount(2);
+  await expect(
+    transfer.getByRole("heading", {
+      level: 3,
+      name: "Copy Horizontal to Vertical",
+      exact: true,
+    }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Angle Copy 18" }).click();
+  const angleCopy = page.locator(".exercise-family-section").filter({
+    has: page.getByRole("heading", { level: 3, name: "Angle Copy" }),
+  });
+  await angleCopy.getByRole("button", { name: "Free Draw" }).click();
+  await angleCopy.getByRole("button", { name: "Arbitrary" }).click();
+  await angleCopy.getByRole("button", { name: "Rotated" }).click();
+
+  await expect(angleCopy.locator(".exercise-family-count")).toHaveText(
+    "1 of 18 drills",
+  );
+  await expect(angleCopy.locator(".exercise-card")).toHaveCount(1);
+  await expect(
+    angleCopy.getByRole("heading", {
+      level: 3,
+      name: "Arbitrary Reference, Rotated Base Free Draw 1-Shot",
+      exact: true,
+    }),
+  ).toBeVisible();
+});
+
 test("target line drill scores a stroke connecting two marks", async ({
   page,
 }) => {

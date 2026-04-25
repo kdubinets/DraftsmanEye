@@ -24,13 +24,14 @@ import type {
   FreehandPoint,
   FreehandTarget,
 } from "./freehand/types";
-import type { AppState } from "../app/state";
+import type { AppState, ListFilterState } from "../app/state";
 
 export type MountableExercise = ExerciseDefinition & {
   mount(
     root: HTMLElement,
     source: "direct" | "auto",
     onNavigate: (next: AppState) => void,
+    listState?: ListFilterState,
   ): () => void;
 };
 
@@ -185,11 +186,11 @@ function toMountable(exercise: ExerciseDefinition): MountableExercise {
   if (!exercise.implemented) {
     return {
       ...exercise,
-      mount(_root, _source, onNavigate) {
+      mount(_root, _source, onNavigate, listState) {
         console.error(
           `Exercise "${exercise.id}" is not implemented; falling back to list.`,
         );
-        queueMicrotask(() => onNavigate({ screen: "list" }));
+        queueMicrotask(() => onNavigate({ screen: "list", listState }));
         return () => {};
       },
     };
@@ -198,8 +199,14 @@ function toMountable(exercise: ExerciseDefinition): MountableExercise {
   if (exercise.kind === "single-mark") {
     return {
       ...exercise,
-      mount(root, source, onNavigate) {
-        return mountSingleMarkScreen(root, exercise, source, onNavigate);
+      mount(root, source, onNavigate, listState) {
+        return mountSingleMarkScreen(
+          root,
+          exercise,
+          source,
+          onNavigate,
+          listState,
+        );
       },
     };
   }
@@ -207,8 +214,15 @@ function toMountable(exercise: ExerciseDefinition): MountableExercise {
   const config = freehandConfig(exercise);
   return {
     ...exercise,
-    mount(root, source, onNavigate) {
-      return mountFreehandScreen(root, exercise, config, source, onNavigate);
+    mount(root, source, onNavigate, listState) {
+      return mountFreehandScreen(
+        root,
+        exercise,
+        config,
+        source,
+        onNavigate,
+        listState,
+      );
     },
   };
 }

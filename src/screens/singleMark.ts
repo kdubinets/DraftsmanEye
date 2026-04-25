@@ -29,13 +29,14 @@ import {
   feedbackBandClass,
   feedbackLabel,
 } from "../scoring/bands";
-import type { AppState } from "../app/state";
+import type { AppState, ListFilterState } from "../app/state";
 
 export function mountSingleMarkScreen(
   root: HTMLElement,
   exercise: SingleMarkExerciseDefinition,
   source: "direct" | "auto",
   onNavigate: (next: AppState) => void,
+  listState?: ListFilterState,
 ): () => void {
   let cancelled = false;
   let trial: SingleMarkTrial = exercise.createTrial();
@@ -86,7 +87,7 @@ export function mountSingleMarkScreen(
   const fullBtn = fullscreenButton(stage);
 
   const backBtn = actionButton("Back to List", () => {
-    onNavigate({ screen: "list" });
+    onNavigate({ screen: "list", listState });
   });
 
   const toolbar = exerciseToolbar(
