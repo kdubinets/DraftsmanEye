@@ -342,7 +342,7 @@ describe("single-mark scoreSelection", () => {
     }
   });
 
-  it("intersection drills include unlimited adjustment variants", () => {
+  it("intersection drills include default adjustment and 1-shot variants", () => {
     const intersection = EXERCISES.filter(
       (e): e is SingleMarkExerciseDefinition =>
         e.implemented && "createTrial" in e && e.id.startsWith("intersection-"),
@@ -350,9 +350,9 @@ describe("single-mark scoreSelection", () => {
 
     expect(intersection.map((e) => e.id)).toEqual([
       "intersection-random",
-      "intersection-random-unlimited",
+      "intersection-random-1-shot",
       "intersection-extrapolated",
-      "intersection-extrapolated-unlimited",
+      "intersection-extrapolated-1-shot",
     ]);
     expect(
       intersection.filter((e) => e.inputMode === "unlimited-adjustment"),

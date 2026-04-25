@@ -83,6 +83,8 @@ export function mountFreehandScreen(
   const MAX_ATTEMPTS = 36;
   const inputMode =
     (exercise as FreehandExerciseDefinition).inputMode ?? "single-stroke";
+  const isAdjustableLineMode =
+    inputMode === "adjustable-line" || inputMode === "adjustable-line-1-shot";
 
   const isClosedShapeExercise = config.isClosedShape;
 
@@ -111,7 +113,8 @@ export function mountFreehandScreen(
   const commitBtn = actionButton("Commit", () => {
     commitPendingResult();
   });
-  commitBtn.hidden = inputMode === "single-stroke";
+  commitBtn.hidden =
+    inputMode === "single-stroke" || inputMode === "adjustable-line-1-shot";
   commitBtn.disabled = true;
 
   const resetLineBtn = actionButton("Reset", () => {
@@ -242,7 +245,7 @@ export function mountFreehandScreen(
   svg.dataset.testid = "freehand-canvas";
 
   svg.addEventListener("pointerdown", (event) => {
-    if (inputMode === "adjustable-line") return;
+    if (isAdjustableLineMode) return;
     if (drawingPointerId !== null) return;
     if (result) {
       startEarlyNextAttempt(event);
@@ -300,7 +303,7 @@ export function mountFreehandScreen(
   svg.addEventListener("pointercancel", finishStroke);
 
   adjustableHandle.addEventListener("pointerdown", (event) => {
-    if (inputMode !== "adjustable-line" || result) return;
+    if (!isAdjustableLineMode || result) return;
     adjustablePointerId = event.pointerId;
     adjustableHandle.setPointerCapture(event.pointerId);
     event.preventDefault();
@@ -321,11 +324,14 @@ export function mountFreehandScreen(
     if (adjustableHandle.hasPointerCapture(event.pointerId)) {
       adjustableHandle.releasePointerCapture(event.pointerId);
     }
+    if (event.type === "pointerup" && inputMode === "adjustable-line-1-shot") {
+      commitPendingResult();
+    }
   };
   adjustableHandle.addEventListener("pointerup", finishAdjustableDrag);
   adjustableHandle.addEventListener("pointercancel", finishAdjustableDrag);
 
-  if (inputMode === "adjustable-line") {
+  if (isAdjustableLineMode) {
     resetAdjustableLine();
   }
 
@@ -377,11 +383,12 @@ export function mountFreehandScreen(
     renderCandidateResult(next);
     commitBtn.disabled = false;
     feedback.hidden = false;
-    feedback.textContent = "Candidate ready. Draw again to replace it, or commit.";
+    feedback.textContent =
+      "Candidate ready. Draw again to replace it, or commit.";
   }
 
   function commitPendingResult(): void {
-    if (inputMode === "adjustable-line") {
+    if (isAdjustableLineMode) {
       const next = scoreAdjustableLine();
       if (!next) {
         feedback.hidden = false;
@@ -484,9 +491,10 @@ export function mountFreehandScreen(
     feedback.textContent = config.readyText;
     againBtn.hidden = true;
     commitBtn.disabled = true;
-    commitBtn.hidden = inputMode === "single-stroke";
+    commitBtn.hidden =
+      inputMode === "single-stroke" || inputMode === "adjustable-line-1-shot";
     resetLineBtn.hidden = inputMode !== "adjustable-line";
-    if (inputMode === "adjustable-line") {
+    if (isAdjustableLineMode) {
       resetAdjustableLine();
     } else {
       adjustableLayer.style.display = "none";
@@ -577,7 +585,10 @@ export function mountFreehandScreen(
     adjustableLayer.style.display = "";
     commitBtn.disabled = false;
     feedback.hidden = false;
-    feedback.textContent = "Drag the free end, then commit.";
+    feedback.textContent =
+      inputMode === "adjustable-line-1-shot"
+        ? "Drag the free end once."
+        : "Drag the free end, then commit.";
   }
 
   function setAdjustableEndpoint(endpoint: { x: number; y: number }): void {

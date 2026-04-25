@@ -24,18 +24,18 @@ export type ExerciseId =
   | "angle-copy-vertical-rotated"
   | "angle-copy-arbitrary-aligned"
   | "angle-copy-arbitrary-rotated"
-  | "angle-copy-horizontal-aligned-unlimited"
-  | "angle-copy-vertical-aligned-unlimited"
-  | "angle-copy-horizontal-rotated-unlimited"
-  | "angle-copy-vertical-rotated-unlimited"
-  | "angle-copy-arbitrary-aligned-unlimited"
-  | "angle-copy-arbitrary-rotated-unlimited"
-  | "angle-copy-horizontal-aligned-adjustable"
-  | "angle-copy-vertical-aligned-adjustable"
-  | "angle-copy-horizontal-rotated-adjustable"
-  | "angle-copy-vertical-rotated-adjustable"
-  | "angle-copy-arbitrary-aligned-adjustable"
-  | "angle-copy-arbitrary-rotated-adjustable"
+  | "angle-copy-horizontal-aligned-adjustable-1-shot"
+  | "angle-copy-vertical-aligned-adjustable-1-shot"
+  | "angle-copy-horizontal-rotated-adjustable-1-shot"
+  | "angle-copy-vertical-rotated-adjustable-1-shot"
+  | "angle-copy-arbitrary-aligned-adjustable-1-shot"
+  | "angle-copy-arbitrary-rotated-adjustable-1-shot"
+  | "angle-copy-horizontal-aligned-free-draw-1-shot"
+  | "angle-copy-vertical-aligned-free-draw-1-shot"
+  | "angle-copy-horizontal-rotated-free-draw-1-shot"
+  | "angle-copy-vertical-rotated-free-draw-1-shot"
+  | "angle-copy-arbitrary-aligned-free-draw-1-shot"
+  | "angle-copy-arbitrary-rotated-free-draw-1-shot"
   | "division-horizontal-halves"
   | "division-horizontal-thirds"
   | "division-horizontal-quarters"
@@ -48,42 +48,42 @@ export type ExerciseId =
   | "division-random-thirds"
   | "division-random-quarters"
   | "division-random-fifths"
-  | "division-horizontal-halves-unlimited"
-  | "division-horizontal-thirds-unlimited"
-  | "division-horizontal-quarters-unlimited"
-  | "division-horizontal-fifths-unlimited"
-  | "division-vertical-halves-unlimited"
-  | "division-vertical-thirds-unlimited"
-  | "division-vertical-quarters-unlimited"
-  | "division-vertical-fifths-unlimited"
-  | "division-random-halves-unlimited"
-  | "division-random-thirds-unlimited"
-  | "division-random-quarters-unlimited"
-  | "division-random-fifths-unlimited"
+  | "division-horizontal-halves-1-shot"
+  | "division-horizontal-thirds-1-shot"
+  | "division-horizontal-quarters-1-shot"
+  | "division-horizontal-fifths-1-shot"
+  | "division-vertical-halves-1-shot"
+  | "division-vertical-thirds-1-shot"
+  | "division-vertical-quarters-1-shot"
+  | "division-vertical-fifths-1-shot"
+  | "division-random-halves-1-shot"
+  | "division-random-thirds-1-shot"
+  | "division-random-quarters-1-shot"
+  | "division-random-fifths-1-shot"
   | "copy-horizontal-horizontal"
   | "copy-horizontal-vertical"
   | "copy-vertical-vertical"
   | "copy-vertical-horizontal"
   | "copy-random-random"
-  | "copy-horizontal-horizontal-unlimited"
-  | "copy-horizontal-vertical-unlimited"
-  | "copy-vertical-vertical-unlimited"
-  | "copy-vertical-horizontal-unlimited"
-  | "copy-random-random-unlimited"
+  | "copy-horizontal-horizontal-1-shot"
+  | "copy-horizontal-vertical-1-shot"
+  | "copy-vertical-vertical-1-shot"
+  | "copy-vertical-horizontal-1-shot"
+  | "copy-random-random-1-shot"
   | "double-horizontal-horizontal"
   | "double-horizontal-vertical"
   | "double-vertical-vertical"
   | "double-vertical-horizontal"
   | "double-random-random"
-  | "double-horizontal-horizontal-unlimited"
-  | "double-horizontal-vertical-unlimited"
-  | "double-vertical-vertical-unlimited"
-  | "double-vertical-horizontal-unlimited"
-  | "double-random-random-unlimited"
+  | "double-horizontal-horizontal-1-shot"
+  | "double-horizontal-vertical-1-shot"
+  | "double-vertical-vertical-1-shot"
+  | "double-vertical-horizontal-1-shot"
+  | "double-random-random-1-shot"
   | "intersection-random"
   | "intersection-extrapolated"
-  | "intersection-random-unlimited"
-  | "intersection-extrapolated-unlimited";
+  | "intersection-random-1-shot"
+  | "intersection-extrapolated-1-shot";
 
 export type LineAxis = "horizontal" | "vertical" | "free";
 
@@ -164,7 +164,11 @@ export type FreehandExerciseDefinition = ExerciseBase & {
     | "angle-copy-vertical-rotated"
     | "angle-copy-arbitrary-aligned"
     | "angle-copy-arbitrary-rotated";
-  inputMode?: "single-stroke" | "unlimited-strokes" | "adjustable-line";
+  inputMode?:
+    | "single-stroke"
+    | "unlimited-strokes"
+    | "adjustable-line"
+    | "adjustable-line-1-shot";
 };
 
 export type UnimplementedExerciseDefinition = ExerciseBase & {
@@ -403,25 +407,25 @@ function angleCopyExercises(
       description,
       implemented: true,
       kind,
-      inputMode: "single-stroke",
-    },
-    {
-      id: `${kind}-unlimited` as ExerciseId,
-      family: "Angle Copy",
-      label: `${label} - Freehand Unlimited`,
-      description: `${description} Redraw freely before committing the answer.`,
-      implemented: true,
-      kind,
-      inputMode: "unlimited-strokes",
-    },
-    {
-      id: `${kind}-adjustable` as ExerciseId,
-      family: "Angle Copy",
-      label: `${label} - Adjustable Line`,
-      description: `${description} Drag the free end of a straight segment before committing the answer.`,
-      implemented: true,
-      kind,
       inputMode: "adjustable-line",
+    },
+    {
+      id: `${kind}-adjustable-1-shot` as ExerciseId,
+      family: "Angle Copy",
+      label: `${label} 1-Shot`,
+      description: `${description} Drag the free end of a straight segment once to commit the answer.`,
+      implemented: true,
+      kind,
+      inputMode: "adjustable-line-1-shot",
+    },
+    {
+      id: `${kind}-free-draw-1-shot` as ExerciseId,
+      family: "Angle Copy",
+      label: `${label} Free Draw 1-Shot`,
+      description: `${description} Commit the first stroke immediately.`,
+      implemented: true,
+      kind,
+      inputMode: "single-stroke",
     },
   ];
 }
@@ -531,13 +535,17 @@ function divisionExercises(
 ): SingleMarkExerciseDefinition[] {
   const base = divisionExercise(id, axis, denominator);
   return [
-    base,
     {
       ...base,
-      id: `${id}-unlimited` as ExerciseId,
-      label: `${base.label} - Unlimited Adjustment`,
       description: `${base.description} Place and revise the mark before committing.`,
       inputMode: "unlimited-adjustment",
+    },
+    {
+      ...base,
+      id: `${id}-1-shot` as ExerciseId,
+      label: `${base.label} 1-Shot`,
+      description: `${base.description} Commit the first mark immediately.`,
+      inputMode: "single-mark",
     },
   ];
 }
@@ -739,13 +747,17 @@ function transferExercises(
     guideAxis,
   );
   return [
-    base,
     {
       ...base,
-      id: `${id}-unlimited` as ExerciseId,
-      label: `${label} - Unlimited Adjustment`,
       description: `${description} Place and revise the mark before committing.`,
       inputMode: "unlimited-adjustment",
+    },
+    {
+      ...base,
+      id: `${id}-1-shot` as ExerciseId,
+      label: `${label} 1-Shot`,
+      description: `${description} Commit the first mark immediately.`,
+      inputMode: "single-mark",
     },
   ];
 }
@@ -1113,7 +1125,7 @@ function intersectionExercises(): SingleMarkExerciseDefinition[] {
         "Extend the short segment mentally and mark where it crosses the long segment.",
       implemented: true,
       kind: "single-mark",
-      inputMode: "single-mark",
+      inputMode: "unlimited-adjustment",
       createTrial: createIntersectionTrial,
     },
     {
@@ -1124,7 +1136,7 @@ function intersectionExercises(): SingleMarkExerciseDefinition[] {
         "Extend two separated segments mentally and mark where their lines meet.",
       implemented: true,
       kind: "single-mark",
-      inputMode: "single-mark",
+      inputMode: "unlimited-adjustment",
       createTrial: createExtrapolatedIntersectionTrial,
     },
   ];
@@ -1133,10 +1145,10 @@ function intersectionExercises(): SingleMarkExerciseDefinition[] {
     exercise,
     {
       ...exercise,
-      id: `${exercise.id}-unlimited` as ExerciseId,
-      label: `${exercise.label} - Unlimited Adjustment`,
-      description: `${exercise.description} Place and revise the mark before committing.`,
-      inputMode: "unlimited-adjustment",
+      id: `${exercise.id}-1-shot` as ExerciseId,
+      label: `${exercise.label} 1-Shot`,
+      description: `${exercise.description} Commit the first mark immediately.`,
+      inputMode: "single-mark",
     },
   ]);
 }

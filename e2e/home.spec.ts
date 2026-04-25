@@ -285,7 +285,7 @@ test("target line drill scores a stroke connecting two marks", async ({
   await expect(page.locator(".freehand-history-item")).toHaveCount(1);
 });
 
-test("angle copy drill scores a drawn ray from the target vertex", async ({
+test("angle copy free draw 1-shot scores a drawn ray from the target vertex", async ({
   page,
 }) => {
   await page.goto("/");
@@ -295,7 +295,7 @@ test("angle copy drill scores a drawn ray from the target vertex", async ({
     .filter({
       has: page.getByRole("heading", {
         level: 3,
-        name: "Horizontal Reference, Rotated Base",
+        name: "Horizontal Reference, Rotated Base Free Draw 1-Shot",
         exact: true,
       }),
     })
@@ -305,7 +305,7 @@ test("angle copy drill scores a drawn ray from the target vertex", async ({
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: "Horizontal Reference, Rotated Base",
+      name: "Horizontal Reference, Rotated Base Free Draw 1-Shot",
       exact: true,
     }),
   ).toBeVisible();
@@ -341,7 +341,7 @@ test("angle copy drill scores a drawn ray from the target vertex", async ({
   await expect(page.locator(".freehand-history-item")).toHaveCount(1);
 });
 
-test("angle copy drill accepts a ray drawn toward the target vertex", async ({
+test("angle copy free draw 1-shot accepts a ray drawn toward the target vertex", async ({
   page,
 }) => {
   await page.goto("/");
@@ -351,7 +351,7 @@ test("angle copy drill accepts a ray drawn toward the target vertex", async ({
     .filter({
       has: page.getByRole("heading", {
         level: 3,
-        name: "Horizontal Reference, Rotated Base",
+        name: "Horizontal Reference, Rotated Base Free Draw 1-Shot",
         exact: true,
       }),
     })
@@ -382,7 +382,9 @@ test("angle copy drill accepts a ray drawn toward the target vertex", async ({
   await expect(page.getByText("Angle miss", { exact: true })).toBeVisible();
 });
 
-test("angle copy unlimited mode redraws before commit", async ({ page }) => {
+test("angle copy default adjustable line commits after revisions", async ({
+  page,
+}) => {
   await page.goto("/");
 
   await page
@@ -390,7 +392,8 @@ test("angle copy unlimited mode redraws before commit", async ({ page }) => {
     .filter({
       has: page.getByRole("heading", {
         level: 3,
-        name: "Horizontal Reference, Rotated Base - Freehand Unlimited",
+        name: "Horizontal Reference, Rotated Base",
+        exact: true,
       }),
     })
     .getByRole("button", { name: "Practice" })
@@ -399,36 +402,32 @@ test("angle copy unlimited mode redraws before commit", async ({ page }) => {
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: "Horizontal Reference, Rotated Base - Freehand Unlimited",
+      name: "Horizontal Reference, Rotated Base",
+      exact: true,
     }),
   ).toBeVisible();
 
   const canvas = page.getByTestId("freehand-canvas");
-  const vertex = await locatorCenter(
-    canvas.locator(".freehand-angle-target-vertex"),
-  );
+  const handle = canvas.locator(".freehand-adjustable-handle");
   const baseEnd = await svgLineEnd(
     canvas.locator(".freehand-angle-target-base"),
   );
   const [baseEndClient] = await svgPointsToClient(page, [baseEnd]);
+  const initial = await locatorCenter(handle);
 
-  await drawPolyline(
-    page,
-    interpolatedPoints(
-      vertex,
-      { x: baseEndClient.x, y: baseEndClient.y - 80 },
-      8,
-    ),
-  );
-
+  await page.mouse.move(initial.x, initial.y);
+  await page.mouse.down();
+  await page.mouse.move(baseEndClient.x, baseEndClient.y - 80);
+  await page.mouse.up();
   await expect(page.getByText(/Score \d+\.\d/)).toHaveCount(0);
-  await expect(
-    page.getByText("Candidate ready. Draw again to replace it, or commit."),
-  ).toBeVisible();
-  await expect(canvas.locator(".freehand-angle-user-fit")).toBeVisible();
+  await expect(handle).toBeVisible();
   await expect(page.locator(".freehand-history-item")).toHaveCount(0);
 
-  await drawPolyline(page, interpolatedPoints(vertex, baseEndClient, 8));
+  const revised = await locatorCenter(handle);
+  await page.mouse.move(revised.x, revised.y);
+  await page.mouse.down();
+  await page.mouse.move(baseEndClient.x, baseEndClient.y);
+  await page.mouse.up();
   await expect(page.getByText(/Score \d+\.\d/)).toHaveCount(0);
 
   await page.getByRole("button", { name: "Commit" }).click();
@@ -440,7 +439,7 @@ test("angle copy unlimited mode redraws before commit", async ({ page }) => {
   await expect(page.locator(".freehand-history-item")).toHaveCount(1);
 });
 
-test("angle copy adjustable line scores after dragging one endpoint", async ({
+test("angle copy adjustable 1-shot scores after dragging one endpoint", async ({
   page,
 }) => {
   await page.goto("/");
@@ -450,7 +449,8 @@ test("angle copy adjustable line scores after dragging one endpoint", async ({
     .filter({
       has: page.getByRole("heading", {
         level: 3,
-        name: "Horizontal Reference, Rotated Base - Adjustable Line",
+        name: "Horizontal Reference, Rotated Base 1-Shot",
+        exact: true,
       }),
     })
     .getByRole("button", { name: "Practice" })
@@ -459,7 +459,8 @@ test("angle copy adjustable line scores after dragging one endpoint", async ({
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: "Horizontal Reference, Rotated Base - Adjustable Line",
+      name: "Horizontal Reference, Rotated Base 1-Shot",
+      exact: true,
     }),
   ).toBeVisible();
 
@@ -480,8 +481,6 @@ test("angle copy adjustable line scores after dragging one endpoint", async ({
   await page.mouse.down();
   await page.mouse.move(baseEndClient.x, baseEndClient.y);
   await page.mouse.up();
-
-  await page.getByRole("button", { name: "Commit" }).click();
 
   await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await expect(
@@ -1257,7 +1256,7 @@ test("result display settings can hide headline and score boxes", async ({
     .filter({
       has: page.getByRole("heading", {
         level: 3,
-        name: "Horizontal Halves",
+        name: "Horizontal Halves 1-Shot",
         exact: true,
       }),
     })
@@ -1320,7 +1319,7 @@ test("single-mark toolbar is available before and after an attempt", async ({
   await expect(page.getByRole("button", { name: "Auto Next" })).toHaveCount(0);
 });
 
-test("division unlimited adjustment commits only after revisions", async ({
+test("division default adjustment commits only after revisions", async ({
   page,
 }) => {
   await page.addInitScript(() => {
@@ -1336,7 +1335,8 @@ test("division unlimited adjustment commits only after revisions", async ({
     .filter({
       has: page.getByRole("heading", {
         level: 3,
-        name: "Horizontal Halves - Unlimited Adjustment",
+        name: "Horizontal Halves",
+        exact: true,
       }),
     })
     .getByRole("button", { name: "Practice" })
@@ -1345,7 +1345,8 @@ test("division unlimited adjustment commits only after revisions", async ({
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: "Horizontal Halves - Unlimited Adjustment",
+      name: "Horizontal Halves",
+      exact: true,
     }),
   ).toBeVisible();
 
@@ -1372,7 +1373,7 @@ test("division unlimited adjustment commits only after revisions", async ({
   await expect(page.getByRole("button", { name: "Again" })).toBeVisible();
 });
 
-test("length transfer unlimited adjustment commits only after revisions", async ({
+test("length transfer default adjustment commits only after revisions", async ({
   page,
 }) => {
   await page.addInitScript(() => {
@@ -1388,7 +1389,8 @@ test("length transfer unlimited adjustment commits only after revisions", async 
     .filter({
       has: page.getByRole("heading", {
         level: 3,
-        name: "Copy Horizontal to Vertical - Unlimited Adjustment",
+        name: "Copy Horizontal to Vertical",
+        exact: true,
       }),
     })
     .getByRole("button", { name: "Practice" })
@@ -1397,7 +1399,8 @@ test("length transfer unlimited adjustment commits only after revisions", async 
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: "Copy Horizontal to Vertical - Unlimited Adjustment",
+      name: "Copy Horizontal to Vertical",
+      exact: true,
     }),
   ).toBeVisible();
 
@@ -1503,7 +1506,7 @@ test("quick repeated single-mark clicks do not duplicate score updates", async (
   expect(attempts).toBe(1);
 });
 
-test("horizontal halves drill can be completed and updates score on return", async ({
+test("horizontal halves 1-shot drill can be completed and updates score on return", async ({
   page,
 }) => {
   await page.goto("/");
@@ -1513,7 +1516,7 @@ test("horizontal halves drill can be completed and updates score on return", asy
     .filter({
       has: page.getByRole("heading", {
         level: 3,
-        name: "Horizontal Halves",
+        name: "Horizontal Halves 1-Shot",
         exact: true,
       }),
     })
@@ -1521,7 +1524,7 @@ test("horizontal halves drill can be completed and updates score on return", asy
     .click();
 
   await expect(
-    page.getByRole("heading", { level: 1, name: "Horizontal Halves" }),
+    page.getByRole("heading", { level: 1, name: "Horizontal Halves 1-Shot" }),
   ).toBeVisible();
   await expect(page.getByText(/divided at one half/i)).toBeVisible();
   await expect(page.locator(".anchor-direction-cue")).toHaveCount(0);
@@ -1560,7 +1563,7 @@ test("vertical thirds drill can be completed", async ({ page }) => {
     .filter({
       has: page.getByRole("heading", {
         level: 3,
-        name: "Vertical Thirds",
+        name: "Vertical Thirds 1-Shot",
         exact: true,
       }),
     })
@@ -1568,7 +1571,7 @@ test("vertical thirds drill can be completed", async ({ page }) => {
     .click();
 
   await expect(
-    page.getByRole("heading", { level: 1, name: "Vertical Thirds" }),
+    page.getByRole("heading", { level: 1, name: "Vertical Thirds 1-Shot" }),
   ).toBeVisible();
   await expect(page.getByText(/marked at one third/i)).toBeVisible();
 
@@ -1623,7 +1626,7 @@ test("random thirds drill can be completed on an arbitrary segment", async ({
     .filter({
       has: page.getByRole("heading", {
         level: 3,
-        name: "Random Thirds",
+        name: "Random Thirds 1-Shot",
         exact: true,
       }),
     })
@@ -1631,7 +1634,7 @@ test("random thirds drill can be completed on an arbitrary segment", async ({
     .click();
 
   await expect(
-    page.getByRole("heading", { level: 1, name: "Random Thirds" }),
+    page.getByRole("heading", { level: 1, name: "Random Thirds 1-Shot" }),
   ).toBeVisible();
   await expect(page.getByText(/marked at one third/i)).toBeVisible();
 
@@ -1667,7 +1670,7 @@ test("intersection drill scores the marked crossing by angle", async ({
     .filter({
       has: page.getByRole("heading", {
         level: 3,
-        name: "Projected Line Intersection",
+        name: "Projected Line Intersection 1-Shot",
         exact: true,
       }),
     })
@@ -1677,7 +1680,7 @@ test("intersection drill scores the marked crossing by angle", async ({
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: "Projected Line Intersection",
+      name: "Projected Line Intersection 1-Shot",
       exact: true,
     }),
   ).toBeVisible();
@@ -1718,7 +1721,7 @@ test("extrapolated intersection drill scores a free point mark", async ({
     .filter({
       has: page.getByRole("heading", {
         level: 3,
-        name: "Extrapolated Segment Intersection",
+        name: "Extrapolated Segment Intersection 1-Shot",
         exact: true,
       }),
     })
@@ -1728,7 +1731,7 @@ test("extrapolated intersection drill scores a free point mark", async ({
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: "Extrapolated Segment Intersection",
+      name: "Extrapolated Segment Intersection 1-Shot",
       exact: true,
     }),
   ).toBeVisible();
@@ -1750,7 +1753,7 @@ test("extrapolated intersection drill scores a free point mark", async ({
   await expect(page.getByRole("button", { name: "Auto Next" })).toHaveCount(0);
 });
 
-test("projected intersection unlimited adjustment commits only after revisions", async ({
+test("projected intersection default adjustment commits only after revisions", async ({
   page,
 }) => {
   await page.addInitScript(() => {
@@ -1766,7 +1769,8 @@ test("projected intersection unlimited adjustment commits only after revisions",
     .filter({
       has: page.getByRole("heading", {
         level: 3,
-        name: "Projected Line Intersection - Unlimited Adjustment",
+        name: "Projected Line Intersection",
+        exact: true,
       }),
     })
     .getByRole("button", { name: "Practice" })
@@ -1775,7 +1779,8 @@ test("projected intersection unlimited adjustment commits only after revisions",
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: "Projected Line Intersection - Unlimited Adjustment",
+      name: "Projected Line Intersection",
+      exact: true,
     }),
   ).toBeVisible();
 
@@ -1801,7 +1806,7 @@ test("projected intersection unlimited adjustment commits only after revisions",
   await expect(page.getByRole("button", { name: "Again" })).toBeVisible();
 });
 
-test("extrapolated intersection unlimited adjustment commits only after revisions", async ({
+test("extrapolated intersection default adjustment commits only after revisions", async ({
   page,
 }) => {
   await page.addInitScript(() => {
@@ -1817,7 +1822,8 @@ test("extrapolated intersection unlimited adjustment commits only after revision
     .filter({
       has: page.getByRole("heading", {
         level: 3,
-        name: "Extrapolated Segment Intersection - Unlimited Adjustment",
+        name: "Extrapolated Segment Intersection",
+        exact: true,
       }),
     })
     .getByRole("button", { name: "Practice" })
@@ -1826,7 +1832,8 @@ test("extrapolated intersection unlimited adjustment commits only after revision
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: "Extrapolated Segment Intersection - Unlimited Adjustment",
+      name: "Extrapolated Segment Intersection",
+      exact: true,
     }),
   ).toBeVisible();
 
@@ -1864,7 +1871,7 @@ test("cross-axis double drill scores a mark on the full guide", async ({
     .filter({
       has: page.getByRole("heading", {
         level: 3,
-        name: "Double Horizontal on Vertical",
+        name: "Double Horizontal on Vertical 1-Shot",
         exact: true,
       }),
     })
@@ -1874,7 +1881,7 @@ test("cross-axis double drill scores a mark on the full guide", async ({
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: "Double Horizontal on Vertical",
+      name: "Double Horizontal on Vertical 1-Shot",
     }),
   ).toBeVisible();
   const referenceBox = await page.locator(".reference-line").boundingBox();
@@ -2204,7 +2211,7 @@ async function openAngleCopy(page: Page): Promise<void> {
     .filter({
       has: page.getByRole("heading", {
         level: 3,
-        name: "Horizontal Reference, Rotated Base",
+        name: "Horizontal Reference, Rotated Base Free Draw 1-Shot",
         exact: true,
       }),
     })
@@ -2214,7 +2221,7 @@ async function openAngleCopy(page: Page): Promise<void> {
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: "Horizontal Reference, Rotated Base",
+      name: "Horizontal Reference, Rotated Base Free Draw 1-Shot",
       exact: true,
     }),
   ).toBeVisible();
@@ -2238,7 +2245,7 @@ async function openHorizontalHalves(page: Page): Promise<void> {
     .filter({
       has: page.getByRole("heading", {
         level: 3,
-        name: "Horizontal Halves",
+        name: "Horizontal Halves 1-Shot",
         exact: true,
       }),
     })
@@ -2246,7 +2253,7 @@ async function openHorizontalHalves(page: Page): Promise<void> {
     .click();
 
   await expect(
-    page.getByRole("heading", { level: 1, name: "Horizontal Halves" }),
+    page.getByRole("heading", { level: 1, name: "Horizontal Halves 1-Shot" }),
   ).toBeVisible();
 }
 
@@ -2295,7 +2302,7 @@ test("Again re-runs the same drill without returning to the list", async ({
     .filter({
       has: page.getByRole("heading", {
         level: 3,
-        name: "Horizontal Halves",
+        name: "Horizontal Halves 1-Shot",
         exact: true,
       }),
     })
@@ -2303,7 +2310,7 @@ test("Again re-runs the same drill without returning to the list", async ({
     .click();
 
   await expect(
-    page.getByRole("heading", { level: 1, name: "Horizontal Halves" }),
+    page.getByRole("heading", { level: 1, name: "Horizontal Halves 1-Shot" }),
   ).toBeVisible();
 
   const line = page.locator(".exercise-line");
@@ -2319,7 +2326,7 @@ test("Again re-runs the same drill without returning to the list", async ({
 
   // Should be back on the same exercise — not the list
   await expect(
-    page.getByRole("heading", { level: 1, name: "Horizontal Halves" }),
+    page.getByRole("heading", { level: 1, name: "Horizontal Halves 1-Shot" }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { level: 1, name: /choose a drill/i }),
@@ -2336,7 +2343,7 @@ test("Auto Next is not shown after completion", async ({ page }) => {
     .filter({
       has: page.getByRole("heading", {
         level: 3,
-        name: "Horizontal Halves",
+        name: "Horizontal Halves 1-Shot",
         exact: true,
       }),
     })
@@ -2366,7 +2373,7 @@ test("progress persists across a full page reload", async ({ page }) => {
     .filter({
       has: page.getByRole("heading", {
         level: 3,
-        name: "Horizontal Halves",
+        name: "Horizontal Halves 1-Shot",
         exact: true,
       }),
     })

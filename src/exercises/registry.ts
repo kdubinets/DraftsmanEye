@@ -47,11 +47,17 @@ function freehandConfig(
       promptText: "Draw the missing ray; commit when it looks right.",
     };
   }
-  if (exercise.inputMode === "adjustable-line") {
+  if (
+    exercise.inputMode === "adjustable-line" ||
+    exercise.inputMode === "adjustable-line-1-shot"
+  ) {
     return {
       ...config,
       readyText: "Drag the free end of the vertical segment.",
-      promptText: "Drag the free end of the segment; commit when it looks right.",
+      promptText:
+        exercise.inputMode === "adjustable-line-1-shot"
+          ? "Drag the free end of the segment once."
+          : "Drag the free end of the segment; commit when it looks right.",
       canvasLabel: "Angle copy adjustable line field",
     };
   }
