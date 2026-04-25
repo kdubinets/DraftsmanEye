@@ -397,6 +397,38 @@ button {
   stroke: rgba(122, 77, 34, 0.32);
 }
 
+.freehand-adjustable-layer {
+  cursor: default;
+}
+
+.freehand-adjustable-line {
+  stroke: #34261b;
+  stroke-width: 4;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.freehand-adjustable-anchor {
+  fill: rgba(122, 77, 34, 0.7);
+  stroke: rgba(255, 248, 238, 0.92);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.freehand-adjustable-handle {
+  fill: rgba(47, 85, 125, 0.84);
+  stroke: rgba(255, 248, 238, 0.96);
+  stroke-width: 2.5;
+  cursor: grab;
+  vector-effect: non-scaling-stroke;
+}
+
+.freehand-adjustable-handle:active {
+  cursor: grabbing;
+}
+
 .freehand-fit-line {
   stroke: #18b75a;
   stroke-width: 2;

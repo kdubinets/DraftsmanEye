@@ -24,6 +24,18 @@ export type ExerciseId =
   | "angle-copy-vertical-rotated"
   | "angle-copy-arbitrary-aligned"
   | "angle-copy-arbitrary-rotated"
+  | "angle-copy-horizontal-aligned-unlimited"
+  | "angle-copy-vertical-aligned-unlimited"
+  | "angle-copy-horizontal-rotated-unlimited"
+  | "angle-copy-vertical-rotated-unlimited"
+  | "angle-copy-arbitrary-aligned-unlimited"
+  | "angle-copy-arbitrary-rotated-unlimited"
+  | "angle-copy-horizontal-aligned-adjustable"
+  | "angle-copy-vertical-aligned-adjustable"
+  | "angle-copy-horizontal-rotated-adjustable"
+  | "angle-copy-vertical-rotated-adjustable"
+  | "angle-copy-arbitrary-aligned-adjustable"
+  | "angle-copy-arbitrary-rotated-adjustable"
   | "division-horizontal-halves"
   | "division-horizontal-thirds"
   | "division-horizontal-quarters"
@@ -127,6 +139,7 @@ export type FreehandExerciseDefinition = ExerciseBase & {
     | "angle-copy-vertical-rotated"
     | "angle-copy-arbitrary-aligned"
     | "angle-copy-arbitrary-rotated";
+  inputMode?: "single-stroke" | "unlimited-strokes" | "adjustable-line";
 };
 
 export type UnimplementedExerciseDefinition = ExerciseBase & {
@@ -212,59 +225,36 @@ export const EXERCISES: ExerciseDefinition[] = [
     implemented: true,
     kind: "trace-ellipse",
   },
-  {
-    id: "angle-copy-horizontal-aligned",
-    family: "Angle Copy",
-    label: "Horizontal Reference, Aligned Base",
-    description:
-      "Copy an angle from a horizontal reference onto a matching base ray.",
-    implemented: true,
-    kind: "angle-copy-horizontal-aligned",
-  },
-  {
-    id: "angle-copy-vertical-aligned",
-    family: "Angle Copy",
-    label: "Vertical Reference, Aligned Base",
-    description:
-      "Copy an angle from a vertical reference onto a matching base ray.",
-    implemented: true,
-    kind: "angle-copy-vertical-aligned",
-  },
-  {
-    id: "angle-copy-horizontal-rotated",
-    family: "Angle Copy",
-    label: "Horizontal Reference, Rotated Base",
-    description:
-      "Copy an angle from a horizontal reference onto a rotated base ray.",
-    implemented: true,
-    kind: "angle-copy-horizontal-rotated",
-  },
-  {
-    id: "angle-copy-vertical-rotated",
-    family: "Angle Copy",
-    label: "Vertical Reference, Rotated Base",
-    description:
-      "Copy an angle from a vertical reference onto a rotated base ray.",
-    implemented: true,
-    kind: "angle-copy-vertical-rotated",
-  },
-  {
-    id: "angle-copy-arbitrary-aligned",
-    family: "Angle Copy",
-    label: "Arbitrary Reference, Aligned Base",
-    description:
-      "Copy an angle from a random reference orientation onto a matching base ray.",
-    implemented: true,
-    kind: "angle-copy-arbitrary-aligned",
-  },
-  {
-    id: "angle-copy-arbitrary-rotated",
-    family: "Angle Copy",
-    label: "Arbitrary Reference, Rotated Base",
-    description: "Copy an angle from one random base orientation onto another.",
-    implemented: true,
-    kind: "angle-copy-arbitrary-rotated",
-  },
+  ...angleCopyExercises(
+    "angle-copy-horizontal-aligned",
+    "Horizontal Reference, Aligned Base",
+    "Copy an angle from a horizontal reference onto a matching base ray.",
+  ),
+  ...angleCopyExercises(
+    "angle-copy-vertical-aligned",
+    "Vertical Reference, Aligned Base",
+    "Copy an angle from a vertical reference onto a matching base ray.",
+  ),
+  ...angleCopyExercises(
+    "angle-copy-horizontal-rotated",
+    "Horizontal Reference, Rotated Base",
+    "Copy an angle from a horizontal reference onto a rotated base ray.",
+  ),
+  ...angleCopyExercises(
+    "angle-copy-vertical-rotated",
+    "Vertical Reference, Rotated Base",
+    "Copy an angle from a vertical reference onto a rotated base ray.",
+  ),
+  ...angleCopyExercises(
+    "angle-copy-arbitrary-aligned",
+    "Arbitrary Reference, Aligned Base",
+    "Copy an angle from a random reference orientation onto a matching base ray.",
+  ),
+  ...angleCopyExercises(
+    "angle-copy-arbitrary-rotated",
+    "Arbitrary Reference, Rotated Base",
+    "Copy an angle from one random base orientation onto another.",
+  ),
   divisionExercise("division-horizontal-halves", "horizontal", 2),
   divisionExercise("division-horizontal-thirds", "horizontal", 3),
   divisionExercise("division-horizontal-quarters", "horizontal", 4),
@@ -370,6 +360,47 @@ export const EXERCISES: ExerciseDefinition[] = [
   intersectionExercise(),
   extrapolatedIntersectionExercise(),
 ];
+
+type AngleCopyKind = Extract<
+  FreehandExerciseDefinition["kind"],
+  `angle-copy-${string}`
+>;
+
+function angleCopyExercises(
+  kind: AngleCopyKind,
+  label: string,
+  description: string,
+): FreehandExerciseDefinition[] {
+  return [
+    {
+      id: kind,
+      family: "Angle Copy",
+      label,
+      description,
+      implemented: true,
+      kind,
+      inputMode: "single-stroke",
+    },
+    {
+      id: `${kind}-unlimited` as ExerciseId,
+      family: "Angle Copy",
+      label: `${label} - Freehand Unlimited`,
+      description: `${description} Redraw freely before committing the answer.`,
+      implemented: true,
+      kind,
+      inputMode: "unlimited-strokes",
+    },
+    {
+      id: `${kind}-adjustable` as ExerciseId,
+      family: "Angle Copy",
+      label: `${label} - Adjustable Line`,
+      description: `${description} Drag the free end of a straight segment before committing the answer.`,
+      implemented: true,
+      kind,
+      inputMode: "adjustable-line",
+    },
+  ];
+}
 
 export const AUTO_EXERCISE_ID: ExerciseId = "division-horizontal-halves";
 

@@ -44,12 +44,14 @@ test("home page lists drills and auto entry point", async ({ page }) => {
     page.getByRole("heading", {
       level: 3,
       name: "Horizontal Reference, Aligned Base",
+      exact: true,
     }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", {
       level: 3,
       name: "Arbitrary Reference, Rotated Base",
+      exact: true,
     }),
   ).toBeVisible();
   await expect(
@@ -112,11 +114,11 @@ test("home page lists drills and auto entry point", async ({ page }) => {
       name: "Extrapolated Segment Intersection",
     }),
   ).toBeVisible();
-  await expect(page.getByText("New")).toHaveCount(39);
+  await expect(page.getByText("New")).toHaveCount(51);
   await expect(page.getByRole("button", { name: "Coming soon" })).toHaveCount(
     0,
   );
-  await expect(page.getByRole("button", { name: "Practice" })).toHaveCount(39);
+  await expect(page.getByRole("button", { name: "Practice" })).toHaveCount(51);
   await expect(
     page
       .getByRole("article")
@@ -198,7 +200,7 @@ test("home page groups drills and filters by family", async ({ page }) => {
     page.getByRole("heading", { level: 3, name: "Line Through Two Points" }),
   ).toBeHidden();
 
-  await page.getByRole("button", { name: "All 39" }).click();
+  await page.getByRole("button", { name: "All 51" }).click();
   await expect(familyHeadings).toHaveCount(7);
 });
 
@@ -263,6 +265,7 @@ test("angle copy drill scores a drawn ray from the target vertex", async ({
       has: page.getByRole("heading", {
         level: 3,
         name: "Horizontal Reference, Rotated Base",
+        exact: true,
       }),
     })
     .getByRole("button", { name: "Practice" })
@@ -272,6 +275,7 @@ test("angle copy drill scores a drawn ray from the target vertex", async ({
     page.getByRole("heading", {
       level: 1,
       name: "Horizontal Reference, Rotated Base",
+      exact: true,
     }),
   ).toBeVisible();
 
@@ -317,6 +321,7 @@ test("angle copy drill accepts a ray drawn toward the target vertex", async ({
       has: page.getByRole("heading", {
         level: 3,
         name: "Horizontal Reference, Rotated Base",
+        exact: true,
       }),
     })
     .getByRole("button", { name: "Practice" })
@@ -344,6 +349,115 @@ test("angle copy drill accepts a ray drawn toward the target vertex", async ({
 
   await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await expect(page.getByText("Angle miss", { exact: true })).toBeVisible();
+});
+
+test("angle copy unlimited mode redraws before commit", async ({ page }) => {
+  await page.goto("/");
+
+  await page
+    .getByRole("article")
+    .filter({
+      has: page.getByRole("heading", {
+        level: 3,
+        name: "Horizontal Reference, Rotated Base - Freehand Unlimited",
+      }),
+    })
+    .getByRole("button", { name: "Practice" })
+    .click();
+
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Horizontal Reference, Rotated Base - Freehand Unlimited",
+    }),
+  ).toBeVisible();
+
+  const canvas = page.getByTestId("freehand-canvas");
+  const vertex = await locatorCenter(
+    canvas.locator(".freehand-angle-target-vertex"),
+  );
+  const baseEnd = await svgLineEnd(
+    canvas.locator(".freehand-angle-target-base"),
+  );
+  const [baseEndClient] = await svgPointsToClient(page, [baseEnd]);
+
+  await drawPolyline(
+    page,
+    interpolatedPoints(
+      vertex,
+      { x: baseEndClient.x, y: baseEndClient.y - 80 },
+      8,
+    ),
+  );
+
+  await expect(page.getByText(/Score \d+\.\d/)).toHaveCount(0);
+  await expect(
+    page.getByText("Candidate ready. Draw again to replace it, or commit."),
+  ).toBeVisible();
+  await expect(canvas.locator(".freehand-angle-user-fit")).toBeVisible();
+  await expect(page.locator(".freehand-history-item")).toHaveCount(0);
+
+  await drawPolyline(page, interpolatedPoints(vertex, baseEndClient, 8));
+  await expect(page.getByText(/Score \d+\.\d/)).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Commit" }).click();
+
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
+  await expect(
+    canvas.locator(".freehand-target-correction-line"),
+  ).toBeVisible();
+  await expect(page.locator(".freehand-history-item")).toHaveCount(1);
+});
+
+test("angle copy adjustable line scores after dragging one endpoint", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await page
+    .getByRole("article")
+    .filter({
+      has: page.getByRole("heading", {
+        level: 3,
+        name: "Horizontal Reference, Rotated Base - Adjustable Line",
+      }),
+    })
+    .getByRole("button", { name: "Practice" })
+    .click();
+
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Horizontal Reference, Rotated Base - Adjustable Line",
+    }),
+  ).toBeVisible();
+
+  const canvas = page.getByTestId("freehand-canvas");
+  const handle = canvas.locator(".freehand-adjustable-handle");
+  const vertex = await locatorCenter(
+    canvas.locator(".freehand-angle-target-vertex"),
+  );
+  const baseEnd = await svgLineEnd(
+    canvas.locator(".freehand-angle-target-base"),
+  );
+  const [baseEndClient] = await svgPointsToClient(page, [baseEnd]);
+
+  const initial = await locatorCenter(handle);
+  expect(Math.abs(initial.x - vertex.x)).toBeLessThan(3);
+
+  await page.mouse.move(initial.x, initial.y);
+  await page.mouse.down();
+  await page.mouse.move(baseEndClient.x, baseEndClient.y);
+  await page.mouse.up();
+
+  await page.getByRole("button", { name: "Commit" }).click();
+
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
+  await expect(
+    canvas.locator(".freehand-target-correction-line"),
+  ).toBeVisible();
+  await expect(canvas.locator(".freehand-adjustable-line")).toBeHidden();
+  await expect(page.locator(".freehand-history-item")).toHaveCount(1);
 });
 
 test("target circle drill scores a circle from center and radius point", async ({
@@ -1821,6 +1935,7 @@ async function openAngleCopy(page: Page): Promise<void> {
       has: page.getByRole("heading", {
         level: 3,
         name: "Horizontal Reference, Rotated Base",
+        exact: true,
       }),
     })
     .getByRole("button", { name: "Practice" })
@@ -1830,6 +1945,7 @@ async function openAngleCopy(page: Page): Promise<void> {
     page.getByRole("heading", {
       level: 1,
       name: "Horizontal Reference, Rotated Base",
+      exact: true,
     }),
   ).toBeVisible();
 }

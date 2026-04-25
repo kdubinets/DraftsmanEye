@@ -1,7 +1,11 @@
 /** Freehand exercise screen used by Freehand Control, Target Drawing, and Trace Control. */
-import type { ExerciseDefinition } from "../practice/catalog";
+import type {
+  ExerciseDefinition,
+  FreehandExerciseDefinition,
+} from "../practice/catalog";
 import { updateStoredProgress } from "../storage/progress";
 import { getSettings } from "../storage/settings";
+import { distanceBetween } from "../geometry/primitives";
 import { s, h } from "../render/h";
 import {
   pageShell,
@@ -59,7 +63,9 @@ export function mountFreehandScreen(
   let cancelled = false;
   let points: FreehandPoint[] = [];
   let drawingPointerId: number | null = null;
+  let adjustablePointerId: number | null = null;
   let result: FreehandResult | null = null;
+  let pendingResult: FreehandResult | null = null;
   let resetTimer: number | null = null;
   let resetAnimation: number | null = null;
   let resetStartedAt = 0;
@@ -75,6 +81,8 @@ export function mountFreehandScreen(
   const showScoreBoxes = settings.showScoreBoxes;
   const attempts: FreehandAttemptSnapshot[] = [];
   const MAX_ATTEMPTS = 36;
+  const inputMode =
+    (exercise as FreehandExerciseDefinition).inputMode ?? "single-stroke";
 
   const isClosedShapeExercise = config.isClosedShape;
 
@@ -100,13 +108,32 @@ export function mountFreehandScreen(
   });
   againBtn.hidden = true;
 
+  const commitBtn = actionButton("Commit", () => {
+    commitPendingResult();
+  });
+  commitBtn.hidden = inputMode === "single-stroke";
+  commitBtn.disabled = true;
+
+  const resetLineBtn = actionButton("Reset", () => {
+    resetAdjustableLine();
+  });
+  resetLineBtn.hidden = inputMode !== "adjustable-line";
+
   const fullBtn = fullscreenButton(stage);
 
   const backBtn = actionButton("Back to List", () => {
     onNavigate({ screen: "list" });
   });
 
-  const toolbar = exerciseToolbar(prompt, pauseBtn, againBtn, fullBtn, backBtn);
+  const toolbar = exerciseToolbar(
+    prompt,
+    commitBtn,
+    resetLineBtn,
+    pauseBtn,
+    againBtn,
+    fullBtn,
+    backBtn,
+  );
 
   const feedback = h("p", { class: "feedback-banner" }, [config.readyText]);
   const summary = h("div", { class: "result-summary" });
@@ -149,6 +176,20 @@ export function mountFreehandScreen(
 
   const ghostLayer = s("g", { class: "freehand-ghost-result-layer" });
 
+  const adjustableLayer = s("g", { class: "freehand-adjustable-layer" });
+  const adjustableLine = s("line", { class: "freehand-adjustable-line" });
+  const adjustableAnchor = s("circle", {
+    class: "freehand-adjustable-anchor",
+    r: 5,
+  });
+  const adjustableHandle = s("circle", {
+    class: "freehand-adjustable-handle",
+    r: 10,
+    tabindex: 0,
+  });
+  adjustableLayer.append(adjustableLine, adjustableAnchor, adjustableHandle);
+  adjustableLayer.style.display = "none";
+
   const strokeLayer = s("g", { class: "freehand-user-stroke-layer" });
 
   const fittedLine = s("line", { class: "freehand-fit-line" });
@@ -188,6 +229,7 @@ export function mountFreehandScreen(
       }),
       targetLayer,
       ghostLayer,
+      adjustableLayer,
       fittedLine,
       fittedCircle,
       fittedEllipse,
@@ -200,6 +242,7 @@ export function mountFreehandScreen(
   svg.dataset.testid = "freehand-canvas";
 
   svg.addEventListener("pointerdown", (event) => {
+    if (inputMode === "adjustable-line") return;
     if (drawingPointerId !== null) return;
     if (result) {
       startEarlyNextAttempt(event);
@@ -212,6 +255,16 @@ export function mountFreehandScreen(
     }
     const point = freehandPointFromEvent(svg, event);
     if (!point) return;
+    pendingResult = null;
+    commitBtn.disabled = true;
+    hideFreehandCorrectionElements(
+      fittedLine,
+      fittedCircle,
+      fittedEllipse,
+      closureGap,
+      startTangent,
+      endTangent,
+    );
     drawingPointerId = event.pointerId;
     points = [point];
     renderFreehandStroke(strokeLayer, points, "freehand-user-stroke");
@@ -236,11 +289,45 @@ export function mountFreehandScreen(
     if (svg.hasPointerCapture(event.pointerId)) {
       svg.releasePointerCapture(event.pointerId);
     }
+    if (inputMode === "unlimited-strokes") {
+      previewFreehandResult();
+      return;
+    }
     revealFreehandResult();
   };
 
   svg.addEventListener("pointerup", finishStroke);
   svg.addEventListener("pointercancel", finishStroke);
+
+  adjustableHandle.addEventListener("pointerdown", (event) => {
+    if (inputMode !== "adjustable-line" || result) return;
+    adjustablePointerId = event.pointerId;
+    adjustableHandle.setPointerCapture(event.pointerId);
+    event.preventDefault();
+    event.stopPropagation();
+  });
+
+  adjustableHandle.addEventListener("pointermove", (event) => {
+    if (adjustablePointerId !== event.pointerId || result) return;
+    const point = freehandPointFromEvent(svg, event);
+    if (!point) return;
+    setAdjustableEndpoint(point);
+    event.preventDefault();
+  });
+
+  const finishAdjustableDrag = (event: PointerEvent): void => {
+    if (adjustablePointerId !== event.pointerId) return;
+    adjustablePointerId = null;
+    if (adjustableHandle.hasPointerCapture(event.pointerId)) {
+      adjustableHandle.releasePointerCapture(event.pointerId);
+    }
+  };
+  adjustableHandle.addEventListener("pointerup", finishAdjustableDrag);
+  adjustableHandle.addEventListener("pointercancel", finishAdjustableDrag);
+
+  if (inputMode === "adjustable-line") {
+    resetAdjustableLine();
+  }
 
   stage.append(toolbar, svg, feedback, summary);
   screen.append(header, stage, historySection);
@@ -264,7 +351,57 @@ export function mountFreehandScreen(
       return;
     }
 
+    commitResult(next);
+  }
+
+  function previewFreehandResult(): void {
+    const next = config.scoreStroke(points, target);
+    if (!next) {
+      points = [];
+      pendingResult = null;
+      strokeLayer.replaceChildren();
+      commitBtn.disabled = true;
+      hideFreehandCorrectionElements(
+        fittedLine,
+        fittedCircle,
+        fittedEllipse,
+        closureGap,
+        startTangent,
+        endTangent,
+      );
+      feedback.textContent = config.retryText;
+      return;
+    }
+
+    pendingResult = next;
+    renderCandidateResult(next);
+    commitBtn.disabled = false;
+    feedback.hidden = false;
+    feedback.textContent = "Candidate ready. Draw again to replace it, or commit.";
+  }
+
+  function commitPendingResult(): void {
+    if (inputMode === "adjustable-line") {
+      const next = scoreAdjustableLine();
+      if (!next) {
+        feedback.hidden = false;
+        feedback.textContent = config.retryText;
+        return;
+      }
+      points = adjustablePoints();
+      renderFreehandStroke(strokeLayer, points, "freehand-user-stroke");
+      adjustableLayer.style.display = "none";
+      commitResult(next);
+      return;
+    }
+    if (!pendingResult) return;
+    commitResult(pendingResult);
+  }
+
+  function commitResult(next: FreehandResult): void {
     result = next;
+    pendingResult = null;
+    commitBtn.disabled = true;
     updateStoredProgress(exercise.id, result.score, 0);
     attempts.unshift({
       id: nextAttemptId,
@@ -285,6 +422,7 @@ export function mountFreehandScreen(
       startTangent,
       endTangent,
     );
+    fittedLine.classList.remove("freehand-angle-user-fit");
     applyFreehandCorrectionElements(
       result,
       fittedLine,
@@ -314,6 +452,8 @@ export function mountFreehandScreen(
     summary.replaceChildren(...freehandResultStats(result));
 
     againBtn.hidden = false;
+    resetLineBtn.hidden = true;
+    adjustableLayer.style.display = "none";
     scheduleAutoReset();
   }
 
@@ -322,6 +462,9 @@ export function mountFreehandScreen(
     clearAutoResetTimer();
     points = [];
     result = null;
+    pendingResult = null;
+    drawingPointerId = null;
+    adjustablePointerId = null;
     target = config.createTarget();
     ghostLayer.replaceChildren();
     strokeLayer.replaceChildren();
@@ -340,6 +483,14 @@ export function mountFreehandScreen(
     feedback.hidden = false;
     feedback.textContent = config.readyText;
     againBtn.hidden = true;
+    commitBtn.disabled = true;
+    commitBtn.hidden = inputMode === "single-stroke";
+    resetLineBtn.hidden = inputMode !== "adjustable-line";
+    if (inputMode === "adjustable-line") {
+      resetAdjustableLine();
+    } else {
+      adjustableLayer.style.display = "none";
+    }
     updateAutoRepeatButton();
   }
 
@@ -355,6 +506,7 @@ export function mountFreehandScreen(
     renderGhostResult();
     clearAutoResetTimer();
     result = null;
+    pendingResult = null;
     points = [point];
     target = config.createTarget();
     drawingPointerId = event.pointerId;
@@ -374,9 +526,94 @@ export function mountFreehandScreen(
     feedback.hidden = false;
     feedback.textContent = "Keep the stroke continuous, then lift.";
     againBtn.hidden = true;
+    commitBtn.disabled = true;
     updateAutoRepeatButton();
     renderFreehandStroke(strokeLayer, points, "freehand-user-stroke");
     svg.setPointerCapture(event.pointerId);
+  }
+
+  function renderCandidateResult(next: FreehandResult): void {
+    hideFreehandCorrectionElements(
+      fittedLine,
+      fittedCircle,
+      fittedEllipse,
+      closureGap,
+      startTangent,
+      endTangent,
+    );
+    fittedLine.classList.remove("freehand-target-correction-line");
+    fittedLine.classList.add("freehand-angle-user-fit");
+    if (next.kind === "target-angle") {
+      fittedLine.setAttribute("x1", next.userRayStart.x.toFixed(2));
+      fittedLine.setAttribute("y1", next.userRayStart.y.toFixed(2));
+      fittedLine.setAttribute("x2", next.userRayEnd.x.toFixed(2));
+      fittedLine.setAttribute("y2", next.userRayEnd.y.toFixed(2));
+      fittedLine.style.display = "";
+      return;
+    }
+    if (next.kind === "line" || next.kind === "target-line") {
+      fittedLine.setAttribute("x1", next.fitStart.x.toFixed(2));
+      fittedLine.setAttribute("y1", next.fitStart.y.toFixed(2));
+      fittedLine.setAttribute("x2", next.fitEnd.x.toFixed(2));
+      fittedLine.setAttribute("y2", next.fitEnd.y.toFixed(2));
+      fittedLine.style.display = "";
+    }
+  }
+
+  function resetAdjustableLine(): void {
+    if (target?.kind !== "angle") {
+      adjustableLayer.style.display = "none";
+      return;
+    }
+    const length = distanceBetween(
+      target.target.vertex,
+      target.target.correctEnd,
+    );
+    const endpoint = {
+      x: target.target.vertex.x,
+      y: target.target.vertex.y - length,
+    };
+    setAdjustableEndpoint(endpoint);
+    adjustableLayer.style.display = "";
+    commitBtn.disabled = false;
+    feedback.hidden = false;
+    feedback.textContent = "Drag the free end, then commit.";
+  }
+
+  function setAdjustableEndpoint(endpoint: { x: number; y: number }): void {
+    if (target?.kind !== "angle") return;
+    const vertex = target.target.vertex;
+    adjustableLine.setAttribute("x1", vertex.x.toFixed(2));
+    adjustableLine.setAttribute("y1", vertex.y.toFixed(2));
+    adjustableLine.setAttribute("x2", endpoint.x.toFixed(2));
+    adjustableLine.setAttribute("y2", endpoint.y.toFixed(2));
+    adjustableAnchor.setAttribute("cx", vertex.x.toFixed(2));
+    adjustableAnchor.setAttribute("cy", vertex.y.toFixed(2));
+    adjustableHandle.setAttribute("cx", endpoint.x.toFixed(2));
+    adjustableHandle.setAttribute("cy", endpoint.y.toFixed(2));
+  }
+
+  function scoreAdjustableLine(): FreehandResult | null {
+    return config.scoreStroke(adjustablePoints(), target);
+  }
+
+  function adjustablePoints(): FreehandPoint[] {
+    if (target?.kind !== "angle") return [];
+    const vertex = target.target.vertex;
+    const end = {
+      x: Number(adjustableHandle.getAttribute("cx")),
+      y: Number(adjustableHandle.getAttribute("cy")),
+    };
+    return Array.from({ length: 24 }, (_, index) => {
+      const ratio = index / 23;
+      return {
+        x: vertex.x + (end.x - vertex.x) * ratio,
+        y: vertex.y + (end.y - vertex.y) * ratio,
+        time: index,
+        pressure: 0.5,
+        pointerType: "mouse",
+      };
+    });
   }
 
   function renderGhostResult(): void {

@@ -36,8 +36,26 @@ export type MountableExercise = ExerciseDefinition & {
 
 type FreehandKind = FreehandExerciseDefinition["kind"];
 
-function freehandConfig(kind: FreehandKind): FreehandExerciseConfig {
-  return FREEHAND_CONFIGS[kind];
+function freehandConfig(
+  exercise: FreehandExerciseDefinition,
+): FreehandExerciseConfig {
+  const config = FREEHAND_CONFIGS[exercise.kind];
+  if (exercise.inputMode === "unlimited-strokes") {
+    return {
+      ...config,
+      readyText: "Draw a ray. Redraw freely before committing.",
+      promptText: "Draw the missing ray; commit when it looks right.",
+    };
+  }
+  if (exercise.inputMode === "adjustable-line") {
+    return {
+      ...config,
+      readyText: "Drag the free end of the vertical segment.",
+      promptText: "Drag the free end of the segment; commit when it looks right.",
+      canvasLabel: "Angle copy adjustable line field",
+    };
+  }
+  return config;
 }
 
 const FREEHAND_CONFIGS = {
@@ -180,7 +198,7 @@ function toMountable(exercise: ExerciseDefinition): MountableExercise {
     };
   }
 
-  const config = freehandConfig(exercise.kind);
+  const config = freehandConfig(exercise);
   return {
     ...exercise,
     mount(root, source, onNavigate) {
