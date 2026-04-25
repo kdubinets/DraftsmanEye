@@ -132,19 +132,21 @@ test("home page lists drills and auto entry point", async ({ page }) => {
     page.getByRole("heading", {
       level: 3,
       name: "Projected Line Intersection",
+      exact: true,
     }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", {
       level: 3,
       name: "Extrapolated Segment Intersection",
+      exact: true,
     }),
   ).toBeVisible();
-  await expect(page.getByText("New")).toHaveCount(73);
+  await expect(page.getByText("New")).toHaveCount(75);
   await expect(page.getByRole("button", { name: "Coming soon" })).toHaveCount(
     0,
   );
-  await expect(page.getByRole("button", { name: "Practice" })).toHaveCount(73);
+  await expect(page.getByRole("button", { name: "Practice" })).toHaveCount(75);
   await expect(
     page
       .getByRole("article")
@@ -168,7 +170,9 @@ test("settings page exposes install affordance when the browser allows it", asyn
   await expect(installButton).toBeVisible();
   await installButton.click();
   await expect(
-    page.getByText("Use the install icon in the address bar or the browser menu."),
+    page.getByText(
+      "Use the install icon in the address bar or the browser menu.",
+    ),
   ).toBeVisible();
 
   await page.evaluate(() => {
@@ -227,7 +231,7 @@ test("home page groups drills and filters by family", async ({ page }) => {
     page.getByRole("heading", { level: 3, name: "Line Through Two Points" }),
   ).toBeHidden();
 
-  await page.getByRole("button", { name: "All 73" }).click();
+  await page.getByRole("button", { name: "All 75" }).click();
   await expect(familyHeadings).toHaveCount(7);
 });
 
@@ -1664,6 +1668,7 @@ test("intersection drill scores the marked crossing by angle", async ({
       has: page.getByRole("heading", {
         level: 3,
         name: "Projected Line Intersection",
+        exact: true,
       }),
     })
     .getByRole("button", { name: "Practice" })
@@ -1673,6 +1678,7 @@ test("intersection drill scores the marked crossing by angle", async ({
     page.getByRole("heading", {
       level: 1,
       name: "Projected Line Intersection",
+      exact: true,
     }),
   ).toBeVisible();
   await expect(page.getByText(/short segment would cross/i)).toBeVisible();
@@ -1713,6 +1719,7 @@ test("extrapolated intersection drill scores a free point mark", async ({
       has: page.getByRole("heading", {
         level: 3,
         name: "Extrapolated Segment Intersection",
+        exact: true,
       }),
     })
     .getByRole("button", { name: "Practice" })
@@ -1722,6 +1729,7 @@ test("extrapolated intersection drill scores a free point mark", async ({
     page.getByRole("heading", {
       level: 1,
       name: "Extrapolated Segment Intersection",
+      exact: true,
     }),
   ).toBeVisible();
   await expect(page.getByText(/two segments would meet/i)).toBeVisible();
@@ -1740,6 +1748,110 @@ test("extrapolated intersection drill scores a free point mark", async ({
   await expect(page.locator(".point-error-gap")).toBeVisible();
   await expect(page.locator(".projection-result-ray")).toHaveCount(2);
   await expect(page.getByRole("button", { name: "Auto Next" })).toHaveCount(0);
+});
+
+test("projected intersection unlimited adjustment commits only after revisions", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "draftsman-eye.settings.v1",
+      JSON.stringify({ autoRepeatDelayMs: null }),
+    );
+  });
+  await page.goto("/");
+
+  await page
+    .getByRole("article")
+    .filter({
+      has: page.getByRole("heading", {
+        level: 3,
+        name: "Projected Line Intersection - Unlimited Adjustment",
+      }),
+    })
+    .getByRole("button", { name: "Practice" })
+    .click();
+
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Projected Line Intersection - Unlimited Adjustment",
+    }),
+  ).toBeVisible();
+
+  const longLine = await svgLineEndpoints(page.locator(".exercise-line"));
+  const firstMark = interpolatePoint(longLine.start, longLine.end, 0.42);
+  const revisedMark = interpolatePoint(longLine.start, longLine.end, 0.58);
+  const [firstClient, revisedClient] = await exerciseSvgPointsToClient(page, [
+    firstMark,
+    revisedMark,
+  ]);
+
+  await page.mouse.click(firstClient.x, firstClient.y);
+  await expect(page.getByText(/Angle error \d+\.\d°/)).toHaveCount(0);
+  await expect(page.locator(".candidate-tick")).toHaveCount(1);
+
+  await page.mouse.click(revisedClient.x, revisedClient.y);
+  await expect(page.getByText(/Angle error \d+\.\d°/)).toHaveCount(0);
+  await expect(page.locator(".candidate-tick")).toHaveCount(1);
+
+  await page.getByRole("button", { name: "Commit" }).click();
+
+  await expect(page.getByText(/Angle error \d+\.\d°/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Again" })).toBeVisible();
+});
+
+test("extrapolated intersection unlimited adjustment commits only after revisions", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "draftsman-eye.settings.v1",
+      JSON.stringify({ autoRepeatDelayMs: null }),
+    );
+  });
+  await page.goto("/");
+
+  await page
+    .getByRole("article")
+    .filter({
+      has: page.getByRole("heading", {
+        level: 3,
+        name: "Extrapolated Segment Intersection - Unlimited Adjustment",
+      }),
+    })
+    .getByRole("button", { name: "Practice" })
+    .click();
+
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Extrapolated Segment Intersection - Unlimited Adjustment",
+    }),
+  ).toBeVisible();
+
+  const first = await svgLineEndpoints(page.locator(".exercise-line"));
+  const second = await svgLineEndpoints(page.locator(".projection-line"));
+  const target = lineIntersection(first, second);
+  const firstPlaced = { x: target.x + 34, y: target.y + 12 };
+  const revised = { x: target.x + 18, y: target.y + 9 };
+  const [firstClient, revisedClient] = await exerciseSvgPointsToClient(page, [
+    firstPlaced,
+    revised,
+  ]);
+
+  await page.mouse.click(firstClient.x, firstClient.y);
+  await expect(page.getByText(/Error .* px/i)).toHaveCount(0);
+  await expect(page.locator(".candidate-point-mark")).toHaveCount(1);
+
+  await page.mouse.click(revisedClient.x, revisedClient.y);
+  await expect(page.getByText(/Error .* px/i)).toHaveCount(0);
+  await expect(page.locator(".candidate-point-mark")).toHaveCount(1);
+
+  await page.getByRole("button", { name: "Commit" }).click();
+
+  await expect(page.getByText(/Error 20\.1 px/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Again" })).toBeVisible();
 });
 
 test("cross-axis double drill scores a mark on the full guide", async ({
@@ -1937,6 +2049,17 @@ function lineIntersection(
     y:
       ((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4)) /
       denominator,
+  };
+}
+
+function interpolatePoint(
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+  t: number,
+): { x: number; y: number } {
+  return {
+    x: start.x + (end.x - start.x) * t,
+    y: start.y + (end.y - start.y) * t,
   };
 }
 

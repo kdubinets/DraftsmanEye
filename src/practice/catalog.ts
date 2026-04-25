@@ -81,7 +81,9 @@ export type ExerciseId =
   | "double-vertical-horizontal-unlimited"
   | "double-random-random-unlimited"
   | "intersection-random"
-  | "intersection-extrapolated";
+  | "intersection-extrapolated"
+  | "intersection-random-unlimited"
+  | "intersection-extrapolated-unlimited";
 
 export type LineAxis = "horizontal" | "vertical" | "free";
 
@@ -380,8 +382,7 @@ export const EXERCISES: ExerciseDefinition[] = [
     "free",
     "free",
   ),
-  intersectionExercise(),
-  extrapolatedIntersectionExercise(),
+  ...intersectionExercises(),
 ];
 
 type AngleCopyKind = Extract<
@@ -1102,30 +1103,42 @@ function randomTransferReferenceStart(
   return viable[randomInteger(0, viable.length - 1)];
 }
 
-function intersectionExercise(): SingleMarkExerciseDefinition {
-  return {
-    id: "intersection-random",
-    family: "Intersection",
-    label: "Projected Line Intersection",
-    description:
-      "Extend the short segment mentally and mark where it crosses the long segment.",
-    implemented: true,
-    kind: "single-mark",
-    createTrial: createIntersectionTrial,
-  };
-}
+function intersectionExercises(): SingleMarkExerciseDefinition[] {
+  const base: SingleMarkExerciseDefinition[] = [
+    {
+      id: "intersection-random",
+      family: "Intersection",
+      label: "Projected Line Intersection",
+      description:
+        "Extend the short segment mentally and mark where it crosses the long segment.",
+      implemented: true,
+      kind: "single-mark",
+      inputMode: "single-mark",
+      createTrial: createIntersectionTrial,
+    },
+    {
+      id: "intersection-extrapolated",
+      family: "Intersection",
+      label: "Extrapolated Segment Intersection",
+      description:
+        "Extend two separated segments mentally and mark where their lines meet.",
+      implemented: true,
+      kind: "single-mark",
+      inputMode: "single-mark",
+      createTrial: createExtrapolatedIntersectionTrial,
+    },
+  ];
 
-function extrapolatedIntersectionExercise(): SingleMarkExerciseDefinition {
-  return {
-    id: "intersection-extrapolated",
-    family: "Intersection",
-    label: "Extrapolated Segment Intersection",
-    description:
-      "Extend two separated segments mentally and mark where their lines meet.",
-    implemented: true,
-    kind: "single-mark",
-    createTrial: createExtrapolatedIntersectionTrial,
-  };
+  return base.flatMap((exercise) => [
+    exercise,
+    {
+      ...exercise,
+      id: `${exercise.id}-unlimited` as ExerciseId,
+      label: `${exercise.label} - Unlimited Adjustment`,
+      description: `${exercise.description} Place and revise the mark before committing.`,
+      inputMode: "unlimited-adjustment",
+    },
+  ]);
 }
 
 function createExtrapolatedIntersectionTrial(): SingleMarkTrial {

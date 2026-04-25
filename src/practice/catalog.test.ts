@@ -342,6 +342,23 @@ describe("single-mark scoreSelection", () => {
     }
   });
 
+  it("intersection drills include unlimited adjustment variants", () => {
+    const intersection = EXERCISES.filter(
+      (e): e is SingleMarkExerciseDefinition =>
+        e.implemented && "createTrial" in e && e.id.startsWith("intersection-"),
+    );
+
+    expect(intersection.map((e) => e.id)).toEqual([
+      "intersection-random",
+      "intersection-random-unlimited",
+      "intersection-extrapolated",
+      "intersection-extrapolated-unlimited",
+    ]);
+    expect(
+      intersection.filter((e) => e.inputMode === "unlimited-adjustment"),
+    ).toHaveLength(2);
+  });
+
   it("extrapolated intersection drill scores a free canvas point", () => {
     const drill = EXERCISES.find(
       (e): e is SingleMarkExerciseDefinition =>

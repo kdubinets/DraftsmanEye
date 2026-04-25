@@ -41,6 +41,7 @@ export function mountSingleMarkScreen(
   let trial: SingleMarkTrial = exercise.createTrial();
   let result: SingleMarkTrialResult | null = null;
   let candidateScalar: number | null = null;
+  let candidatePoint: { x: number; y: number } | null = null;
   let resetTimer: number | null = null;
   let resetAnimation: number | null = null;
   let resetStartedAt = 0;
@@ -101,8 +102,8 @@ export function mountSingleMarkScreen(
     isUnlimitedAdjustment
       ? "Place a candidate mark, revise as needed, then commit."
       : trial.scorePoint
-      ? "Place one mark in the field."
-      : "Place one mark on the line.",
+        ? "Place one mark in the field."
+        : "Place one mark on the line.",
   ]);
   const summary = h("div", { class: "result-summary" });
   summary.hidden = true;
@@ -111,6 +112,7 @@ export function mountSingleMarkScreen(
     trial,
     () => result,
     () => candidateScalar,
+    () => candidatePoint,
     onSelect,
     onPointSelect,
   );
@@ -130,9 +132,11 @@ export function mountSingleMarkScreen(
     }
     if (isUnlimitedAdjustment) {
       candidateScalar = scalar;
+      candidatePoint = null;
       commitBtn.disabled = false;
       feedback.hidden = false;
-      feedback.textContent = "Candidate placed. Click again to revise, or commit.";
+      feedback.textContent =
+        "Candidate placed. Click again to revise, or commit.";
       rerenderSvg();
       return;
     }
@@ -145,6 +149,16 @@ export function mountSingleMarkScreen(
       return;
     }
     if (!trial.scorePoint) return;
+    if (isUnlimitedAdjustment) {
+      candidatePoint = point;
+      candidateScalar = null;
+      commitBtn.disabled = false;
+      feedback.hidden = false;
+      feedback.textContent =
+        "Candidate placed. Click again to revise, or commit.";
+      rerenderSvg();
+      return;
+    }
     const next = trial.scorePoint(point);
     if (!next) return;
     revealResult(next);
@@ -155,6 +169,7 @@ export function mountSingleMarkScreen(
       trial,
       () => result,
       () => candidateScalar,
+      () => candidatePoint,
       onSelect,
       onPointSelect,
     );
@@ -163,8 +178,15 @@ export function mountSingleMarkScreen(
   }
 
   function commitCandidate(): void {
-    if (candidateScalar === null || result) return;
-    revealResult(trial.scoreSelection(candidateScalar));
+    if (result) return;
+    if (candidateScalar !== null) {
+      revealResult(trial.scoreSelection(candidateScalar));
+      return;
+    }
+    if (candidatePoint && trial.scorePoint) {
+      const next = trial.scorePoint(candidatePoint);
+      if (next) revealResult(next);
+    }
   }
 
   function revealResult(next: SingleMarkTrialResult): void {
@@ -259,6 +281,7 @@ export function mountSingleMarkScreen(
     trial = exercise.createTrial();
     result = null;
     candidateScalar = null;
+    candidatePoint = null;
     prompt.textContent = trial.prompt;
     feedback.removeAttribute("data-tone");
     summary.removeAttribute("data-tone");
@@ -266,8 +289,8 @@ export function mountSingleMarkScreen(
     feedback.textContent = isUnlimitedAdjustment
       ? "Place a candidate mark, revise as needed, then commit."
       : trial.scorePoint
-      ? "Place one mark in the field."
-      : "Place one mark on the line.";
+        ? "Place one mark in the field."
+        : "Place one mark on the line.";
     summary.hidden = true;
     summary.replaceChildren();
     isResultPaused = false;
@@ -352,6 +375,7 @@ function renderTrialSvg(
   trial: SingleMarkTrial,
   getResult: () => SingleMarkTrialResult | null,
   getCandidateScalar: () => number | null,
+  getCandidatePoint: () => { x: number; y: number } | null,
   onSelect: (scalar: number) => void,
   onPointSelect: (point: { x: number; y: number }) => void,
 ): SVGSVGElement {
@@ -475,6 +499,7 @@ function renderTrialSvg(
 
   const res = getResult();
   const candidateScalar = getCandidateScalar();
+  const candidatePoint = getCandidatePoint();
   if (!res && candidateScalar !== null) {
     const candidateTick = createTick(
       trial.line.axis,
@@ -483,6 +508,11 @@ function renderTrialSvg(
       "user-tick candidate-tick",
     );
     svg.append(candidateTick);
+  }
+  if (!res && candidatePoint !== null) {
+    svg.append(
+      createPointMark(candidatePoint, "user-point-mark candidate-point-mark"),
+    );
   }
 
   if (res) {
