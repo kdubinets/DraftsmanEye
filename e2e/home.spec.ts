@@ -508,6 +508,7 @@ test("angle copy default adjustable line commits after revisions", async ({
   );
   const [baseEndClient] = await svgPointsToClient(page, [baseEnd]);
   const initial = await locatorCenter(handle);
+  await expectPointInsideLocator(canvas, initial);
 
   await page.mouse.move(initial.x, initial.y);
   await page.mouse.down();
@@ -560,16 +561,13 @@ test("angle copy adjustable 1-shot scores after dragging one endpoint", async ({
 
   const canvas = page.getByTestId("freehand-canvas");
   const handle = canvas.locator(".freehand-adjustable-handle");
-  const vertex = await locatorCenter(
-    canvas.locator(".freehand-angle-target-vertex"),
-  );
   const baseEnd = await svgLineEnd(
     canvas.locator(".freehand-angle-target-base"),
   );
   const [baseEndClient] = await svgPointsToClient(page, [baseEnd]);
 
   const initial = await locatorCenter(handle);
-  expect(Math.abs(initial.x - vertex.x)).toBeLessThan(3);
+  await expectPointInsideLocator(canvas, initial);
 
   await page.mouse.move(initial.x, initial.y);
   await page.mouse.down();
@@ -2028,6 +2026,21 @@ async function locatorCenter(locator: Locator): Promise<{
     x: box.x + box.width / 2,
     y: box.y + box.height / 2,
   };
+}
+
+async function expectPointInsideLocator(
+  locator: Locator,
+  point: { x: number; y: number },
+): Promise<void> {
+  const box = await locator.boundingBox();
+  if (!box) {
+    throw new Error("Expected locator to have a bounding box.");
+  }
+
+  expect(point.x).toBeGreaterThanOrEqual(box.x);
+  expect(point.x).toBeLessThanOrEqual(box.x + box.width);
+  expect(point.y).toBeGreaterThanOrEqual(box.y);
+  expect(point.y).toBeLessThanOrEqual(box.y + box.height);
 }
 
 async function targetPlusCenter(locator: Locator): Promise<{

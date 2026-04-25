@@ -574,15 +574,7 @@ export function mountFreehandScreen(
       adjustableLayer.style.display = "none";
       return;
     }
-    const length = distanceBetween(
-      target.target.vertex,
-      target.target.correctEnd,
-    );
-    const endpoint = {
-      x: target.target.vertex.x,
-      y: target.target.vertex.y - length,
-    };
-    setAdjustableEndpoint(endpoint);
+    setAdjustableEndpoint(initialAdjustableEndpoint(target));
     adjustableLayer.style.display = "";
     commitBtn.disabled = false;
     feedback.hidden = false;
@@ -823,4 +815,59 @@ function appendGhostCorrection(
       }),
     );
   }
+}
+
+function initialAdjustableEndpoint(target: {
+  target: {
+    vertex: { x: number; y: number };
+    baseEnd: { x: number; y: number };
+    correctEnd: { x: number; y: number };
+  };
+}): { x: number; y: number } {
+  const length = distanceBetween(
+    target.target.vertex,
+    target.target.correctEnd,
+  );
+  const vertex = target.target.vertex;
+  const correctAngle = Math.atan2(
+    target.target.correctEnd.y - vertex.y,
+    target.target.correctEnd.x - vertex.x,
+  );
+  const baseAngle = Math.atan2(
+    target.target.baseEnd.y - vertex.y,
+    target.target.baseEnd.x - vertex.x,
+  );
+  const candidateAngles = [
+    -Math.PI / 2,
+    Math.PI / 2,
+    0,
+    Math.PI,
+    baseAngle,
+    correctAngle + Math.PI / 2,
+    correctAngle - Math.PI / 2,
+  ];
+
+  for (const angle of candidateAngles) {
+    const endpoint = {
+      x: vertex.x + Math.cos(angle) * length,
+      y: vertex.y + Math.sin(angle) * length,
+    };
+    if (pointInsideCanvas(endpoint, 18)) return endpoint;
+  }
+
+  // The target base ray is generated inside the canvas, so this remains usable
+  // even if every neutral starting angle is clipped by a narrow placement.
+  return target.target.baseEnd;
+}
+
+function pointInsideCanvas(
+  point: { x: number; y: number },
+  padding: number,
+): boolean {
+  return (
+    point.x >= padding &&
+    point.x <= CANVAS_WIDTH - padding &&
+    point.y >= padding &&
+    point.y <= CANVAS_HEIGHT - padding
+  );
 }
