@@ -390,13 +390,24 @@ test("solids cube drill mounts reference and warns on incomplete graph", async (
   await expect(
     page.getByRole("heading", { level: 1, name: "Cube — 2-Point Perspective" }),
   ).toBeVisible();
-  await expect(page.locator(".solids-reference-edge").first()).toBeVisible();
-  const referenceEdgeCount = await page
-    .locator(".solids-reference-edge")
-    .count();
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Choose a reference" }),
+  ).toBeVisible();
+  await expect(page.locator(".solids-chooser-option")).toHaveCount(12);
+  await page.getByRole("button", { name: "Regenerate" }).click();
+  await expect(page.locator(".solids-chooser-option")).toHaveCount(12);
+  await page.getByRole("button", { name: "Reference 1", exact: true }).click();
+
+  const activeReferenceEdges = page.locator(
+    ".solids-reference-panel .solids-reference-edge",
+  );
+  await expect(activeReferenceEdges.first()).toBeVisible();
+  const referenceEdgeCount = await activeReferenceEdges.count();
   expect(referenceEdgeCount).toBeGreaterThanOrEqual(7);
   expect(referenceEdgeCount).toBeLessThanOrEqual(9);
-  await expect(page.locator(".solids-reference-face")).not.toHaveCount(0);
+  await expect(
+    page.locator(".solids-reference-panel .solids-reference-face").first(),
+  ).toBeVisible();
 
   const panel = page.locator(".solids-reference-panel");
   const before = await panel.boundingBox();

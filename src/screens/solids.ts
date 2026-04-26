@@ -44,6 +44,7 @@ const REFERENCE_HEIGHT = 260;
 const HIT_RADIUS = 18;
 const VERTEX_RADIUS = 4;
 const DRAG_THRESHOLD = 5;
+const SOLID_CANDIDATE_COUNT = 12;
 
 type SolidTrial = {
   rotationYRadians: number;
@@ -83,6 +84,11 @@ type GraphDragState = {
   originalVertices: SolidGraphVertex[];
 };
 
+type ProjectedSolidKind = Exclude<
+  SolidExerciseDefinition["kind"],
+  "flat-triangle" | "flat-quadrilateral" | "flat-pentagon" | "flat-hexagon"
+>;
+
 export function mountSolidsScreen(
   root: HTMLElement,
   exercise: SolidExerciseDefinition,
@@ -91,7 +97,12 @@ export function mountSolidsScreen(
   listState?: ListFilterState,
 ): () => void {
   let cancelled = false;
-  let trial = createTrial(exercise);
+  const projectedKind = isProjectedSolidKind(exercise.kind)
+    ? exercise.kind
+    : null;
+  const useChooser = projectedKind !== null;
+  let candidates = projectedKind ? createSolidCandidates(projectedKind) : [];
+  let trial = useChooser ? candidates[0] : createTrial(exercise);
   let state: GraphState = { vertices: [], edges: [], nextId: 1 };
   let history: GraphState[] = [];
   let selectedId: number | null = null;
@@ -106,7 +117,23 @@ export function mountSolidsScreen(
 
   const screen = pageShell();
   const header = exerciseHeader(exercise, source);
+  const chooserGrid = h("div", { class: "solids-chooser-grid" });
+  const chooser = h("section", { class: "solids-chooser" }, [
+    h("div", { class: "solids-chooser-header" }, [
+      h("div", {}, [
+        h("h2", {}, ["Choose a reference"]),
+        h("p", {}, [
+          "Pick one generated figure for this attempt, or regenerate the set.",
+        ]),
+      ]),
+      actionButton("Regenerate", regenerateCandidates),
+    ]),
+    chooserGrid,
+  ]);
+  chooser.hidden = !useChooser;
+
   const stage = h("section", { class: "exercise-stage solids-stage" });
+  stage.hidden = useChooser;
   const prompt = h("p", { class: "exercise-prompt" }, [
     "Place corners, connect edges, then adjust the graph to match the reference.",
   ]);
@@ -187,7 +214,7 @@ export function mountSolidsScreen(
   summary.hidden = true;
 
   stage.append(toolbar, workspace, feedback, summary);
-  screen.append(header, stage);
+  screen.append(header, chooser, stage);
   root.append(screen);
 
   svg.addEventListener("pointerdown", handlePointerDown);
@@ -198,8 +225,12 @@ export function mountSolidsScreen(
   document.addEventListener("keydown", handleKeyDown);
   referenceResizeHandle.addEventListener("pointerdown", handleReferenceResize);
 
-  renderReference();
-  renderGraph();
+  if (useChooser) {
+    renderChooser();
+  } else {
+    renderReference();
+    renderGraph();
+  }
 
   return () => {
     cancelled = true;
@@ -489,7 +520,12 @@ export function mountSolidsScreen(
   }
 
   function resetToFreshTrial(): void {
-    trial = createTrial(exercise);
+    resetDrawingState();
+    renderReference();
+    renderGraph();
+  }
+
+  function resetDrawingState(): void {
     state = { vertices: [], edges: [], nextId: 1 };
     history = [];
     selectedId = null;
@@ -509,8 +545,85 @@ export function mountSolidsScreen(
     summary.style.removeProperty("--result-accent");
     doneBtn.hidden = false;
     againBtn.hidden = true;
+  }
+
+  function regenerateCandidates(): void {
+    if (!projectedKind) return;
+    candidates = createSolidCandidates(projectedKind);
+    renderChooser();
+  }
+
+  function selectCandidate(candidate: SolidTrial): void {
+    trial = candidate;
+    resetDrawingState();
+    chooser.hidden = true;
+    stage.hidden = false;
     renderReference();
     renderGraph();
+  }
+
+  function renderChooser(): void {
+    chooserGrid.replaceChildren(
+      ...candidates.map((candidate, index) =>
+        solidCandidateButton(candidate, index, () =>
+          selectCandidate(candidate),
+        ),
+      ),
+    );
+  }
+
+  function solidCandidateButton(
+    candidate: SolidTrial,
+    index: number,
+    onSelect: () => void,
+  ): HTMLButtonElement {
+    const thumbnail = s(
+      "svg",
+      {
+        class: "solids-chooser-svg",
+        viewBox: `0 0 ${REFERENCE_WIDTH} ${REFERENCE_HEIGHT}`,
+        "aria-hidden": "true",
+      },
+      [
+        ...candidateFaceElements(candidate),
+        ...candidate.referenceProjection.visibleEdges.map(([a, b]) =>
+          s("line", {
+            class: "solids-reference-edge",
+            x1: candidate.referenceProjection.points[a].x,
+            y1: candidate.referenceProjection.points[a].y,
+            x2: candidate.referenceProjection.points[b].x,
+            y2: candidate.referenceProjection.points[b].y,
+          }),
+        ),
+      ],
+    );
+    return h(
+      "button",
+      {
+        type: "button",
+        class: "solids-chooser-option",
+        on: { click: onSelect },
+      },
+      [
+        thumbnail,
+        h("span", { class: "solids-chooser-option-label" }, [
+          `Reference ${index + 1}`,
+        ]),
+      ],
+    );
+  }
+
+  function candidateFaceElements(candidate: SolidTrial): SVGElement[] {
+    if (settings.solidReferenceStyle !== "shaded") return [];
+    return candidate.referenceProjection.visibleFaces.map((face) =>
+      s("polygon", {
+        class: "solids-reference-face",
+        points: face.points
+          .map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`)
+          .join(" "),
+        fill: shadedFaceFill(face.normal),
+      }),
+    );
   }
 
   function renderReference(): void {
@@ -857,6 +970,24 @@ function createTrial(exercise: SolidExerciseDefinition): SolidTrial {
     return createFlatTrial("hexagon");
   }
   return createProjectedSolidTrial(randomSolidPose(exercise.kind));
+}
+
+function createSolidCandidates(kind: ProjectedSolidKind): SolidTrial[] {
+  return Array.from({ length: SOLID_CANDIDATE_COUNT }, () =>
+    createProjectedSolidTrial(randomSolidPose(kind)),
+  );
+}
+
+function isProjectedSolidKind(
+  kind: SolidExerciseDefinition["kind"],
+): kind is ProjectedSolidKind {
+  return (
+    kind === "solid-cube-2pt" ||
+    kind === "solid-box-2pt" ||
+    kind === "solid-triangular-prism-2pt" ||
+    kind === "solid-square-pyramid-2pt" ||
+    kind === "solid-triangular-pyramid-2pt"
+  );
 }
 
 function createProjectedSolidTrial(preset: SolidPosePreset): SolidTrial {
