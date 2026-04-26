@@ -634,6 +634,32 @@ button {
   pointer-events: none;
 }
 
+.loop-chain-guide {
+  fill: none;
+  stroke: rgba(47, 85, 125, 0.22);
+  stroke-width: 1.5;
+  stroke-dasharray: 10 8;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.loop-chain-center-path {
+  fill: none;
+  stroke: rgba(24, 183, 90, 0.72);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.loop-chain-center-dot {
+  fill: rgba(24, 183, 90, 0.72);
+  stroke: none;
+  pointer-events: none;
+}
+
 .freehand-angle-reference-ray {
   stroke: rgba(47, 85, 125, 0.72);
   stroke-width: 3;

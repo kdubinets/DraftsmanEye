@@ -179,6 +179,7 @@ export function mountFreehandScreen(
   renderFreehandTargetMarks(targetLayer, target);
 
   const ghostLayer = s("g", { class: "freehand-ghost-result-layer" });
+  const correctionLayer = s("g", { class: "freehand-correction-layer" });
 
   const adjustableLayer = s("g", { class: "freehand-adjustable-layer" });
   const adjustableLine = s("line", { class: "freehand-adjustable-line" });
@@ -233,6 +234,7 @@ export function mountFreehandScreen(
       }),
       targetLayer,
       ghostLayer,
+      correctionLayer,
       adjustableLayer,
       fittedLine,
       fittedCircle,
@@ -440,6 +442,8 @@ export function mountFreehandScreen(
       fittedCircle,
       fittedEllipse,
     );
+    correctionLayer.replaceChildren();
+    config.renderCorrection?.(correctionLayer, result);
     if (isClosedFreehandResult(result)) {
       showClosedShapeMarkers(points, closureGap, startTangent, endTangent);
     }
@@ -478,6 +482,7 @@ export function mountFreehandScreen(
     adjustablePointerId = null;
     target = config.createTarget();
     ghostLayer.replaceChildren();
+    correctionLayer.replaceChildren();
     strokeLayer.replaceChildren();
     renderFreehandTargetMarks(targetLayer, target);
     hideFreehandCorrectionElements(
@@ -523,6 +528,7 @@ export function mountFreehandScreen(
     target = config.createTarget();
     drawingPointerId = event.pointerId;
     strokeLayer.replaceChildren();
+    correctionLayer.replaceChildren();
     renderFreehandTargetMarks(targetLayer, target);
     hideFreehandCorrectionElements(
       fittedLine,

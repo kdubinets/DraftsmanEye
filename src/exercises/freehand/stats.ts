@@ -22,10 +22,35 @@ export function freehandScoreLabel(kind: FreehandResult["kind"]): string {
       return "Angle copy";
     case "line":
       return "Straightness";
+    case "loop-chain-band":
+    case "loop-chain-scored":
+      return "Loop chain";
   }
 }
 
 export function freehandResultStats(result: FreehandResult): HTMLElement[] {
+  if (result.kind === "loop-chain-band") {
+    return [
+      stat("Score", result.score.toFixed(1)),
+      stat("In band", `${result.containmentPercent.toFixed(1)} %`),
+      stat("Length", `${Math.round(result.strokeLengthPixels)} px`),
+    ];
+  }
+  if (result.kind === "loop-chain-scored") {
+    return [
+      stat("Score", result.score.toFixed(1)),
+      stat("Loops", `${result.loopCount}`),
+      stat("Roundness", result.roundnessScore.toFixed(1)),
+      stat("Consistency", result.radiusConsistencyScore.toFixed(1)),
+      ...(result.pathAdherenceScore > 0
+        ? [
+            stat("Path", result.pathAdherenceScore.toFixed(1)),
+            stat("Center drift", `${result.centerLineDeviationPixels.toFixed(1)} px`),
+          ]
+        : []),
+    ];
+  }
+
   const stats = [
     stat("Score", result.score.toFixed(1)),
     stat("Drift", formatDrift(result)),
@@ -121,6 +146,14 @@ export function freehandResultLine(
 }
 
 function primaryResultDetail(result: FreehandResult): string {
+  if (result.kind === "loop-chain-band") {
+    return `In band ${result.containmentPercent.toFixed(1)} %`;
+  }
+  if (result.kind === "loop-chain-scored") {
+    return result.loopCount > 0
+      ? `${result.loopCount} loops · Roundness ${result.roundnessScore.toFixed(1)}`
+      : "No loops detected";
+  }
   if (result.kind === "target-angle") {
     const opening =
       result.signedOpenErrorDegrees > 0
@@ -146,7 +179,7 @@ function primaryResultDetail(result: FreehandResult): string {
   return `Mean drift ${result.meanErrorPixels.toFixed(1)} px`;
 }
 
-function formatDrift(result: FreehandResult): string {
+function formatDrift(result: { meanErrorPixels: number; maxErrorPixels: number }): string {
   return `${result.meanErrorPixels.toFixed(1)} / ${result.maxErrorPixels.toFixed(1)} px`;
 }
 

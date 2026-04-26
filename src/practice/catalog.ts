@@ -88,7 +88,12 @@ export type ExerciseId =
   | "flat-quadrilateral"
   | "flat-pentagon"
   | "flat-hexagon"
-  | "solids-cube-2pt";
+  | "solids-cube-2pt"
+  | "loop-chain-freehand"
+  | "loop-chain-linear"
+  | "loop-chain-linear-scored"
+  | "loop-chain-circular"
+  | "loop-chain-circular-scored";
 
 export type LineAxis = "horizontal" | "vertical" | "free";
 
@@ -168,7 +173,12 @@ export type FreehandExerciseDefinition = ExerciseBase & {
     | "angle-copy-horizontal-rotated"
     | "angle-copy-vertical-rotated"
     | "angle-copy-arbitrary-aligned"
-    | "angle-copy-arbitrary-rotated";
+    | "angle-copy-arbitrary-rotated"
+    | "loop-chain-freehand"
+    | "loop-chain-linear"
+    | "loop-chain-linear-scored"
+    | "loop-chain-circular"
+    | "loop-chain-circular-scored";
   inputMode?:
     | "single-stroke"
     | "unlimited-strokes"
@@ -448,6 +458,51 @@ export const EXERCISES: ExerciseDefinition[] = [
     "free",
   ),
   ...intersectionExercises(),
+  {
+    id: "loop-chain-freehand",
+    family: "Loop Chain",
+    label: "Free Loops",
+    description:
+      "Draw a continuous chain of small loops across the canvas to warm up your looping motion.",
+    implemented: true,
+    kind: "loop-chain-freehand",
+  },
+  {
+    id: "loop-chain-linear",
+    family: "Loop Chain",
+    label: "Linear Band",
+    description:
+      "Draw a chain of loops between two horizontal guide lines. Score shows how much of your stroke stayed inside the band.",
+    implemented: true,
+    kind: "loop-chain-linear",
+  },
+  {
+    id: "loop-chain-linear-scored",
+    family: "Loop Chain",
+    label: "Linear Loops",
+    description:
+      "Draw a chain of loops between horizontal guides. Scored on loop roundness, size consistency, and how straight your path is.",
+    implemented: true,
+    kind: "loop-chain-linear-scored",
+  },
+  {
+    id: "loop-chain-circular",
+    family: "Loop Chain",
+    label: "Circular Band",
+    description:
+      "Draw a chain of loops following two concentric circle guides. Score shows how much of your stroke stayed inside the ring.",
+    implemented: true,
+    kind: "loop-chain-circular",
+  },
+  {
+    id: "loop-chain-circular-scored",
+    family: "Loop Chain",
+    label: "Circular Loops",
+    description:
+      "Draw a chain of loops between circular guides. Scored on loop roundness, size consistency, and how closely you follow the ring.",
+    implemented: true,
+    kind: "loop-chain-circular-scored",
+  },
 ];
 
 type AngleCopyKind = Extract<

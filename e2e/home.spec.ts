@@ -177,11 +177,11 @@ test("home page lists drills and auto entry point", async ({ page }) => {
       exact: true,
     }),
   ).toBeVisible();
-  await expect(page.getByText("New")).toHaveCount(80);
+  await expect(page.getByText("New")).toHaveCount(85);
   await expect(page.getByRole("button", { name: "Coming soon" })).toHaveCount(
     0,
   );
-  await expect(page.getByRole("button", { name: "Practice" })).toHaveCount(80);
+  await expect(page.getByRole("button", { name: "Practice" })).toHaveCount(85);
   await expect(
     page
       .getByRole("article")
@@ -259,6 +259,7 @@ test("home page groups drills and filters by family", async ({ page }) => {
     "Freehand Control",
     "Trace Control",
     "Target Drawing",
+    "Loop Chain",
     "Flat Shapes",
     "Solids",
   ]);
@@ -272,8 +273,8 @@ test("home page groups drills and filters by family", async ({ page }) => {
     page.getByRole("heading", { level: 3, name: "Line Through Two Points" }),
   ).toBeHidden();
 
-  await page.getByRole("button", { name: "All 80" }).click();
-  await expect(familyHeadings).toHaveCount(9);
+  await page.getByRole("button", { name: "All 85" }).click();
+  await expect(familyHeadings).toHaveCount(10);
 });
 
 test("flat shape drills mount generated polygon references", async ({ page }) => {

@@ -87,6 +87,28 @@ export type FreehandTargetEllipseResult = Omit<
   rotationErrorDegrees: number;
 };
 
+export type LoopChainBandResult = {
+  kind: "loop-chain-band";
+  score: number;
+  containmentPercent: number;
+  strokeLengthPixels: number;
+  pointCount: number;
+};
+
+export type LoopChainScoredResult = {
+  kind: "loop-chain-scored";
+  score: number;
+  loopCount: number;
+  meanLoopRadius: number;
+  radiusConsistencyScore: number;
+  roundnessScore: number;
+  pathAdherenceScore: number;
+  centerLineDeviationPixels: number;
+  loopCenters: { x: number; y: number }[];
+  strokeLengthPixels: number;
+  pointCount: number;
+};
+
 export type FreehandResult =
   | FreehandLineResult
   | FreehandTargetLineResult
@@ -94,7 +116,9 @@ export type FreehandResult =
   | FreehandCircleResult
   | FreehandTargetCircleResult
   | FreehandEllipseResult
-  | FreehandTargetEllipseResult;
+  | FreehandTargetEllipseResult
+  | LoopChainBandResult
+  | LoopChainScoredResult;
 
 export type TargetLine = {
   kind: "line";
@@ -137,11 +161,26 @@ export type TargetAngle = {
   openingSign: 1 | -1;
 };
 
+export type TargetLoopChainLinear = {
+  kind: "loop-chain-linear";
+  centerY: number;
+  bandHalf: number;
+};
+
+export type TargetLoopChainCircular = {
+  kind: "loop-chain-circular";
+  center: { x: number; y: number };
+  innerRadius: number;
+  outerRadius: number;
+};
+
 export type FreehandTarget =
   | TargetLine
   | TargetCircle
   | TargetEllipse
-  | TargetAngle;
+  | TargetAngle
+  | TargetLoopChainLinear
+  | TargetLoopChainCircular;
 
 export type FreehandAttemptSnapshot = {
   id: number;
@@ -165,4 +204,5 @@ export type FreehandExerciseConfig = {
   readyText: string;
   retryText: string;
   canvasLabel: string;
+  renderCorrection?: (correctionLayer: SVGGElement, result: FreehandResult) => void;
 };

@@ -7,6 +7,8 @@ import type {
   TargetCircle,
   TargetEllipse,
   TargetAngle,
+  TargetLoopChainLinear,
+  TargetLoopChainCircular,
 } from "./types";
 
 export function createFreehandTarget(
@@ -37,11 +39,43 @@ export function createFreehandTarget(
       return createTargetAngle("arbitrary", "aligned");
     case "angle-copy-arbitrary-rotated":
       return createTargetAngle("arbitrary", "rotated");
+    case "loop-chain-linear":
+    case "loop-chain-linear-scored":
+      return createLoopChainLinearTarget();
+    case "loop-chain-circular":
+    case "loop-chain-circular-scored":
+      return createLoopChainCircularTarget();
     case "freehand-circle":
     case "freehand-ellipse":
     case "freehand-line":
+    case "loop-chain-freehand":
       return null;
   }
+}
+
+export function createLoopChainLinearTarget(): TargetLoopChainLinear {
+  return {
+    kind: "loop-chain-linear",
+    centerY: randomRange(200, 420),
+    bandHalf: randomRange(45, 70),
+  };
+}
+
+export function createLoopChainCircularTarget(): TargetLoopChainCircular {
+  const mid = randomRange(140, 200);
+  const half = randomRange(30, 55);
+  const margin = 20;
+  const minR = mid + half;
+  const center = {
+    x: randomRange(minR + margin, 1000 - minR - margin),
+    y: randomRange(minR + margin, 620 - minR - margin),
+  };
+  return {
+    kind: "loop-chain-circular",
+    center,
+    innerRadius: mid - half,
+    outerRadius: mid + half,
+  };
 }
 
 function createTargetLine(): TargetLine {

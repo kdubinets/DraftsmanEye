@@ -12,6 +12,8 @@ import type {
   TargetLine,
   TargetCircle,
   TargetAngle,
+  TargetLoopChainLinear,
+  TargetLoopChainCircular,
 } from "./types";
 
 export function isClosedFreehandResult(result: FreehandResult): boolean {
@@ -73,6 +75,12 @@ export function applyFreehandCorrectionElements(
     fittedCircle.classList.remove("freehand-target-correction-circle");
     setCircleAttrs(fittedCircle, result.center, result.radius);
     fittedCircle.style.display = "";
+    return;
+  }
+  if (
+    result.kind === "loop-chain-band" ||
+    result.kind === "loop-chain-scored"
+  ) {
     return;
   }
   // ellipse
@@ -217,6 +225,12 @@ export function appendFreehandCorrection(
     );
     return;
   }
+  if (
+    result.kind === "loop-chain-band" ||
+    result.kind === "loop-chain-scored"
+  ) {
+    return;
+  }
   // ellipse
   parent.append(
     s("ellipse", {
@@ -247,6 +261,14 @@ export function appendFreehandTargetMarks(
   layer: SVGGElement,
   target: FreehandTarget,
 ): void {
+  if (target.kind === "loop-chain-linear") {
+    layer.append(...createLoopChainLinearGuides(target));
+    return;
+  }
+  if (target.kind === "loop-chain-circular") {
+    layer.append(...createLoopChainCircularGuides(target));
+    return;
+  }
   if (target.kind === "line") {
     if (target.trace) {
       layer.append(createTraceLineGuide(target));
@@ -503,4 +525,60 @@ function ellipseTransform(
   cy: number,
 ): string {
   return `rotate(${radiansToDegrees(rotationRadians).toFixed(2)} ${cx.toFixed(2)} ${cy.toFixed(2)})`;
+}
+
+export function createLoopChainLinearGuides(
+  target: TargetLoopChainLinear,
+): SVGElement[] {
+  const y1 = target.centerY - target.bandHalf;
+  const y2 = target.centerY + target.bandHalf;
+  return [
+    s("line", { class: "loop-chain-guide", x1: 0, y1, x2: 1000, y2: y1 }),
+    s("line", { class: "loop-chain-guide", x1: 0, y1: y2, x2: 1000, y2: y2 }),
+  ];
+}
+
+export function createLoopChainCircularGuides(
+  target: TargetLoopChainCircular,
+): SVGElement[] {
+  const { center, innerRadius, outerRadius } = target;
+  return [
+    s("circle", {
+      class: "loop-chain-guide",
+      cx: center.x,
+      cy: center.y,
+      r: innerRadius,
+    }),
+    s("circle", {
+      class: "loop-chain-guide",
+      cx: center.x,
+      cy: center.y,
+      r: outerRadius,
+    }),
+  ];
+}
+
+export function renderLoopChainCenterPath(
+  layer: SVGGElement,
+  loopCenters: { x: number; y: number }[],
+): void {
+  if (loopCenters.length === 0) return;
+
+  for (const c of loopCenters) {
+    layer.append(
+      s("circle", {
+        class: "loop-chain-center-dot",
+        cx: c.x,
+        cy: c.y,
+        r: 4,
+      }),
+    );
+  }
+
+  if (loopCenters.length >= 2) {
+    const pts = loopCenters
+      .map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`)
+      .join(" ");
+    layer.append(s("polyline", { class: "loop-chain-center-path", points: pts }));
+  }
 }

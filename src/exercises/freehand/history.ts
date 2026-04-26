@@ -238,6 +238,12 @@ function boundsForAttempt(attempt: FreehandAttemptSnapshot): Bounds {
     extendEllipseBounds(b, attempt.result.target);
     return b;
   }
+  if (
+    attempt.result.kind === "loop-chain-band" ||
+    attempt.result.kind === "loop-chain-scored"
+  ) {
+    return b;
+  }
   // ellipse
   extendEllipseBounds(b, attempt.result);
   return b;
