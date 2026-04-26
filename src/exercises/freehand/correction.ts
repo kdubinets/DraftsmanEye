@@ -14,6 +14,7 @@ import type {
   TargetAngle,
   TargetLoopChainLinear,
   TargetLoopChainCircular,
+  TargetLoopChainWedge,
 } from "./types";
 
 export function isClosedFreehandResult(result: FreehandResult): boolean {
@@ -267,6 +268,10 @@ export function appendFreehandTargetMarks(
   }
   if (target.kind === "loop-chain-circular") {
     layer.append(...createLoopChainCircularGuides(target));
+    return;
+  }
+  if (target.kind === "loop-chain-wedge") {
+    layer.append(...createLoopChainWedgeGuides(target));
     return;
   }
   if (target.kind === "line") {
@@ -535,6 +540,16 @@ export function createLoopChainLinearGuides(
   return [
     s("line", { class: "loop-chain-guide", x1: 0, y1, x2: 1000, y2: y1 }),
     s("line", { class: "loop-chain-guide", x1: 0, y1: y2, x2: 1000, y2: y2 }),
+  ];
+}
+
+export function createLoopChainWedgeGuides(
+  target: TargetLoopChainWedge,
+): SVGElement[] {
+  const { centerY, bandHalfLeft, bandHalfRight } = target;
+  return [
+    s("line", { class: "loop-chain-guide", x1: 0, y1: centerY - bandHalfLeft, x2: 1000, y2: centerY - bandHalfRight }),
+    s("line", { class: "loop-chain-guide", x1: 0, y1: centerY + bandHalfLeft, x2: 1000, y2: centerY + bandHalfRight }),
   ];
 }
 

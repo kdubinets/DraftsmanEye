@@ -9,6 +9,7 @@ import type {
   TargetAngle,
   TargetLoopChainLinear,
   TargetLoopChainCircular,
+  TargetLoopChainWedge,
 } from "./types";
 
 export function createFreehandTarget(
@@ -45,6 +46,9 @@ export function createFreehandTarget(
     case "loop-chain-circular":
     case "loop-chain-circular-scored":
       return createLoopChainCircularTarget();
+    case "loop-chain-wedge":
+    case "loop-chain-wedge-scored":
+      return createLoopChainWedgeTarget();
     case "freehand-circle":
     case "freehand-ellipse":
     case "freehand-line":
@@ -57,7 +61,7 @@ export function createLoopChainLinearTarget(): TargetLoopChainLinear {
   return {
     kind: "loop-chain-linear",
     centerY: randomRange(200, 420),
-    bandHalf: randomRange(45, 70),
+    bandHalf: randomRange(35, 80),
   };
 }
 
@@ -76,6 +80,14 @@ export function createLoopChainCircularTarget(): TargetLoopChainCircular {
     innerRadius: mid - half,
     outerRadius: mid + half,
   };
+}
+
+export function createLoopChainWedgeTarget(): TargetLoopChainWedge {
+  const centerY = randomRange(200, 420);
+  const bandHalfLeft = randomRange(35, 80);
+  const factor = randomRange(0.4, 2.5);
+  const bandHalfRight = Math.max(25, Math.min(100, bandHalfLeft * factor));
+  return { kind: "loop-chain-wedge", centerY, bandHalfLeft, bandHalfRight };
 }
 
 function createTargetLine(): TargetLine {

@@ -26,8 +26,10 @@ import {
   scoreLoopChainFreehand,
   scoreLoopChainLinear,
   scoreLoopChainCircular,
+  scoreBandContainmentWedge,
+  scoreLoopChainWedge,
 } from "../scoring/loopChain";
-import { createFreehandTarget, createLoopChainLinearTarget, createLoopChainCircularTarget } from "./freehand/targets";
+import { createFreehandTarget, createLoopChainLinearTarget, createLoopChainCircularTarget, createLoopChainWedgeTarget } from "./freehand/targets";
 import { renderLoopChainCenterPath } from "./freehand/correction";
 import type {
   FreehandExerciseConfig,
@@ -239,6 +241,34 @@ const FREEHAND_CONFIGS = {
     readyText: "Use Pencil, touch, or mouse to draw looping chains inside the ring.",
     retryText: "Stroke was too short. Draw a longer looping chain.",
     canvasLabel: "Loop chain circular scored drawing field",
+    renderCorrection: (_layer: SVGGElement, result: FreehandResult) => {
+      if (result.kind !== "loop-chain-scored") return;
+      renderLoopChainCenterPath(_layer, (result as LoopChainScoredResult).loopCenters);
+    },
+  },
+  "loop-chain-wedge": {
+    isClosedShape: false,
+    createTarget: () => createLoopChainWedgeTarget(),
+    scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) =>
+      target?.kind === "loop-chain-wedge"
+        ? scoreBandContainmentWedge(points, target)
+        : null,
+    promptText: "Draw a chain of loops between the converging or diverging guide lines.",
+    readyText: "Use Pencil, touch, or mouse to draw looping chains inside the wedge.",
+    retryText: "Stroke was too short. Draw a longer looping chain.",
+    canvasLabel: "Loop chain wedge drawing field",
+  },
+  "loop-chain-wedge-scored": {
+    isClosedShape: false,
+    createTarget: () => createLoopChainWedgeTarget(),
+    scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) =>
+      target?.kind === "loop-chain-wedge"
+        ? scoreLoopChainWedge(points, target)
+        : null,
+    promptText: "Draw a chain of loops between the wedge guides. Stay consistent.",
+    readyText: "Use Pencil, touch, or mouse to draw looping chains inside the wedge.",
+    retryText: "Stroke was too short. Draw a longer looping chain.",
+    canvasLabel: "Loop chain wedge scored drawing field",
     renderCorrection: (_layer: SVGGElement, result: FreehandResult) => {
       if (result.kind !== "loop-chain-scored") return;
       renderLoopChainCenterPath(_layer, (result as LoopChainScoredResult).loopCenters);

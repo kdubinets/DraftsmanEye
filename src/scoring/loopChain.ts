@@ -9,6 +9,7 @@ import type {
   LoopChainScoredResult,
   TargetLoopChainLinear,
   TargetLoopChainCircular,
+  TargetLoopChainWedge,
 } from '../exercises/freehand/types';
 
 function strokeLength(points: FreehandPoint[]): number {
@@ -234,6 +235,91 @@ export function scoreLoopChainCircular(
     }
     deviation = totalDev / centers.length;
     adherence = clampNumber(100 - (deviation / halfBand) * 100, 0, 100);
+  }
+
+  const score = clampNumber(
+    0.3 * roundness + 0.35 * consistency + 0.35 * adherence,
+    0,
+    100,
+  );
+
+  return {
+    kind: 'loop-chain-scored',
+    score,
+    loopCount: loops.length,
+    meanLoopRadius: mean,
+    radiusConsistencyScore: consistency,
+    roundnessScore: roundness,
+    pathAdherenceScore: adherence,
+    centerLineDeviationPixels: deviation,
+    loopCenters: centers,
+    strokeLengthPixels: len,
+    pointCount: points.length,
+  };
+}
+
+export function scoreBandContainmentWedge(
+  points: FreehandPoint[],
+  target: TargetLoopChainWedge,
+): LoopChainBandResult | null {
+  const len = strokeLength(points);
+  if (len < 200 || points.length < 20) return null;
+
+  let inside = 0;
+  for (const p of points) {
+    const t = Math.max(0, Math.min(1, p.x / 1000));
+    const halfBand = target.bandHalfLeft + (target.bandHalfRight - target.bandHalfLeft) * t;
+    if (Math.abs(p.y - target.centerY) <= halfBand) inside++;
+  }
+  const containmentPercent = (inside / points.length) * 100;
+  return {
+    kind: 'loop-chain-band',
+    score: containmentPercent,
+    containmentPercent,
+    strokeLengthPixels: len,
+    pointCount: points.length,
+  };
+}
+
+export function scoreLoopChainWedge(
+  points: FreehandPoint[],
+  target: TargetLoopChainWedge,
+): LoopChainScoredResult | null {
+  const len = strokeLength(points);
+  if (len < 200 || points.length < 20) return null;
+
+  const loops = detectLoops(points);
+  if (loops.length === 0) {
+    return {
+      kind: 'loop-chain-scored',
+      score: 0,
+      loopCount: 0,
+      meanLoopRadius: 0,
+      radiusConsistencyScore: 0,
+      roundnessScore: 0,
+      pathAdherenceScore: 0,
+      centerLineDeviationPixels: 0,
+      loopCenters: [],
+      strokeLengthPixels: len,
+      pointCount: points.length,
+    };
+  }
+
+  const radii = loops.map((l) => l.radius);
+  const mean = radii.reduce((a, b) => a + b, 0) / radii.length;
+  const consistency = mean > 0
+    ? clampNumber(100 - (stdDev(radii) / mean) * 100, 0, 100)
+    : 0;
+  const roundness = (loops.reduce((a, l) => a + l.circularity, 0) / loops.length) * 100;
+
+  const centers = loops.map((l) => l.center);
+  const meanBandHalf = (target.bandHalfLeft + target.bandHalfRight) / 2;
+  const lineFit = fitLine(centers);
+  let adherence = 50;
+  let deviation = 0;
+  if (lineFit && meanBandHalf > 0) {
+    deviation = lineFit.meanErrorPixels;
+    adherence = clampNumber(100 - (deviation / meanBandHalf) * 100, 0, 100);
   }
 
   const score = clampNumber(

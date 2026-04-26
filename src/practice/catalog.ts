@@ -93,7 +93,9 @@ export type ExerciseId =
   | "loop-chain-linear"
   | "loop-chain-linear-scored"
   | "loop-chain-circular"
-  | "loop-chain-circular-scored";
+  | "loop-chain-circular-scored"
+  | "loop-chain-wedge"
+  | "loop-chain-wedge-scored";
 
 export type LineAxis = "horizontal" | "vertical" | "free";
 
@@ -178,7 +180,9 @@ export type FreehandExerciseDefinition = ExerciseBase & {
     | "loop-chain-linear"
     | "loop-chain-linear-scored"
     | "loop-chain-circular"
-    | "loop-chain-circular-scored";
+    | "loop-chain-circular-scored"
+    | "loop-chain-wedge"
+    | "loop-chain-wedge-scored";
   inputMode?:
     | "single-stroke"
     | "unlimited-strokes"
@@ -502,6 +506,24 @@ export const EXERCISES: ExerciseDefinition[] = [
       "Draw a chain of loops between circular guides. Scored on loop roundness, size consistency, and how closely you follow the ring.",
     implemented: true,
     kind: "loop-chain-circular-scored",
+  },
+  {
+    id: "loop-chain-wedge",
+    family: "Loop Chain",
+    label: "Wedge Band",
+    description:
+      "Draw a chain of loops between two converging or diverging guide lines. Score shows how much of your stroke stayed inside the wedge.",
+    implemented: true,
+    kind: "loop-chain-wedge",
+  },
+  {
+    id: "loop-chain-wedge-scored",
+    family: "Loop Chain",
+    label: "Wedge Loops",
+    description:
+      "Draw a chain of loops between wedge guides. Scored on loop roundness, size consistency, and how straight your path stays.",
+    implemented: true,
+    kind: "loop-chain-wedge-scored",
   },
 ];
 

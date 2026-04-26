@@ -174,13 +174,21 @@ export type TargetLoopChainCircular = {
   outerRadius: number;
 };
 
+export type TargetLoopChainWedge = {
+  kind: "loop-chain-wedge";
+  centerY: number;
+  bandHalfLeft: number;
+  bandHalfRight: number;
+};
+
 export type FreehandTarget =
   | TargetLine
   | TargetCircle
   | TargetEllipse
   | TargetAngle
   | TargetLoopChainLinear
-  | TargetLoopChainCircular;
+  | TargetLoopChainCircular
+  | TargetLoopChainWedge;
 
 export type FreehandAttemptSnapshot = {
   id: number;
