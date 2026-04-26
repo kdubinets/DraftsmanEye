@@ -248,8 +248,10 @@ export function mountSolidsScreen(
     const newId = addVertex(point.x, point.y);
     if (selectedId !== null) {
       if (addEdge(selectedId, newId)) {
-        selectedId = newId;
+        selectedId = hasExpectedEdgeCount() ? null : newId;
       }
+    } else {
+      selectedId = hasExpectedEdgeCount() ? null : newId;
     }
     renderGraph();
   }
@@ -317,7 +319,7 @@ export function mountSolidsScreen(
       } else {
         snapshot();
         addEdge(selectedId, tappedId);
-        selectedId = tappedId;
+        selectedId = hasExpectedEdgeCount() ? null : tappedId;
       }
     }
 
@@ -535,7 +537,11 @@ export function mountSolidsScreen(
     resultLayer.replaceChildren(...renderResultOverlay());
 
     const preview =
-      selectedId !== null && cursorPoint && !dragging && !result
+      selectedId !== null &&
+      cursorPoint &&
+      !dragging &&
+      !result &&
+      !hasExpectedEdgeCount()
         ? renderPreviewLine(selectedId, cursorPoint)
         : null;
     previewLayer.replaceChildren(...(preview ? [preview] : []));
@@ -677,6 +683,10 @@ export function mountSolidsScreen(
     clearBtn.disabled =
       (state.vertices.length === 0 && state.edges.length === 0) || result !== null;
     doneBtn.disabled = result !== null;
+  }
+
+  function hasExpectedEdgeCount(): boolean {
+    return state.edges.length >= trial.reference.edges.length;
   }
 
   function snapshot(): void {
@@ -871,10 +881,11 @@ function cubeAngles(): {
   rotationYRadians: number;
   rotationXRadians: number;
 } {
-  const sign = Math.random() < 0.5 ? -1 : 1;
+  const yawSign = Math.random() < 0.5 ? -1 : 1;
+  const pitchSign = Math.random() < 0.5 ? -1 : 1;
   return {
-    rotationYRadians: (sign * (34 + Math.random() * 24) * Math.PI) / 180,
-    rotationXRadians: ((14 + Math.random() * 14) * Math.PI) / 180,
+    rotationYRadians: (yawSign * (34 + Math.random() * 24) * Math.PI) / 180,
+    rotationXRadians: (pitchSign * (14 + Math.random() * 14) * Math.PI) / 180,
   };
 }
 
