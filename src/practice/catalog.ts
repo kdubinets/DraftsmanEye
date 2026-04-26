@@ -83,7 +83,8 @@ export type ExerciseId =
   | "intersection-random"
   | "intersection-extrapolated"
   | "intersection-random-1-shot"
-  | "intersection-extrapolated-1-shot";
+  | "intersection-extrapolated-1-shot"
+  | "solids-cube-2pt";
 
 export type LineAxis = "horizontal" | "vertical" | "free";
 
@@ -171,6 +172,11 @@ export type FreehandExerciseDefinition = ExerciseBase & {
     | "adjustable-line-1-shot";
 };
 
+export type SolidExerciseDefinition = ExerciseBase & {
+  implemented: true;
+  kind: "solid-cube-2pt";
+};
+
 export type UnimplementedExerciseDefinition = ExerciseBase & {
   implemented: false;
 };
@@ -178,6 +184,7 @@ export type UnimplementedExerciseDefinition = ExerciseBase & {
 export type ExerciseDefinition =
   | SingleMarkExerciseDefinition
   | FreehandExerciseDefinition
+  | SolidExerciseDefinition
   | UnimplementedExerciseDefinition;
 
 export const EXERCISES: ExerciseDefinition[] = [
@@ -253,6 +260,15 @@ export const EXERCISES: ExerciseDefinition[] = [
     description: "Trace the faint ellipse guide as accurately as possible.",
     implemented: true,
     kind: "trace-ellipse",
+  },
+  {
+    id: "solids-cube-2pt",
+    family: "Solids",
+    label: "Cube — 2-Point Perspective",
+    description:
+      "Build the visible corner-and-edge graph of a cube from a reference drawing.",
+    implemented: true,
+    kind: "solid-cube-2pt",
   },
   ...angleCopyExercises(
     "angle-copy-horizontal-aligned",

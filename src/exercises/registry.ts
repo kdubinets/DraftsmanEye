@@ -11,9 +11,11 @@ import type {
   ExerciseDefinition,
   ExerciseId,
   FreehandExerciseDefinition,
+  SolidExerciseDefinition,
 } from "../practice/catalog";
 import { mountSingleMarkScreen } from "../screens/singleMark";
 import { mountFreehandScreen } from "../screens/freehand";
+import { mountSolidsScreen } from "../screens/solids";
 import { scoreFreehandLine, scoreTargetLine } from "../scoring/line";
 import { scoreFreehandCircle, scoreTargetCircle } from "../scoring/circle";
 import { scoreFreehandEllipse, scoreTargetEllipse } from "../scoring/ellipse";
@@ -211,6 +213,15 @@ function toMountable(exercise: ExerciseDefinition): MountableExercise {
     };
   }
 
+  if (isSolidExercise(exercise)) {
+    return {
+      ...exercise,
+      mount(root, source, onNavigate, listState) {
+        return mountSolidsScreen(root, exercise, source, onNavigate, listState);
+      },
+    };
+  }
+
   const config = freehandConfig(exercise);
   return {
     ...exercise,
@@ -225,6 +236,12 @@ function toMountable(exercise: ExerciseDefinition): MountableExercise {
       );
     },
   };
+}
+
+function isSolidExercise(
+  exercise: ExerciseDefinition,
+): exercise is SolidExerciseDefinition {
+  return exercise.implemented && exercise.kind === "solid-cube-2pt";
 }
 
 export const MOUNTABLE_EXERCISES: MountableExercise[] =

@@ -142,11 +142,18 @@ test("home page lists drills and auto entry point", async ({ page }) => {
       exact: true,
     }),
   ).toBeVisible();
-  await expect(page.getByText("New")).toHaveCount(75);
+  await expect(
+    page.getByRole("heading", {
+      level: 3,
+      name: "Cube — 2-Point Perspective",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(page.getByText("New")).toHaveCount(76);
   await expect(page.getByRole("button", { name: "Coming soon" })).toHaveCount(
     0,
   );
-  await expect(page.getByRole("button", { name: "Practice" })).toHaveCount(75);
+  await expect(page.getByRole("button", { name: "Practice" })).toHaveCount(76);
   await expect(
     page
       .getByRole("article")
@@ -220,6 +227,7 @@ test("home page groups drills and filters by family", async ({ page }) => {
     "Freehand Control",
     "Trace Control",
     "Target Drawing",
+    "Solids",
   ]);
 
   await page.getByRole("button", { name: "Trace Control 3" }).click();
@@ -231,8 +239,43 @@ test("home page groups drills and filters by family", async ({ page }) => {
     page.getByRole("heading", { level: 3, name: "Line Through Two Points" }),
   ).toBeHidden();
 
-  await page.getByRole("button", { name: "All 75" }).click();
-  await expect(familyHeadings).toHaveCount(7);
+  await page.getByRole("button", { name: "All 76" }).click();
+  await expect(familyHeadings).toHaveCount(8);
+});
+
+test("solids cube drill mounts reference and warns on incomplete graph", async ({
+  page,
+}) => {
+  await page.goto("/exercise/solids-cube-2pt");
+
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Cube — 2-Point Perspective" }),
+  ).toBeVisible();
+  await expect(page.locator(".solids-reference-edge")).toHaveCount(9);
+
+  const panel = page.locator(".solids-reference-panel");
+  const before = await panel.boundingBox();
+  expect(before).not.toBeNull();
+  const handle = page.locator(".solids-reference-resize");
+  const handleBox = await handle.boundingBox();
+  expect(handleBox).not.toBeNull();
+  await page.mouse.move(
+    handleBox!.x + handleBox!.width / 2,
+    handleBox!.y + handleBox!.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    handleBox!.x + handleBox!.width / 2 + 42,
+    handleBox!.y + handleBox!.height / 2,
+  );
+  await page.mouse.up();
+  const after = await panel.boundingBox();
+  expect(after?.width).toBeGreaterThan((before?.width ?? 0) + 20);
+
+  await page.getByRole("button", { name: "Done" }).click();
+  await expect(
+    page.getByText(/Reference needs 7 vertices and 9 edges/),
+  ).toBeVisible();
 });
 
 test("large family subfilters combine and persist after returning to list", async ({
