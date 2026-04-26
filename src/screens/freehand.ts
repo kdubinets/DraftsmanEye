@@ -246,6 +246,7 @@ export function mountFreehandScreen(
   svg.dataset.testid = "freehand-canvas";
 
   svg.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
     if (isAdjustableLineMode) return;
     if (drawingPointerId !== null) return;
     if (result) {
@@ -279,6 +280,7 @@ export function mountFreehandScreen(
 
   svg.addEventListener("pointermove", (event) => {
     if (drawingPointerId !== event.pointerId || result) return;
+    event.preventDefault();
     const next = freehandPointsFromPointerEvent(svg, event);
     if (next.length === 0) return;
     const tail = points[points.length - 1];
@@ -288,6 +290,7 @@ export function mountFreehandScreen(
 
   const finishStroke = (event: PointerEvent): void => {
     if (drawingPointerId !== event.pointerId || result) return;
+    event.preventDefault();
     points.push(...freehandPointsFromPointerEvent(svg, event));
     drawingPointerId = null;
     if (svg.hasPointerCapture(event.pointerId)) {

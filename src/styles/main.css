@@ -46,6 +46,10 @@ body {
 
 button {
   font: inherit;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .page-shell {
@@ -386,6 +390,9 @@ button {
   display: flex;
   align-items: center;
   gap: 0.8rem;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .exercise-toolbar .exercise-prompt {
@@ -401,6 +408,8 @@ button {
   touch-action: none;
   cursor: crosshair;
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .exercise-stage.is-maximized .freehand-canvas {
