@@ -380,10 +380,25 @@ button {
   position: fixed;
   inset: 0;
   z-index: 10;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  align-items: center;
   margin: 0;
   border-radius: 0;
-  padding: 1rem;
+  padding: max(0.65rem, env(safe-area-inset-top))
+    max(0.8rem, env(safe-area-inset-right))
+    max(0.65rem, env(safe-area-inset-bottom))
+    max(0.8rem, env(safe-area-inset-left));
+  overflow: hidden;
   background: #f8f3ea;
+  --fullscreen-canvas-block-size: calc(
+    100dvh - 1.3rem - env(safe-area-inset-top) -
+      env(safe-area-inset-bottom)
+  );
+}
+
+.exercise-stage.is-browser-fullscreen .fullscreen-action {
+  display: none;
 }
 
 .exercise-toolbar {
@@ -400,6 +415,36 @@ button {
   margin: 0;
 }
 
+.exercise-stage.is-maximized .exercise-toolbar {
+  position: absolute;
+  top: max(0.65rem, env(safe-area-inset-top));
+  right: max(0.8rem, env(safe-area-inset-right));
+  z-index: 2;
+  gap: 0.35rem;
+  padding: 0.28rem;
+  border-radius: 16px;
+  background: rgba(248, 243, 234, 0.56);
+  backdrop-filter: blur(8px);
+}
+
+.exercise-stage.is-maximized .exercise-toolbar .exercise-prompt {
+  display: none;
+}
+
+.exercise-stage.is-maximized .secondary-action {
+  min-width: 0;
+  padding: 0.42rem 0.62rem;
+  border-radius: 999px;
+  background: rgba(31, 26, 23, 0.12);
+  color: rgba(31, 26, 23, 0.68);
+  font-size: 0.82rem;
+  line-height: 1.15;
+}
+
+.exercise-stage.is-maximized .secondary-action:hover {
+  background: rgba(31, 26, 23, 0.18);
+}
+
 .freehand-canvas {
   width: 100%;
   height: min(62vh, 620px);
@@ -413,12 +458,48 @@ button {
 }
 
 .exercise-stage.is-maximized .freehand-canvas {
-  height: min(100dvh - 13rem, 900px);
+  justify-self: center;
+  width: min(100%, calc(var(--fullscreen-canvas-block-size) * 1000 / 620));
+  height: auto;
+  max-height: var(--fullscreen-canvas-block-size);
   min-height: 0;
+  aspect-ratio: 1000 / 620;
 }
 
 .exercise-stage.is-maximized .exercise-canvas {
-  max-height: min(100dvh - 13rem, 900px);
+  justify-self: center;
+  width: 100%;
+  height: auto;
+  max-height: var(--fullscreen-canvas-block-size);
+  min-height: 0;
+}
+
+.exercise-stage.is-maximized .exercise-canvas[data-axis="vertical"] {
+  height: auto;
+  min-height: 0;
+}
+
+.exercise-stage.is-maximized .feedback-banner {
+  position: absolute;
+  left: max(1rem, env(safe-area-inset-left));
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  z-index: 2;
+  max-width: min(42rem, calc(100% - 2rem));
+  pointer-events: none;
+  opacity: 0.64;
+  padding: 0.65rem 0.8rem;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(255, 251, 245, 0.48);
+  box-shadow: none;
+}
+
+.exercise-stage.is-maximized .feedback-banner:not([data-tone]) {
+  display: none;
+}
+
+.exercise-stage.is-maximized .result-summary {
+  display: none;
 }
 
 .freehand-user-stroke {

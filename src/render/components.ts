@@ -49,7 +49,37 @@ export function fullscreenButton(stage: HTMLElement): HTMLButtonElement {
     void toggleExerciseFullscreen(stage, button);
   });
   button.classList.add("fullscreen-action");
+  document.addEventListener("fullscreenchange", function syncFullscreenState() {
+    if (!stage.isConnected) {
+      document.removeEventListener("fullscreenchange", syncFullscreenState);
+      return;
+    }
+
+    syncExerciseFullscreenState(stage, button);
+  });
   return button;
+}
+
+function syncExerciseFullscreenState(
+  stage: HTMLElement,
+  button: HTMLButtonElement,
+): void {
+  const wasBrowserFullscreen = stage.classList.contains(
+    "is-browser-fullscreen",
+  );
+  const isBrowserFullscreen = document.fullscreenElement === stage;
+
+  stage.classList.toggle("is-browser-fullscreen", isBrowserFullscreen);
+  if (isBrowserFullscreen) {
+    stage.classList.add("is-maximized");
+    button.textContent = "Exit";
+    return;
+  }
+
+  if (wasBrowserFullscreen) {
+    stage.classList.remove("is-maximized");
+    button.textContent = "Full";
+  }
 }
 
 async function toggleExerciseFullscreen(
@@ -72,9 +102,14 @@ async function toggleExerciseFullscreen(
     if (!document.fullscreenElement && stage.requestFullscreen) {
       await stage.requestFullscreen();
     }
+    syncExerciseFullscreenState(stage, button);
   } catch (error) {
     stage.classList.toggle(
       "is-maximized",
+      document.fullscreenElement === stage,
+    );
+    stage.classList.toggle(
+      "is-browser-fullscreen",
       document.fullscreenElement === stage,
     );
     button.textContent = document.fullscreenElement === stage ? "Exit" : "Full";
