@@ -16,11 +16,15 @@ export type Settings = {
   showScoreBoxes: boolean;
   /** Delay before a completed exercise resets; null means manual advance only. */
   autoRepeatDelayMs: AutoRepeatDelayMs;
+  /** Rendering style for 3D solid references. */
+  solidReferenceStyle: SolidReferenceStyle;
 };
 
 const STORAGE_KEY = "draftsman-eye.settings.v1";
 export const AUTO_REPEAT_DELAYS = [null, 1500, 2500, 4000] as const;
 export type AutoRepeatDelayMs = (typeof AUTO_REPEAT_DELAYS)[number];
+export const SOLID_REFERENCE_STYLES = ["wireframe", "shaded"] as const;
+export type SolidReferenceStyle = (typeof SOLID_REFERENCE_STYLES)[number];
 
 const DEFAULTS: Settings = {
   allowTouchDrawing: false,
@@ -29,6 +33,7 @@ const DEFAULTS: Settings = {
   showResultString: true,
   showScoreBoxes: true,
   autoRepeatDelayMs: 2500,
+  solidReferenceStyle: "wireframe",
 };
 
 let cache: Settings | null = null;
@@ -93,6 +98,7 @@ function mergeWithDefaults(raw: unknown): Settings {
         ? src["showScoreBoxes"]
         : DEFAULTS.showScoreBoxes,
     autoRepeatDelayMs: parseAutoRepeatDelay(src["autoRepeatDelayMs"]),
+    solidReferenceStyle: parseSolidReferenceStyle(src["solidReferenceStyle"]),
   };
 }
 
@@ -100,4 +106,10 @@ function parseAutoRepeatDelay(raw: unknown): AutoRepeatDelayMs {
   return AUTO_REPEAT_DELAYS.includes(raw as AutoRepeatDelayMs)
     ? (raw as AutoRepeatDelayMs)
     : DEFAULTS.autoRepeatDelayMs;
+}
+
+function parseSolidReferenceStyle(raw: unknown): SolidReferenceStyle {
+  return SOLID_REFERENCE_STYLES.includes(raw as SolidReferenceStyle)
+    ? (raw as SolidReferenceStyle)
+    : DEFAULTS.solidReferenceStyle;
 }

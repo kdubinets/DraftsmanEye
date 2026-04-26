@@ -23,7 +23,15 @@ export type SolidModel = {
 export type ProjectedSolid = {
   points: Point[];
   visibleEdges: SolidEdge[];
+  visibleFaces: ProjectedSolidFace[];
   visibleVertexIndices: number[];
+};
+
+export type ProjectedSolidFace = {
+  vertices: readonly number[];
+  points: Point[];
+  normal: Vec3;
+  depth: number;
 };
 
 export type ProjectionOptions = {
@@ -109,12 +117,31 @@ export function projectSolid(
     new Set(visibleEdges.flatMap(([a, b]) => [a, b])),
   ).sort((a, b) => a - b);
 
+  const fittedPoints =
+    options.fitMargin === undefined
+      ? points
+      : fitPointsToViewport(points, visibleVertexIndices, options);
+  const visibleProjectedFaces = solid.faces
+    .flatMap((face, index) => {
+      if (!visibleFaces[index]) return [];
+      const transformedFaceVertices = face.vertices.map(
+        (vertexIndex) => transformed[vertexIndex],
+      );
+      return [
+        {
+          vertices: face.vertices,
+          points: face.vertices.map((vertexIndex) => fittedPoints[vertexIndex]),
+          normal: rotatedNormals[index],
+          depth: faceCenter(transformedFaceVertices).z,
+        },
+      ];
+    })
+    .sort((a, b) => a.depth - b.depth);
+
   return {
-    points:
-      options.fitMargin === undefined
-        ? points
-        : fitPointsToViewport(points, visibleVertexIndices, options),
+    points: fittedPoints,
     visibleEdges,
+    visibleFaces: visibleProjectedFaces,
     visibleVertexIndices,
   };
 }

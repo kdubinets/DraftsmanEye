@@ -1,7 +1,9 @@
 /** Settings screen: user-facing toggles and progress reset. */
 import {
   AUTO_REPEAT_DELAYS,
+  SOLID_REFERENCE_STYLES,
   type AutoRepeatDelayMs,
+  type SolidReferenceStyle,
   getSettings,
   updateSetting,
 } from "../storage/settings";
@@ -41,6 +43,15 @@ export function mountSettingsScreen(
       "Shows the detailed diagnostic score boxes after each completed drill.",
       settings.showScoreBoxes,
       (v) => updateSetting("showScoreBoxes", v),
+    ),
+  ]);
+
+  const referenceSection = h("section", { class: "settings-section" }, [
+    h("h2", {}, ["Reference display"]),
+    solidReferenceStyleSelect(
+      "solid-reference-style",
+      settings.solidReferenceStyle,
+      (v) => updateSetting("solidReferenceStyle", v),
     ),
   ]);
 
@@ -102,6 +113,7 @@ export function mountSettingsScreen(
       h("h1", { class: "settings-heading" }, ["Settings"]),
       loopSection,
       resultSection,
+      referenceSection,
       togglesSection,
       dangerSection,
       installSection,
@@ -109,6 +121,54 @@ export function mountSettingsScreen(
     ),
   );
   return cleanupInstallButton;
+}
+
+function solidReferenceStyleSelect(
+  id: string,
+  initialValue: SolidReferenceStyle,
+  onChange: (value: SolidReferenceStyle) => void,
+): HTMLElement {
+  const select = h("select", {
+    id,
+    class: "settings-select",
+  });
+  select.append(
+    ...SOLID_REFERENCE_STYLES.map((style) =>
+      h(
+        "option",
+        {
+          value: style,
+          selected: style === initialValue,
+        },
+        [formatSolidReferenceStyle(style)],
+      ),
+    ),
+  );
+  select.addEventListener("change", () => {
+    onChange(parseSolidReferenceStyle(select.value));
+  });
+
+  return h("div", { class: "settings-row" }, [
+    h("div", { class: "settings-label-group" }, [
+      h("label", { htmlFor: id, class: "settings-label" }, [
+        "3D solid reference style",
+      ]),
+      h("p", { class: "settings-note" }, [
+        "Shaded adds simple face lighting to 3D references while keeping edge construction visible.",
+      ]),
+    ]),
+    select,
+  ]);
+}
+
+function parseSolidReferenceStyle(value: string): SolidReferenceStyle {
+  return SOLID_REFERENCE_STYLES.includes(value as SolidReferenceStyle)
+    ? (value as SolidReferenceStyle)
+    : "wireframe";
+}
+
+function formatSolidReferenceStyle(style: SolidReferenceStyle): string {
+  return style === "wireframe" ? "Wireframe" : "Shaded";
 }
 
 function installSectionBlock(): { section: HTMLElement; cleanup: () => void } {

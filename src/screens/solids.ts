@@ -486,6 +486,7 @@ export function mountSolidsScreen(
 
   function renderReference(): void {
     referenceSvg.replaceChildren(
+      ...referenceFaceElements(),
       ...trial.referenceProjection.visibleEdges.map(([a, b]) =>
         s("line", {
           class: "solids-reference-edge",
@@ -495,6 +496,19 @@ export function mountSolidsScreen(
           y2: trial.referenceProjection.points[b].y,
         }),
       ),
+    );
+  }
+
+  function referenceFaceElements(): SVGElement[] {
+    if (settings.solidReferenceStyle !== "shaded") return [];
+    return trial.referenceProjection.visibleFaces.map((face) =>
+      s("polygon", {
+        class: "solids-reference-face",
+        points: face.points
+          .map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`)
+          .join(" "),
+        fill: shadedFaceFill(face.normal),
+      }),
     );
   }
 
@@ -861,6 +875,29 @@ function cubeAngles(): {
   return {
     rotationYRadians: (sign * (34 + Math.random() * 24) * Math.PI) / 180,
     rotationXRadians: ((14 + Math.random() * 14) * Math.PI) / 180,
+  };
+}
+
+function shadedFaceFill(normal: { x: number; y: number; z: number }): string {
+  const light = normalizeVector({ x: -0.45, y: 0.72, z: -0.54 });
+  const n = normalizeVector(normal);
+  const lambert = Math.max(0, n.x * light.x + n.y * light.y + n.z * light.z);
+  const lightness = 72 + lambert * 16;
+  const saturation = 24 + lambert * 10;
+  return `hsl(35 ${saturation.toFixed(1)}% ${lightness.toFixed(1)}%)`;
+}
+
+function normalizeVector(vector: { x: number; y: number; z: number }): {
+  x: number;
+  y: number;
+  z: number;
+} {
+  const length = Math.hypot(vector.x, vector.y, vector.z);
+  if (length === 0) return { x: 0, y: 0, z: 0 };
+  return {
+    x: vector.x / length,
+    y: vector.y / length,
+    z: vector.z / length,
   };
 }
 

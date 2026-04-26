@@ -18,6 +18,7 @@ export type FlatShapeReference = {
   projection: {
     points: Point[];
     visibleEdges: SolidEdge[];
+    visibleFaces: [];
     visibleVertexIndices: number[];
   };
 };
@@ -43,6 +44,7 @@ export function createFlatShapeReference(
     projection: {
       points: referencePoints,
       visibleEdges: edges,
+      visibleFaces: [],
       visibleVertexIndices,
     },
     reference: {

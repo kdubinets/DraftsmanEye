@@ -920,6 +920,12 @@ button {
   vector-effect: non-scaling-stroke;
 }
 
+.solids-reference-face {
+  stroke: rgba(77, 58, 37, 0.16);
+  stroke-width: 0.8;
+  vector-effect: non-scaling-stroke;
+}
+
 .solids-edge {
   stroke: #34261b;
   stroke-width: 2.8;

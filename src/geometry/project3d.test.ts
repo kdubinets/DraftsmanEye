@@ -14,6 +14,10 @@ describe("projectSolid", () => {
 
     expect(projected.visibleVertexIndices).toHaveLength(7);
     expect(projected.visibleEdges).toHaveLength(9);
+    expect(projected.visibleFaces.length).toBeGreaterThan(0);
+    for (const face of projected.visibleFaces) {
+      expect(face.points).toHaveLength(face.vertices.length);
+    }
   });
 
   it("keeps vertical cube edges vertical in the two-point projection", () => {

@@ -34,6 +34,7 @@ describe("getSettings", () => {
     expect(getSettings()).toMatchObject({
       showResultString: true,
       showScoreBoxes: true,
+      solidReferenceStyle: "wireframe",
     });
   });
 
@@ -67,6 +68,18 @@ describe("getSettings", () => {
     });
   });
 
+  it("accepts solid reference style settings", () => {
+    store[STORAGE_KEY] = JSON.stringify({ solidReferenceStyle: "shaded" });
+
+    expect(getSettings().solidReferenceStyle).toBe("shaded");
+  });
+
+  it("rejects malformed solid reference style settings", () => {
+    store[STORAGE_KEY] = JSON.stringify({ solidReferenceStyle: "photo" });
+
+    expect(getSettings().solidReferenceStyle).toBe("wireframe");
+  });
+
   it("returns defaults and logs for invalid JSON", () => {
     store[STORAGE_KEY] = "{{not-json";
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -91,6 +104,14 @@ describe("updateSetting", () => {
 
     expect(JSON.parse(store[STORAGE_KEY] ?? "{}")).toMatchObject({
       showScoreBoxes: false,
+    });
+  });
+
+  it("persists solid reference style settings", () => {
+    updateSetting("solidReferenceStyle", "shaded");
+
+    expect(JSON.parse(store[STORAGE_KEY] ?? "{}")).toMatchObject({
+      solidReferenceStyle: "shaded",
     });
   });
 });

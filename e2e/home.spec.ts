@@ -201,6 +201,10 @@ test("settings page exposes install affordance when the browser allows it", asyn
 }) => {
   await page.goto("/settings");
 
+  await expect(
+    page.getByLabel("3D solid reference style"),
+  ).toHaveValue("wireframe");
+
   const installButton = page.getByRole("button", { name: "Install app" });
   await expect(installButton).toBeVisible();
   await installButton.click();
@@ -327,12 +331,19 @@ test("flat shape drills mount generated polygon references", async ({ page }) =>
 test("solids cube drill mounts reference and warns on incomplete graph", async ({
   page,
 }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "draftsman-eye.settings.v1",
+      JSON.stringify({ solidReferenceStyle: "shaded" }),
+    );
+  });
   await page.goto("/exercise/solids-cube-2pt");
 
   await expect(
     page.getByRole("heading", { level: 1, name: "Cube — 2-Point Perspective" }),
   ).toBeVisible();
   await expect(page.locator(".solids-reference-edge")).toHaveCount(9);
+  await expect(page.locator(".solids-reference-face")).not.toHaveCount(0);
 
   const panel = page.locator(".solids-reference-panel");
   const before = await panel.boundingBox();
