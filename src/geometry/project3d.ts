@@ -1,7 +1,7 @@
 /**
  * Projects simple 3D solids into inspectable SVG-space line drawings.
- * The solids drill uses Y then X rotation so references can show enough of
- * the top face without manually authored image assets.
+ * The solids drill uses controlled model rotations so references can show
+ * enough form information without manually authored image assets.
  */
 import type { Point } from "./primitives";
 
@@ -39,6 +39,7 @@ export type ProjectionOptions = {
   height: number;
   rotationYRadians: number;
   rotationXRadians?: number;
+  rotationZRadians?: number;
   focalLength: number;
   cameraDistance: number;
   yOffset?: number;
@@ -80,14 +81,102 @@ export const CUBE_SOLID: SolidModel = {
   ],
 };
 
+export function cuboidSolid(
+  width: number,
+  height: number,
+  depth: number,
+): SolidModel {
+  const x = width / 2;
+  const y = height / 2;
+  const z = depth / 2;
+  return {
+    vertices: [
+      { x: -x, y: -y, z: -z },
+      { x, y: -y, z: -z },
+      { x, y: -y, z },
+      { x: -x, y: -y, z },
+      { x: -x, y, z: -z },
+      { x, y, z: -z },
+      { x, y, z },
+      { x: -x, y, z },
+    ],
+    edges: CUBE_SOLID.edges,
+    faces: CUBE_SOLID.faces,
+  };
+}
+
+export const TRIANGULAR_PRISM_LYING_SOLID: SolidModel =
+  triangularPrismSolid("lying");
+
+export const TRIANGULAR_PRISM_STANDING_SOLID: SolidModel =
+  triangularPrismSolid("standing");
+
+export const SQUARE_PYRAMID_SOLID: SolidModel = (() => {
+  const vertices = [
+    { x: -1, y: -1, z: -1 },
+    { x: 1, y: -1, z: -1 },
+    { x: 1, y: -1, z: 1 },
+    { x: -1, y: -1, z: 1 },
+    { x: 0, y: 1.15, z: 0 },
+  ];
+  return {
+    vertices,
+    edges: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 0],
+      [0, 4],
+      [1, 4],
+      [2, 4],
+      [3, 4],
+    ],
+    faces: [
+      faceWithHint(vertices, [0, 3, 2, 1], { x: 0, y: -1, z: 0 }),
+      faceWithHint(vertices, [0, 1, 4], { x: 0, y: 0, z: -1 }),
+      faceWithHint(vertices, [1, 2, 4], { x: 1, y: 0, z: 0 }),
+      faceWithHint(vertices, [2, 3, 4], { x: 0, y: 0, z: 1 }),
+      faceWithHint(vertices, [3, 0, 4], { x: -1, y: 0, z: 0 }),
+    ],
+  };
+})();
+
+export const TRIANGULAR_PYRAMID_SOLID: SolidModel = (() => {
+  const vertices = [
+    { x: -1.05, y: -0.78, z: -0.72 },
+    { x: 1.05, y: -0.78, z: -0.72 },
+    { x: 0, y: -0.78, z: 1.08 },
+    { x: 0, y: 1.08, z: 0 },
+  ];
+  return {
+    vertices,
+    edges: [
+      [0, 1],
+      [1, 2],
+      [2, 0],
+      [0, 3],
+      [1, 3],
+      [2, 3],
+    ],
+    faces: [
+      faceWithHint(vertices, [0, 2, 1], { x: 0, y: -1, z: 0 }),
+      faceWithHint(vertices, [0, 1, 3], { x: 0, y: 0.35, z: -1 }),
+      faceWithHint(vertices, [1, 2, 3], { x: 1, y: 0.35, z: 0.5 }),
+      faceWithHint(vertices, [2, 0, 3], { x: -1, y: 0.35, z: 0.5 }),
+    ],
+  };
+})();
+
 export function projectSolid(
   solid: SolidModel,
   options: ProjectionOptions,
 ): ProjectedSolid {
   const yOffset = options.yOffset ?? 0;
   const rotationXRadians = options.rotationXRadians ?? 0;
+  const rotationZRadians = options.rotationZRadians ?? 0;
   const transformed = solid.vertices.map((vertex) => {
-    const yRotated = rotateY(vertex, options.rotationYRadians);
+    const zRotated = rotateZ(vertex, rotationZRadians);
+    const yRotated = rotateY(zRotated, options.rotationYRadians);
     const xRotated = rotateX(yRotated, rotationXRadians);
     return { ...xRotated, y: xRotated.y + yOffset };
   });
@@ -95,10 +184,15 @@ export function projectSolid(
     perspectiveProject(vertex, options),
   );
   const rotatedNormals = solid.faces.map((face) =>
-    rotateX(rotateY(face.normal, options.rotationYRadians), rotationXRadians),
+    rotateX(
+      rotateY(rotateZ(face.normal, rotationZRadians), options.rotationYRadians),
+      rotationXRadians,
+    ),
   );
   const visibleFaces = solid.faces.map((face, index) => {
-    const center = faceCenter(face.vertices.map((vertexIndex) => transformed[vertexIndex]));
+    const center = faceCenter(
+      face.vertices.map((vertexIndex) => transformed[vertexIndex]),
+    );
     const toCamera = {
       x: -center.x,
       y: -center.y,
@@ -163,6 +257,16 @@ export function rotateX(vertex: Vec3, angle: number): Vec3 {
     x: vertex.x,
     y: vertex.y * c - vertex.z * s,
     z: vertex.y * s + vertex.z * c,
+  };
+}
+
+export function rotateZ(vertex: Vec3, angle: number): Vec3 {
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
+  return {
+    x: vertex.x * c - vertex.y * s,
+    y: vertex.x * s + vertex.y * c,
+    z: vertex.z,
   };
 }
 
@@ -249,4 +353,99 @@ function bounds(points: Point[]): {
     maxY = Math.max(maxY, point.y);
   }
   return { minX, maxX, minY, maxY, width: maxX - minX, height: maxY - minY };
+}
+
+function triangularPrismSolid(orientation: "lying" | "standing"): SolidModel {
+  const vertices =
+    orientation === "lying"
+      ? [
+          { x: -1, y: -0.78, z: -1.45 },
+          { x: 1, y: -0.78, z: -1.45 },
+          { x: 0, y: 0.98, z: -1.45 },
+          { x: -1, y: -0.78, z: 1.45 },
+          { x: 1, y: -0.78, z: 1.45 },
+          { x: 0, y: 0.98, z: 1.45 },
+        ]
+      : [
+          { x: -1, y: -1.45, z: -0.78 },
+          { x: 1, y: -1.45, z: -0.78 },
+          { x: 0, y: -1.45, z: 0.98 },
+          { x: -1, y: 1.45, z: -0.78 },
+          { x: 1, y: 1.45, z: -0.78 },
+          { x: 0, y: 1.45, z: 0.98 },
+        ];
+  const capHints =
+    orientation === "lying"
+      ? [
+          { x: 0, y: 0, z: -1 },
+          { x: 0, y: 0, z: 1 },
+        ]
+      : [
+          { x: 0, y: -1, z: 0 },
+          { x: 0, y: 1, z: 0 },
+        ];
+
+  return {
+    vertices,
+    edges: [
+      [0, 1],
+      [1, 2],
+      [2, 0],
+      [3, 4],
+      [4, 5],
+      [5, 3],
+      [0, 3],
+      [1, 4],
+      [2, 5],
+    ],
+    faces: [
+      faceWithHint(vertices, [0, 2, 1], capHints[0]),
+      faceWithHint(vertices, [3, 4, 5], capHints[1]),
+      faceWithHint(vertices, [0, 3, 4, 1], { x: 0, y: -1, z: -0.1 }),
+      faceWithHint(vertices, [1, 4, 5, 2], { x: 1, y: 0.5, z: 0 }),
+      faceWithHint(vertices, [2, 5, 3, 0], { x: -1, y: 0.5, z: 0 }),
+    ],
+  };
+}
+
+function faceWithHint(
+  vertices: readonly Vec3[],
+  faceVertices: readonly number[],
+  outwardHint: Vec3,
+): SolidFace {
+  const normal = faceNormal(faceVertices.map((index) => vertices[index]));
+  return {
+    vertices: faceVertices,
+    normal: dot(normal, outwardHint) >= 0 ? normal : scaleVector(normal, -1),
+  };
+}
+
+function faceNormal(vertices: readonly Vec3[]): Vec3 {
+  if (vertices.length < 3) return { x: 0, y: 0, z: 1 };
+  const a = vertices[0];
+  const b = vertices[1];
+  const c = vertices[2];
+  return normalizeVector({
+    x: (b.y - a.y) * (c.z - a.z) - (b.z - a.z) * (c.y - a.y),
+    y: (b.z - a.z) * (c.x - a.x) - (b.x - a.x) * (c.z - a.z),
+    z: (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x),
+  });
+}
+
+function normalizeVector(vector: Vec3): Vec3 {
+  const length = Math.hypot(vector.x, vector.y, vector.z);
+  if (length === 0) return { x: 0, y: 0, z: 1 };
+  return {
+    x: vector.x / length,
+    y: vector.y / length,
+    z: vector.z / length,
+  };
+}
+
+function scaleVector(vector: Vec3, scale: number): Vec3 {
+  return {
+    x: vector.x * scale,
+    y: vector.y * scale,
+    z: vector.z * scale,
+  };
 }

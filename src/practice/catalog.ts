@@ -89,6 +89,10 @@ export type ExerciseId =
   | "flat-pentagon"
   | "flat-hexagon"
   | "solids-cube-2pt"
+  | "solids-box-2pt"
+  | "solids-triangular-prism-2pt"
+  | "solids-square-pyramid-2pt"
+  | "solids-triangular-pyramid-2pt"
   | "loop-chain-freehand"
   | "loop-chain-linear"
   | "loop-chain-linear-scored"
@@ -194,6 +198,10 @@ export type SolidExerciseDefinition = ExerciseBase & {
   implemented: true;
   kind:
     | "solid-cube-2pt"
+    | "solid-box-2pt"
+    | "solid-triangular-prism-2pt"
+    | "solid-square-pyramid-2pt"
+    | "solid-triangular-pyramid-2pt"
     | "flat-triangle"
     | "flat-quadrilateral"
     | "flat-pentagon"
@@ -321,6 +329,33 @@ export const EXERCISES: ExerciseDefinition[] = [
     kind: "flat-hexagon",
   },
   {
+    id: "solids-triangular-pyramid-2pt",
+    family: "Solids",
+    label: "Triangular Pyramid — 2-Point Perspective",
+    description:
+      "Build the visible base and apex edges of a triangular pyramid from a reference drawing.",
+    implemented: true,
+    kind: "solid-triangular-pyramid-2pt",
+  },
+  {
+    id: "solids-square-pyramid-2pt",
+    family: "Solids",
+    label: "Square Pyramid — 2-Point Perspective",
+    description:
+      "Build the visible base and apex edges of a square pyramid from a reference drawing.",
+    implemented: true,
+    kind: "solid-square-pyramid-2pt",
+  },
+  {
+    id: "solids-triangular-prism-2pt",
+    family: "Solids",
+    label: "Triangular Prism — 2-Point Perspective",
+    description:
+      "Build a triangular prism in standing or lying poses from a reference drawing.",
+    implemented: true,
+    kind: "solid-triangular-prism-2pt",
+  },
+  {
     id: "solids-cube-2pt",
     family: "Solids",
     label: "Cube — 2-Point Perspective",
@@ -328,6 +363,15 @@ export const EXERCISES: ExerciseDefinition[] = [
       "Build the visible corner-and-edge graph of a cube from a reference drawing.",
     implemented: true,
     kind: "solid-cube-2pt",
+  },
+  {
+    id: "solids-box-2pt",
+    family: "Solids",
+    label: "Box — 2-Point Perspective",
+    description:
+      "Build a rectangular box with varied proportions from a reference drawing.",
+    implemented: true,
+    kind: "solid-box-2pt",
   },
   ...angleCopyExercises(
     "angle-copy-horizontal-aligned",

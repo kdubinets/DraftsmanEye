@@ -177,11 +177,39 @@ test("home page lists drills and auto entry point", async ({ page }) => {
       exact: true,
     }),
   ).toBeVisible();
-  await expect(page.getByText("New")).toHaveCount(87);
+  await expect(
+    page.getByRole("heading", {
+      level: 3,
+      name: "Box — 2-Point Perspective",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      level: 3,
+      name: "Triangular Prism — 2-Point Perspective",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      level: 3,
+      name: "Square Pyramid — 2-Point Perspective",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      level: 3,
+      name: "Triangular Pyramid — 2-Point Perspective",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(page.getByText("New")).toHaveCount(91);
   await expect(page.getByRole("button", { name: "Coming soon" })).toHaveCount(
     0,
   );
-  await expect(page.getByRole("button", { name: "Practice" })).toHaveCount(87);
+  await expect(page.getByRole("button", { name: "Practice" })).toHaveCount(91);
   await expect(
     page
       .getByRole("article")
@@ -201,9 +229,9 @@ test("settings page exposes install affordance when the browser allows it", asyn
 }) => {
   await page.goto("/settings");
 
-  await expect(
-    page.getByLabel("3D solid reference style"),
-  ).toHaveValue("wireframe");
+  await expect(page.getByLabel("3D solid reference style")).toHaveValue(
+    "wireframe",
+  );
 
   const installButton = page.getByRole("button", { name: "Install app" });
   await expect(installButton).toBeVisible();
@@ -273,11 +301,13 @@ test("home page groups drills and filters by family", async ({ page }) => {
     page.getByRole("heading", { level: 3, name: "Line Through Two Points" }),
   ).toBeHidden();
 
-  await page.getByRole("button", { name: "All 87" }).click();
+  await page.getByRole("button", { name: "All 91" }).click();
   await expect(familyHeadings).toHaveCount(10);
 });
 
-test("flat shape drills mount generated polygon references", async ({ page }) => {
+test("flat shape drills mount generated polygon references", async ({
+  page,
+}) => {
   await page.goto("/exercise/flat-triangle");
 
   await expect(
@@ -360,7 +390,12 @@ test("solids cube drill mounts reference and warns on incomplete graph", async (
   await expect(
     page.getByRole("heading", { level: 1, name: "Cube — 2-Point Perspective" }),
   ).toBeVisible();
-  await expect(page.locator(".solids-reference-edge")).toHaveCount(9);
+  await expect(page.locator(".solids-reference-edge").first()).toBeVisible();
+  const referenceEdgeCount = await page
+    .locator(".solids-reference-edge")
+    .count();
+  expect(referenceEdgeCount).toBeGreaterThanOrEqual(7);
+  expect(referenceEdgeCount).toBeLessThanOrEqual(9);
   await expect(page.locator(".solids-reference-face")).not.toHaveCount(0);
 
   const panel = page.locator(".solids-reference-panel");
@@ -384,7 +419,7 @@ test("solids cube drill mounts reference and warns on incomplete graph", async (
 
   await page.getByRole("button", { name: "Done" }).click();
   await expect(
-    page.getByText(/Reference needs 7 vertices and 9 edges/),
+    page.getByText(/Reference needs \d+ vertices and \d+ edges/),
   ).toBeVisible();
 });
 

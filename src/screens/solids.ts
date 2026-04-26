@@ -1,8 +1,16 @@
 /** Solids exercise screen: vertex-edge graph editing with a live reference panel. */
 import type { SolidExerciseDefinition } from "../practice/catalog";
 import { createFlatShapeReference } from "../geometry/flatShapes";
-import { CUBE_SOLID, projectSolid } from "../geometry/project3d";
-import type { ProjectedSolid } from "../geometry/project3d";
+import {
+  CUBE_SOLID,
+  SQUARE_PYRAMID_SOLID,
+  TRIANGULAR_PRISM_LYING_SOLID,
+  TRIANGULAR_PRISM_STANDING_SOLID,
+  TRIANGULAR_PYRAMID_SOLID,
+  cuboidSolid,
+  projectSolid,
+} from "../geometry/project3d";
+import type { ProjectedSolid, SolidModel } from "../geometry/project3d";
 import { localSvgPoint } from "../render/svg";
 import { h, s } from "../render/h";
 import {
@@ -18,10 +26,7 @@ import {
   feedbackHueForError,
   feedbackLabel,
 } from "../scoring/bands";
-import {
-  scoreSolidGraph,
-  topologyWarning,
-} from "../scoring/solids";
+import { scoreSolidGraph, topologyWarning } from "../scoring/solids";
 import type {
   SolidGraphEdge,
   SolidGraphVertex,
@@ -45,6 +50,15 @@ type SolidTrial = {
   rotationXRadians: number;
   reference: SolidReferenceGraph;
   referenceProjection: ProjectedSolid;
+};
+
+type SolidPosePreset = {
+  model: SolidModel;
+  yawDegrees: readonly [number, number];
+  pitchDegrees: readonly [number, number];
+  pitchDirection?: -1 | 1 | "either";
+  rollDegrees?: readonly [number, number];
+  rollDirection?: -1 | 1 | "either";
 };
 
 type GraphState = {
@@ -362,11 +376,17 @@ export function mountSolidsScreen(
       selectedId = null;
       renderGraph();
     }
-    if ((event.key === "z" || event.key === "Z") && (event.ctrlKey || event.metaKey)) {
+    if (
+      (event.key === "z" || event.key === "Z") &&
+      (event.ctrlKey || event.metaKey)
+    ) {
       event.preventDefault();
       doUndo();
     }
-    if ((event.key === "Delete" || event.key === "Backspace") && selectedId !== null) {
+    if (
+      (event.key === "Delete" || event.key === "Backspace") &&
+      selectedId !== null
+    ) {
       event.preventDefault();
       deleteSelectedVertex();
     }
@@ -382,7 +402,10 @@ export function mountSolidsScreen(
     const move = (moveEvent: PointerEvent): void => {
       const workspaceWidth = workspace.getBoundingClientRect().width;
       referencePanelWidth = Math.round(
-        Math.min(Math.max(startWidth + moveEvent.clientX - startX, 170), workspaceWidth * 0.48),
+        Math.min(
+          Math.max(startWidth + moveEvent.clientX - startX, 170),
+          workspaceWidth * 0.48,
+        ),
       );
       referencePanel.style.width = `${referencePanelWidth}px`;
     };
@@ -400,7 +423,11 @@ export function mountSolidsScreen(
 
   function revealResult(): void {
     if (result) return;
-    const warning = topologyWarning(trial.reference, state.vertices, state.edges);
+    const warning = topologyWarning(
+      trial.reference,
+      state.vertices,
+      state.edges,
+    );
     if (warning) {
       feedback.dataset.tone = "bad";
       feedback.textContent =
@@ -640,7 +667,9 @@ export function mountSolidsScreen(
 
   function resultEdgeClass(edgeId: number): string {
     if (!result) return "";
-    const edgeScore = result.edgeScores.find((edge) => edge.userEdgeId === edgeId);
+    const edgeScore = result.edgeScores.find(
+      (edge) => edge.userEdgeId === edgeId,
+    );
     if (!edgeScore) {
       return result.extraUserEdgeIds.includes(edgeId) ? "is-bad" : "";
     }
@@ -681,7 +710,8 @@ export function mountSolidsScreen(
     biggerBtn.disabled = state.vertices.length === 0 || result !== null;
     deleteBtn.disabled = selectedId === null || result !== null;
     clearBtn.disabled =
-      (state.vertices.length === 0 && state.edges.length === 0) || result !== null;
+      (state.vertices.length === 0 && state.edges.length === 0) ||
+      result !== null;
     doneBtn.disabled = result !== null;
   }
 
@@ -709,7 +739,8 @@ export function mountSolidsScreen(
   }
 
   function clearGraph(): void {
-    if ((state.vertices.length === 0 && state.edges.length === 0) || result) return;
+    if ((state.vertices.length === 0 && state.edges.length === 0) || result)
+      return;
     snapshot();
     state.vertices = [];
     state.edges = [];
@@ -771,7 +802,9 @@ export function mountSolidsScreen(
 
   function deleteVertex(id: number): void {
     state.vertices = state.vertices.filter((vertex) => vertex.id !== id);
-    state.edges = state.edges.filter((edge) => edge.v1 !== id && edge.v2 !== id);
+    state.edges = state.edges.filter(
+      (edge) => edge.v1 !== id && edge.v2 !== id,
+    );
   }
 
   function findVertex(point: { x: number; y: number }): number | null {
@@ -823,25 +856,34 @@ function createTrial(exercise: SolidExerciseDefinition): SolidTrial {
   if (exercise.kind === "flat-hexagon") {
     return createFlatTrial("hexagon");
   }
-  return createCubeTrial();
+  return createProjectedSolidTrial(randomSolidPose(exercise.kind));
 }
 
-function createCubeTrial(): SolidTrial {
-  const { rotationYRadians, rotationXRadians } = cubeAngles();
-  const referenceProjection = projectSolid(CUBE_SOLID, {
+function createProjectedSolidTrial(preset: SolidPosePreset): SolidTrial {
+  const rotationYRadians = randomSignedDegrees(preset.yawDegrees);
+  const rotationXRadians = randomDegrees(
+    preset.pitchDegrees,
+    preset.pitchDirection ?? "either",
+  );
+  const rotationZRadians = preset.rollDegrees
+    ? randomDegrees(preset.rollDegrees, preset.rollDirection ?? "either")
+    : 0;
+  const referenceProjection = projectSolid(preset.model, {
     width: REFERENCE_WIDTH,
     height: REFERENCE_HEIGHT,
     rotationYRadians,
     rotationXRadians,
+    rotationZRadians,
     focalLength: Math.min(REFERENCE_WIDTH, REFERENCE_HEIGHT) * 0.48,
     cameraDistance: 5.2,
     fitMargin: 24,
   });
-  const scoringProjection = projectSolid(CUBE_SOLID, {
+  const scoringProjection = projectSolid(preset.model, {
     width: CANVAS_WIDTH,
     height: CANVAS_HEIGHT,
     rotationYRadians,
     rotationXRadians,
+    rotationZRadians,
     focalLength: Math.min(CANVAS_WIDTH, CANVAS_HEIGHT) * 0.48,
     cameraDistance: 5.2,
     fitMargin: 84,
@@ -877,16 +919,228 @@ function createFlatTrial(
   };
 }
 
-function cubeAngles(): {
-  rotationYRadians: number;
-  rotationXRadians: number;
-} {
-  const yawSign = Math.random() < 0.5 ? -1 : 1;
-  const pitchSign = Math.random() < 0.5 ? -1 : 1;
-  return {
-    rotationYRadians: (yawSign * (34 + Math.random() * 24) * Math.PI) / 180,
-    rotationXRadians: (pitchSign * (14 + Math.random() * 14) * Math.PI) / 180,
-  };
+function randomSolidPose(
+  kind: SolidExerciseDefinition["kind"],
+): SolidPosePreset {
+  const presets: SolidPosePreset[] =
+    kind === "solid-box-2pt"
+      ? boxPosePresets()
+      : kind === "solid-triangular-prism-2pt"
+        ? triangularPrismPosePresets()
+        : kind === "solid-square-pyramid-2pt"
+          ? squarePyramidPosePresets()
+          : kind === "solid-triangular-pyramid-2pt"
+            ? triangularPyramidPosePresets()
+            : cubePosePresets();
+  return presets[Math.floor(Math.random() * presets.length)];
+}
+
+function cubePosePresets(): SolidPosePreset[] {
+  return [
+    { model: CUBE_SOLID, yawDegrees: [25, 65], pitchDegrees: [10, 30] },
+    { model: CUBE_SOLID, yawDegrees: [20, 70], pitchDegrees: [4, 12] },
+    { model: CUBE_SOLID, yawDegrees: [28, 58], pitchDegrees: [30, 42] },
+    {
+      model: CUBE_SOLID,
+      yawDegrees: [24, 62],
+      pitchDegrees: [10, 28],
+      rollDegrees: [18, 38],
+      rollDirection: "either",
+    },
+    {
+      model: CUBE_SOLID,
+      yawDegrees: [28, 62],
+      pitchDegrees: [14, 30],
+      rollDegrees: [48, 72],
+      rollDirection: "either",
+    },
+  ];
+}
+
+function boxPosePresets(): SolidPosePreset[] {
+  return [
+    {
+      model: cuboidSolid(2.8, 1.45, 1.45),
+      yawDegrees: [24, 64],
+      pitchDegrees: [8, 26],
+    },
+    {
+      model: cuboidSolid(2.8, 1.45, 1.45),
+      yawDegrees: [26, 64],
+      pitchDegrees: [10, 26],
+      rollDegrees: [20, 42],
+      rollDirection: "either",
+    },
+    {
+      model: cuboidSolid(1.45, 2.8, 1.45),
+      yawDegrees: [24, 60],
+      pitchDegrees: [8, 24],
+    },
+    {
+      model: cuboidSolid(1.45, 2.8, 1.45),
+      yawDegrees: [26, 58],
+      pitchDegrees: [10, 24],
+      rollDegrees: [14, 28],
+      rollDirection: "either",
+    },
+    {
+      model: cuboidSolid(2.7, 0.9, 1.8),
+      yawDegrees: [22, 66],
+      pitchDegrees: [10, 28],
+    },
+    {
+      model: cuboidSolid(2.7, 0.9, 1.8),
+      yawDegrees: [28, 64],
+      pitchDegrees: [12, 28],
+      rollDegrees: [48, 74],
+      rollDirection: "either",
+    },
+    {
+      model: cuboidSolid(1.55, 1.4, 2.8),
+      yawDegrees: [28, 68],
+      pitchDegrees: [6, 22],
+    },
+    {
+      model: cuboidSolid(1.55, 1.4, 2.8),
+      yawDegrees: [30, 66],
+      pitchDegrees: [10, 26],
+      rollDegrees: [88, 112],
+      rollDirection: "either",
+    },
+  ];
+}
+
+function triangularPrismPosePresets(): SolidPosePreset[] {
+  return [
+    {
+      model: TRIANGULAR_PRISM_LYING_SOLID,
+      yawDegrees: [24, 66],
+      pitchDegrees: [8, 26],
+      pitchDirection: "either",
+    },
+    {
+      model: TRIANGULAR_PRISM_LYING_SOLID,
+      yawDegrees: [24, 62],
+      pitchDegrees: [10, 24],
+      pitchDirection: "either",
+      rollDegrees: [46, 70],
+      rollDirection: "either",
+    },
+    {
+      model: TRIANGULAR_PRISM_LYING_SOLID,
+      yawDegrees: [30, 68],
+      pitchDegrees: [14, 30],
+      pitchDirection: "either",
+      rollDegrees: [95, 125],
+      rollDirection: "either",
+    },
+    {
+      model: TRIANGULAR_PRISM_STANDING_SOLID,
+      yawDegrees: [22, 58],
+      pitchDegrees: [24, 36],
+      pitchDirection: -1,
+    },
+    {
+      model: TRIANGULAR_PRISM_STANDING_SOLID,
+      yawDegrees: [30, 62],
+      pitchDegrees: [18, 28],
+      pitchDirection: -1,
+    },
+    {
+      model: TRIANGULAR_PRISM_STANDING_SOLID,
+      yawDegrees: [24, 58],
+      pitchDegrees: [12, 22],
+      pitchDirection: 1,
+    },
+    {
+      model: TRIANGULAR_PRISM_STANDING_SOLID,
+      yawDegrees: [28, 58],
+      pitchDegrees: [12, 24],
+      pitchDirection: -1,
+      rollDegrees: [10, 18],
+      rollDirection: "either",
+    },
+  ];
+}
+
+function squarePyramidPosePresets(): SolidPosePreset[] {
+  return [
+    {
+      model: SQUARE_PYRAMID_SOLID,
+      yawDegrees: [24, 64],
+      pitchDegrees: [8, 28],
+    },
+    {
+      model: SQUARE_PYRAMID_SOLID,
+      yawDegrees: [30, 58],
+      pitchDegrees: [28, 40],
+    },
+    {
+      model: SQUARE_PYRAMID_SOLID,
+      yawDegrees: [26, 62],
+      pitchDegrees: [10, 28],
+      rollDegrees: [16, 32],
+      rollDirection: "either",
+    },
+    {
+      model: SQUARE_PYRAMID_SOLID,
+      yawDegrees: [28, 60],
+      pitchDegrees: [14, 30],
+      rollDegrees: [180, 180],
+      rollDirection: 1,
+    },
+    {
+      model: SQUARE_PYRAMID_SOLID,
+      yawDegrees: [30, 58],
+      pitchDegrees: [24, 36],
+      rollDegrees: [180, 180],
+      rollDirection: 1,
+    },
+  ];
+}
+
+function triangularPyramidPosePresets(): SolidPosePreset[] {
+  return [
+    {
+      model: TRIANGULAR_PYRAMID_SOLID,
+      yawDegrees: [24, 60],
+      pitchDegrees: [10, 26],
+    },
+    {
+      model: TRIANGULAR_PYRAMID_SOLID,
+      yawDegrees: [30, 58],
+      pitchDegrees: [22, 34],
+      pitchDirection: -1,
+    },
+    {
+      model: TRIANGULAR_PYRAMID_SOLID,
+      yawDegrees: [28, 60],
+      pitchDegrees: [12, 26],
+      rollDegrees: [18, 34],
+      rollDirection: "either",
+    },
+    {
+      model: TRIANGULAR_PYRAMID_SOLID,
+      yawDegrees: [28, 58],
+      pitchDegrees: [14, 28],
+      rollDegrees: [180, 180],
+      rollDirection: 1,
+    },
+  ];
+}
+
+function randomSignedDegrees(range: readonly [number, number]): number {
+  return randomDegrees(range, "either");
+}
+
+function randomDegrees(
+  range: readonly [number, number],
+  direction: -1 | 1 | "either",
+): number {
+  const sign = Math.random() < 0.5 ? -1 : 1;
+  const degrees = range[0] + Math.random() * (range[1] - range[0]);
+  const directedSign = direction === "either" ? sign : direction;
+  return (directedSign * degrees * Math.PI) / 180;
 }
 
 function shadedFaceFill(normal: { x: number; y: number; z: number }): string {
@@ -913,7 +1167,9 @@ function normalizeVector(vector: { x: number; y: number; z: number }): {
 }
 
 function sameEdge(edge: SolidGraphEdge, v1: number, v2: number): boolean {
-  return (edge.v1 === v1 && edge.v2 === v2) || (edge.v1 === v2 && edge.v2 === v1);
+  return (
+    (edge.v1 === v1 && edge.v2 === v2) || (edge.v1 === v2 && edge.v2 === v1)
+  );
 }
 
 function distanceToSegment(
@@ -924,7 +1180,8 @@ function distanceToSegment(
   const dx = end.x - start.x;
   const dy = end.y - start.y;
   const lengthSquared = dx * dx + dy * dy;
-  if (lengthSquared === 0) return Math.hypot(point.x - start.x, point.y - start.y);
+  if (lengthSquared === 0)
+    return Math.hypot(point.x - start.x, point.y - start.y);
   const t = Math.max(
     0,
     Math.min(
