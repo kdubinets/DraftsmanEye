@@ -16,12 +16,12 @@ const FAMILY_ORDER = [
   "Length Transfer",
   "Angle Copy",
   "Intersection",
+  "Flat Shapes",
+  "Solids",
   "Freehand Control",
   "Trace Control",
   "Target Drawing",
   "Loop Chain",
-  "Flat Shapes",
-  "Solids",
 ];
 
 export function mountListScreen(

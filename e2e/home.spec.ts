@@ -256,12 +256,12 @@ test("home page groups drills and filters by family", async ({ page }) => {
     "Length Transfer",
     "Angle Copy",
     "Intersection",
+    "Flat Shapes",
+    "Solids",
     "Freehand Control",
     "Trace Control",
     "Target Drawing",
     "Loop Chain",
-    "Flat Shapes",
-    "Solids",
   ]);
 
   await page.getByRole("button", { name: "Trace Control 3" }).click();
