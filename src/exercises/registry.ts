@@ -241,7 +241,14 @@ function toMountable(exercise: ExerciseDefinition): MountableExercise {
 function isSolidExercise(
   exercise: ExerciseDefinition,
 ): exercise is SolidExerciseDefinition {
-  return exercise.implemented && exercise.kind === "solid-cube-2pt";
+  return (
+    exercise.implemented &&
+    (exercise.kind === "solid-cube-2pt" ||
+      exercise.kind === "flat-triangle" ||
+      exercise.kind === "flat-quadrilateral" ||
+      exercise.kind === "flat-pentagon" ||
+      exercise.kind === "flat-hexagon")
+  );
 }
 
 export const MOUNTABLE_EXERCISES: MountableExercise[] =

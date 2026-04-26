@@ -1,5 +1,6 @@
 /** Solids exercise screen: vertex-edge graph editing with a live reference panel. */
-import type { ExerciseDefinition } from "../practice/catalog";
+import type { SolidExerciseDefinition } from "../practice/catalog";
+import { createFlatShapeReference } from "../geometry/flatShapes";
 import { CUBE_SOLID, projectSolid } from "../geometry/project3d";
 import type { ProjectedSolid } from "../geometry/project3d";
 import { localSvgPoint } from "../render/svg";
@@ -70,13 +71,13 @@ type GraphDragState = {
 
 export function mountSolidsScreen(
   root: HTMLElement,
-  exercise: ExerciseDefinition,
+  exercise: SolidExerciseDefinition,
   source: "direct" | "auto",
   onNavigate: (next: AppState) => void,
   listState?: ListFilterState,
 ): () => void {
   let cancelled = false;
-  let trial = createCubeTrial();
+  let trial = createTrial(exercise);
   let state: GraphState = { vertices: [], edges: [], nextId: 1 };
   let history: GraphState[] = [];
   let selectedId: number | null = null;
@@ -138,7 +139,7 @@ export function mountSolidsScreen(
       class: "solids-canvas",
       viewBox: `0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`,
       role: "img",
-      "aria-label": "Cube perspective vertex-edge drawing field",
+      "aria-label": `${exercise.label} vertex-edge drawing field`,
     },
     [edgeLayer, resultLayer, previewLayer, vertexLayer],
   );
@@ -146,7 +147,7 @@ export function mountSolidsScreen(
   const referenceSvg = s("svg", {
     class: "solids-reference-svg",
     viewBox: `0 0 ${REFERENCE_WIDTH} ${REFERENCE_HEIGHT}`,
-    "aria-label": "Reference cube",
+    "aria-label": `Reference for ${exercise.label}`,
   });
   const referenceResizeHandle = h("div", {
     class: "solids-reference-resize",
@@ -236,11 +237,19 @@ export function mountSolidsScreen(
       return;
     }
 
+    if (state.vertices.length >= trial.reference.vertices.length) {
+      feedback.dataset.tone = "bad";
+      feedback.textContent =
+        "All reference vertices are placed. Rearrange them or connect existing vertices.";
+      return;
+    }
+
     snapshot();
     const newId = addVertex(point.x, point.y);
     if (selectedId !== null) {
-      addEdge(selectedId, newId);
-      selectedId = newId;
+      if (addEdge(selectedId, newId)) {
+        selectedId = newId;
+      }
     }
     renderGraph();
   }
@@ -402,7 +411,7 @@ export function mountSolidsScreen(
     const next = scoreSolidGraph(trial.reference, state.vertices, state.edges);
     if (!next) {
       feedback.dataset.tone = "bad";
-      feedback.textContent = "Complete the cube graph before finishing.";
+      feedback.textContent = "Complete the reference graph before finishing.";
       return;
     }
     if (
@@ -451,7 +460,7 @@ export function mountSolidsScreen(
   }
 
   function resetToFreshTrial(): void {
-    trial = createCubeTrial();
+    trial = createTrial(exercise);
     state = { vertices: [], edges: [], nextId: 1 };
     history = [];
     selectedId = null;
@@ -623,6 +632,8 @@ export function mountSolidsScreen(
 
   function updateHint(): void {
     if (result) return;
+    feedback.removeAttribute("data-tone");
+    feedback.style.removeProperty("--result-accent");
     if (transformMode) {
       feedback.textContent =
         "Drag in the field to move the whole drawing, or use - and +.";
@@ -718,13 +729,20 @@ export function mountSolidsScreen(
     return id;
   }
 
-  function addEdge(v1: number, v2: number): void {
+  function addEdge(v1: number, v2: number): boolean {
     if (v1 === v2 || state.edges.some((edge) => sameEdge(edge, v1, v2))) {
-      return;
+      return false;
+    }
+    if (state.edges.length >= trial.reference.edges.length) {
+      feedback.dataset.tone = "bad";
+      feedback.textContent =
+        "All reference edges are placed. Rearrange the existing drawing.";
+      return false;
     }
     const id = state.nextId;
     state.nextId += 1;
     state.edges.push({ id, v1, v2 });
+    return true;
   }
 
   function deleteVertex(id: number): void {
@@ -768,6 +786,22 @@ export function mountSolidsScreen(
   }
 }
 
+function createTrial(exercise: SolidExerciseDefinition): SolidTrial {
+  if (exercise.kind === "flat-triangle") {
+    return createFlatTrial("triangle");
+  }
+  if (exercise.kind === "flat-quadrilateral") {
+    return createFlatTrial("quadrilateral");
+  }
+  if (exercise.kind === "flat-pentagon") {
+    return createFlatTrial("pentagon");
+  }
+  if (exercise.kind === "flat-hexagon") {
+    return createFlatTrial("hexagon");
+  }
+  return createCubeTrial();
+}
+
 function createCubeTrial(): SolidTrial {
   const { rotationYRadians, rotationXRadians } = cubeAngles();
   const referenceProjection = projectSolid(CUBE_SOLID, {
@@ -777,7 +811,7 @@ function createCubeTrial(): SolidTrial {
     rotationXRadians,
     focalLength: Math.min(REFERENCE_WIDTH, REFERENCE_HEIGHT) * 0.48,
     cameraDistance: 5.2,
-    fitMargin: 14,
+    fitMargin: 24,
   });
   const scoringProjection = projectSolid(CUBE_SOLID, {
     width: CANVAS_WIDTH,
@@ -800,6 +834,22 @@ function createCubeTrial(): SolidTrial {
       })),
       edges: scoringProjection.visibleEdges,
     },
+  };
+}
+
+function createFlatTrial(
+  kind: "triangle" | "quadrilateral" | "pentagon" | "hexagon",
+): SolidTrial {
+  const { reference, projection } = createFlatShapeReference(
+    kind,
+    { width: REFERENCE_WIDTH, height: REFERENCE_HEIGHT },
+    { width: CANVAS_WIDTH, height: CANVAS_HEIGHT },
+  );
+  return {
+    rotationYRadians: 0,
+    rotationXRadians: 0,
+    reference,
+    referenceProjection: projection,
   };
 }
 

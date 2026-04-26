@@ -850,6 +850,8 @@ button {
   position: absolute;
   top: 1rem;
   left: 1rem;
+  display: flex;
+  flex-direction: column;
   min-width: 170px;
   max-width: min(48%, 460px);
   border: 1px solid rgba(77, 58, 37, 0.16);
@@ -862,26 +864,22 @@ button {
 }
 
 .solids-reference-header {
-  position: absolute;
-  top: 0.35rem;
-  left: 0.35rem;
-  z-index: 1;
+  order: 2;
   display: flex;
   align-items: center;
-  min-height: 1.3rem;
-  padding: 0.12rem 0.42rem;
-  border: 1px solid rgba(77, 58, 37, 0.12);
-  border-radius: 999px;
-  background: rgba(244, 238, 228, 0.72);
-  backdrop-filter: blur(4px);
-  color: var(--muted);
-  font-size: 0.62rem;
+  justify-content: center;
+  min-height: 1.35rem;
+  padding: 0.1rem 0.45rem 0.22rem;
+  border-top: 1px solid rgba(77, 58, 37, 0.08);
+  color: color-mix(in srgb, var(--muted) 68%, transparent);
+  font-size: 0.58rem;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .solids-reference-svg {
+  order: 1;
   width: 100%;
   aspect-ratio: 18 / 13;
   display: block;

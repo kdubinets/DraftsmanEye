@@ -145,15 +145,43 @@ test("home page lists drills and auto entry point", async ({ page }) => {
   await expect(
     page.getByRole("heading", {
       level: 3,
+      name: "Triangle",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      level: 3,
+      name: "Four-Sided Figure",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      level: 3,
+      name: "Five-Sided Figure",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      level: 3,
+      name: "Six-Sided Figure",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      level: 3,
       name: "Cube — 2-Point Perspective",
       exact: true,
     }),
   ).toBeVisible();
-  await expect(page.getByText("New")).toHaveCount(76);
+  await expect(page.getByText("New")).toHaveCount(80);
   await expect(page.getByRole("button", { name: "Coming soon" })).toHaveCount(
     0,
   );
-  await expect(page.getByRole("button", { name: "Practice" })).toHaveCount(76);
+  await expect(page.getByRole("button", { name: "Practice" })).toHaveCount(80);
   await expect(
     page
       .getByRole("article")
@@ -227,6 +255,7 @@ test("home page groups drills and filters by family", async ({ page }) => {
     "Freehand Control",
     "Trace Control",
     "Target Drawing",
+    "Flat Shapes",
     "Solids",
   ]);
 
@@ -239,8 +268,60 @@ test("home page groups drills and filters by family", async ({ page }) => {
     page.getByRole("heading", { level: 3, name: "Line Through Two Points" }),
   ).toBeHidden();
 
-  await page.getByRole("button", { name: "All 76" }).click();
-  await expect(familyHeadings).toHaveCount(8);
+  await page.getByRole("button", { name: "All 80" }).click();
+  await expect(familyHeadings).toHaveCount(9);
+});
+
+test("flat shape drills mount generated polygon references", async ({ page }) => {
+  await page.goto("/exercise/flat-triangle");
+
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Triangle" }),
+  ).toBeVisible();
+  await expect(page.locator(".solids-reference-edge")).toHaveCount(3);
+  await page.getByRole("button", { name: "Done" }).click();
+  await expect(
+    page.getByText(/Reference needs 3 vertices and 3 edges/),
+  ).toBeVisible();
+
+  const canvas = page.locator(".solids-canvas");
+  const box = await canvas.boundingBox();
+  expect(box).not.toBeNull();
+  const points = [
+    { x: box!.x + 420, y: box!.y + 180 },
+    { x: box!.x + 590, y: box!.y + 230 },
+    { x: box!.x + 500, y: box!.y + 390 },
+    { x: box!.x + 690, y: box!.y + 430 },
+  ];
+  await page.mouse.click(points[0].x, points[0].y);
+  await page.mouse.click(points[0].x, points[0].y);
+  await page.mouse.click(points[1].x, points[1].y);
+  await page.mouse.click(points[2].x, points[2].y);
+  await page.mouse.click(points[3].x, points[3].y);
+  await expect(page.locator(".solids-vertex")).toHaveCount(3);
+  await expect(page.locator(".solids-edge")).toHaveCount(2);
+  await page.mouse.click(points[0].x, points[0].y);
+  await expect(page.locator(".solids-edge")).toHaveCount(3);
+  await page.mouse.click(points[1].x, points[1].y);
+  await expect(page.locator(".solids-edge")).toHaveCount(3);
+
+  await page.goto("/exercise/flat-quadrilateral");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Four-Sided Figure" }),
+  ).toBeVisible();
+  await expect(page.locator(".solids-reference-edge")).toHaveCount(4);
+
+  await page.goto("/exercise/flat-pentagon");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Five-Sided Figure" }),
+  ).toBeVisible();
+  await expect(page.locator(".solids-reference-edge")).toHaveCount(5);
+
+  await page.goto("/exercise/flat-hexagon");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Six-Sided Figure" }),
+  ).toBeVisible();
+  await expect(page.locator(".solids-reference-edge")).toHaveCount(6);
 });
 
 test("solids cube drill mounts reference and warns on incomplete graph", async ({

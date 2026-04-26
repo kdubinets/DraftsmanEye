@@ -84,6 +84,10 @@ export type ExerciseId =
   | "intersection-extrapolated"
   | "intersection-random-1-shot"
   | "intersection-extrapolated-1-shot"
+  | "flat-triangle"
+  | "flat-quadrilateral"
+  | "flat-pentagon"
+  | "flat-hexagon"
   | "solids-cube-2pt";
 
 export type LineAxis = "horizontal" | "vertical" | "free";
@@ -174,7 +178,12 @@ export type FreehandExerciseDefinition = ExerciseBase & {
 
 export type SolidExerciseDefinition = ExerciseBase & {
   implemented: true;
-  kind: "solid-cube-2pt";
+  kind:
+    | "solid-cube-2pt"
+    | "flat-triangle"
+    | "flat-quadrilateral"
+    | "flat-pentagon"
+    | "flat-hexagon";
 };
 
 export type UnimplementedExerciseDefinition = ExerciseBase & {
@@ -260,6 +269,42 @@ export const EXERCISES: ExerciseDefinition[] = [
     description: "Trace the faint ellipse guide as accurately as possible.",
     implemented: true,
     kind: "trace-ellipse",
+  },
+  {
+    id: "flat-triangle",
+    family: "Flat Shapes",
+    label: "Triangle",
+    description:
+      "Rebuild an irregular triangle from a reference using vertices and edges.",
+    implemented: true,
+    kind: "flat-triangle",
+  },
+  {
+    id: "flat-quadrilateral",
+    family: "Flat Shapes",
+    label: "Four-Sided Figure",
+    description:
+      "Rebuild an irregular four-sided figure, preserving angles and proportions.",
+    implemented: true,
+    kind: "flat-quadrilateral",
+  },
+  {
+    id: "flat-pentagon",
+    family: "Flat Shapes",
+    label: "Five-Sided Figure",
+    description:
+      "Rebuild an irregular five-sided figure, preserving angles and proportions.",
+    implemented: true,
+    kind: "flat-pentagon",
+  },
+  {
+    id: "flat-hexagon",
+    family: "Flat Shapes",
+    label: "Six-Sided Figure",
+    description:
+      "Rebuild an irregular six-sided figure, preserving angles and proportions.",
+    implemented: true,
+    kind: "flat-hexagon",
   },
   {
     id: "solids-cube-2pt",

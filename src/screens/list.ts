@@ -19,6 +19,7 @@ const FAMILY_ORDER = [
   "Freehand Control",
   "Trace Control",
   "Target Drawing",
+  "Flat Shapes",
   "Solids",
 ];
 
