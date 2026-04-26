@@ -10,6 +10,7 @@ import type {
   TargetLoopChainLinear,
   TargetLoopChainCircular,
   TargetLoopChainWedge,
+  TargetSpiral,
 } from "./types";
 
 export function createFreehandTarget(
@@ -49,12 +50,31 @@ export function createFreehandTarget(
     case "loop-chain-wedge":
     case "loop-chain-wedge-scored":
       return createLoopChainWedgeTarget();
+    case "trace-spiral-archimedean-left":
+      return createTraceSpiral("archimedean", "left");
+    case "trace-spiral-archimedean-right":
+      return createTraceSpiral("archimedean", "right");
+    case "trace-spiral-logarithmic-left":
+      return createTraceSpiral("logarithmic", "left");
+    case "trace-spiral-logarithmic-right":
+      return createTraceSpiral("logarithmic", "right");
     case "freehand-circle":
     case "freehand-ellipse":
     case "freehand-line":
     case "loop-chain-freehand":
       return null;
   }
+}
+
+function createTraceSpiral(
+  spiralKind: "archimedean" | "logarithmic",
+  direction: "left" | "right",
+): TargetSpiral {
+  const innerRadius = randomRange(18, 28);
+  const outerRadius = randomRange(130, 260);
+  const turns = randomRange(4, 8);
+  const center = { x: 500, y: 310 };
+  return { kind: "spiral", spiralKind, direction, center, innerRadius, outerRadius, turns };
 }
 
 export function createLoopChainLinearTarget(): TargetLoopChainLinear {

@@ -25,10 +25,19 @@ export function freehandScoreLabel(kind: FreehandResult["kind"]): string {
     case "loop-chain-band":
     case "loop-chain-scored":
       return "Loop chain";
+    case "trace-spiral":
+      return "Trace spiral";
   }
 }
 
 export function freehandResultStats(result: FreehandResult): HTMLElement[] {
+  if (result.kind === "trace-spiral") {
+    return [
+      stat("Score", result.score.toFixed(1)),
+      stat("Drift", formatDrift(result)),
+      stat("Length", `${Math.round(result.strokeLengthPixels)} px`),
+    ];
+  }
   if (result.kind === "loop-chain-band") {
     return [
       stat("Score", result.score.toFixed(1)),
@@ -146,6 +155,9 @@ export function freehandResultLine(
 }
 
 function primaryResultDetail(result: FreehandResult): string {
+  if (result.kind === "trace-spiral") {
+    return `Mean drift ${result.meanErrorPixels.toFixed(1)} px`;
+  }
   if (result.kind === "loop-chain-band") {
     return `In band ${result.containmentPercent.toFixed(1)} %`;
   }

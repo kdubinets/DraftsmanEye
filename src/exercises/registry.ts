@@ -29,6 +29,7 @@ import {
   scoreBandContainmentWedge,
   scoreLoopChainWedge,
 } from "../scoring/loopChain";
+import { scoreTraceSpiral } from "../scoring/spiral";
 import {
   createFreehandTarget,
   createLoopChainLinearTarget,
@@ -276,6 +277,46 @@ const FREEHAND_CONFIGS = {
       "Use Pencil, touch, or mouse to draw looping chains inside the wedge.",
     retryText: "Stroke was too short. Draw a longer looping chain.",
     canvasLabel: "Loop chain wedge drawing field",
+  },
+  "trace-spiral-archimedean-right": {
+    isClosedShape: false,
+    createTarget: () => createFreehandTarget("trace-spiral-archimedean-right"),
+    scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) =>
+      target?.kind === "spiral" ? scoreTraceSpiral(points, target) : null,
+    promptText: "Trace the faint right-winding Archimedean spiral.",
+    readyText: "Use Pencil, touch, or mouse to trace the faint spiral guide.",
+    retryText: "Stroke was too short. Trace more of the spiral.",
+    canvasLabel: "Archimedean spiral tracing field",
+  },
+  "trace-spiral-archimedean-left": {
+    isClosedShape: false,
+    createTarget: () => createFreehandTarget("trace-spiral-archimedean-left"),
+    scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) =>
+      target?.kind === "spiral" ? scoreTraceSpiral(points, target) : null,
+    promptText: "Trace the faint left-winding Archimedean spiral.",
+    readyText: "Use Pencil, touch, or mouse to trace the faint spiral guide.",
+    retryText: "Stroke was too short. Trace more of the spiral.",
+    canvasLabel: "Archimedean spiral tracing field",
+  },
+  "trace-spiral-logarithmic-right": {
+    isClosedShape: false,
+    createTarget: () => createFreehandTarget("trace-spiral-logarithmic-right"),
+    scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) =>
+      target?.kind === "spiral" ? scoreTraceSpiral(points, target) : null,
+    promptText: "Trace the faint right-winding logarithmic spiral.",
+    readyText: "Use Pencil, touch, or mouse to trace the faint spiral guide.",
+    retryText: "Stroke was too short. Trace more of the spiral.",
+    canvasLabel: "Logarithmic spiral tracing field",
+  },
+  "trace-spiral-logarithmic-left": {
+    isClosedShape: false,
+    createTarget: () => createFreehandTarget("trace-spiral-logarithmic-left"),
+    scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) =>
+      target?.kind === "spiral" ? scoreTraceSpiral(points, target) : null,
+    promptText: "Trace the faint left-winding logarithmic spiral.",
+    readyText: "Use Pencil, touch, or mouse to trace the faint spiral guide.",
+    retryText: "Stroke was too short. Trace more of the spiral.",
+    canvasLabel: "Logarithmic spiral tracing field",
   },
   "loop-chain-wedge-scored": {
     isClosedShape: false,

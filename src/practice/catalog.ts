@@ -99,7 +99,11 @@ export type ExerciseId =
   | "loop-chain-circular"
   | "loop-chain-circular-scored"
   | "loop-chain-wedge"
-  | "loop-chain-wedge-scored";
+  | "loop-chain-wedge-scored"
+  | "trace-spiral-archimedean-left"
+  | "trace-spiral-archimedean-right"
+  | "trace-spiral-logarithmic-left"
+  | "trace-spiral-logarithmic-right";
 
 export type LineAxis = "horizontal" | "vertical" | "free";
 
@@ -186,7 +190,11 @@ export type FreehandExerciseDefinition = ExerciseBase & {
     | "loop-chain-circular"
     | "loop-chain-circular-scored"
     | "loop-chain-wedge"
-    | "loop-chain-wedge-scored";
+    | "loop-chain-wedge-scored"
+    | "trace-spiral-archimedean-left"
+    | "trace-spiral-archimedean-right"
+    | "trace-spiral-logarithmic-left"
+    | "trace-spiral-logarithmic-right";
   inputMode?:
     | "single-stroke"
     | "unlimited-strokes"
@@ -291,6 +299,38 @@ export const EXERCISES: ExerciseDefinition[] = [
     description: "Trace the faint ellipse guide as accurately as possible.",
     implemented: true,
     kind: "trace-ellipse",
+  },
+  {
+    id: "trace-spiral-archimedean-right",
+    family: "Trace Control",
+    label: "Trace Archimedean Spiral — Right",
+    description: "Trace the faint right-winding Archimedean spiral guide. Coil spacing is uniform.",
+    implemented: true,
+    kind: "trace-spiral-archimedean-right",
+  },
+  {
+    id: "trace-spiral-archimedean-left",
+    family: "Trace Control",
+    label: "Trace Archimedean Spiral — Left",
+    description: "Trace the faint left-winding Archimedean spiral guide. Coil spacing is uniform.",
+    implemented: true,
+    kind: "trace-spiral-archimedean-left",
+  },
+  {
+    id: "trace-spiral-logarithmic-right",
+    family: "Trace Control",
+    label: "Trace Logarithmic Spiral — Right",
+    description: "Trace the faint right-winding logarithmic spiral guide. Spacing grows with each turn.",
+    implemented: true,
+    kind: "trace-spiral-logarithmic-right",
+  },
+  {
+    id: "trace-spiral-logarithmic-left",
+    family: "Trace Control",
+    label: "Trace Logarithmic Spiral — Left",
+    description: "Trace the faint left-winding logarithmic spiral guide. Spacing grows with each turn.",
+    implemented: true,
+    kind: "trace-spiral-logarithmic-left",
   },
   {
     id: "flat-triangle",

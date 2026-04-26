@@ -205,11 +205,11 @@ test("home page lists drills and auto entry point", async ({ page }) => {
       exact: true,
     }),
   ).toBeVisible();
-  await expect(page.getByText("New")).toHaveCount(91);
+  await expect(page.getByText("New")).toHaveCount(95);
   await expect(page.getByRole("button", { name: "Coming soon" })).toHaveCount(
     0,
   );
-  await expect(page.getByRole("button", { name: "Practice" })).toHaveCount(91);
+  await expect(page.getByRole("button", { name: "Practice" })).toHaveCount(95);
   await expect(
     page
       .getByRole("article")
@@ -292,7 +292,7 @@ test("home page groups drills and filters by family", async ({ page }) => {
     "Loop Chain",
   ]);
 
-  await page.getByRole("button", { name: "Trace Control 3" }).click();
+  await page.getByRole("button", { name: "Trace Control 7" }).click();
   await expect(familyHeadings).toHaveText(["Trace Control"]);
   await expect(
     page.getByRole("heading", { level: 3, name: "Trace Line" }),
@@ -301,7 +301,7 @@ test("home page groups drills and filters by family", async ({ page }) => {
     page.getByRole("heading", { level: 3, name: "Line Through Two Points" }),
   ).toBeHidden();
 
-  await page.getByRole("button", { name: "All 91" }).click();
+  await page.getByRole("button", { name: "All 95" }).click();
   await expect(familyHeadings).toHaveCount(10);
 });
 

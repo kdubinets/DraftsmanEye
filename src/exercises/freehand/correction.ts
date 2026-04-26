@@ -5,6 +5,7 @@
  */
 import { radiansToDegrees } from "../../geometry/primitives";
 import { closedShapeTangents } from "../../geometry/strokeMath";
+import { spiralPathData } from "../../geometry/spiral";
 import { s } from "../../render/h";
 import type {
   FreehandResult,
@@ -15,6 +16,7 @@ import type {
   TargetLoopChainLinear,
   TargetLoopChainCircular,
   TargetLoopChainWedge,
+  TargetSpiral,
 } from "./types";
 
 export function isClosedFreehandResult(result: FreehandResult): boolean {
@@ -80,7 +82,8 @@ export function applyFreehandCorrectionElements(
   }
   if (
     result.kind === "loop-chain-band" ||
-    result.kind === "loop-chain-scored"
+    result.kind === "loop-chain-scored" ||
+    result.kind === "trace-spiral"
   ) {
     return;
   }
@@ -232,6 +235,10 @@ export function appendFreehandCorrection(
   ) {
     return;
   }
+  if (result.kind === "trace-spiral") {
+    parent.append(createTraceSpiralGuide(result.target, `freehand-trace-guide freehand-target-correction-spiral${isHistory ? " freehand-history-correction" : ""}`));
+    return;
+  }
   // ellipse
   parent.append(
     s("ellipse", {
@@ -272,6 +279,10 @@ export function appendFreehandTargetMarks(
   }
   if (target.kind === "loop-chain-wedge") {
     layer.append(...createLoopChainWedgeGuides(target));
+    return;
+  }
+  if (target.kind === "spiral") {
+    layer.append(createTraceSpiralGuide(target, "freehand-trace-guide"));
     return;
   }
   if (target.kind === "line") {
@@ -530,6 +541,20 @@ function ellipseTransform(
   cy: number,
 ): string {
   return `rotate(${radiansToDegrees(rotationRadians).toFixed(2)} ${cx.toFixed(2)} ${cy.toFixed(2)})`;
+}
+
+function createTraceSpiralGuide(target: TargetSpiral, className: string): SVGPathElement {
+  const ySign = target.direction === "right" ? 1 : -1;
+  const d = spiralPathData(
+    target.center.x,
+    target.center.y,
+    target.innerRadius,
+    target.outerRadius,
+    target.turns,
+    target.spiralKind,
+    ySign,
+  );
+  return s("path", { class: className, d, fill: "none" });
 }
 
 export function createLoopChainLinearGuides(
