@@ -66,14 +66,29 @@ export function createFreehandTarget(
   }
 }
 
+const SPIRAL_CANVAS_W = 1000;
+const SPIRAL_CANVAS_H = 620;
+const SPIRAL_MARGIN = 30;
+
 function createTraceSpiral(
   spiralKind: "archimedean" | "logarithmic",
   direction: "left" | "right",
 ): TargetSpiral {
+  const center = { x: SPIRAL_CANVAS_W / 2, y: SPIRAL_CANVAS_H / 2 };
   const innerRadius = randomRange(18, 28);
-  const outerRadius = randomRange(130, 260);
-  const turns = randomRange(4, 8);
-  const center = { x: 500, y: 310 };
+  const outerRadius =
+    Math.min(center.x, center.y, SPIRAL_CANVAS_W - center.x, SPIRAL_CANVAS_H - center.y) -
+    SPIRAL_MARGIN;
+
+  let turns: number;
+  if (spiralKind === "archimedean") {
+    const step = randomRange(25, 60);
+    turns = (outerRadius - innerRadius) / step;
+  } else {
+    const ratioPerTurn = randomRange(1.3, 2.2);
+    turns = Math.log(outerRadius / innerRadius) / Math.log(ratioPerTurn);
+  }
+
   return {
     kind: "spiral",
     spiralKind,
