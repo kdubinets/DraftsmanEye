@@ -24,6 +24,10 @@ describe("loop chain scoring", () => {
     expect(result!.containmentPercent).toBe(100);
     expect(result!.bandTouchPercent).toBeLessThan(40);
     expect(result!.bandScore).toBeLessThan(result!.containmentPercent!);
+    expect(result!.loopDeviations).toHaveLength(result!.loopCount);
+    expect(result!.maxLoopDeviationPercent).toBeGreaterThanOrEqual(
+      result!.meanLoopDeviationPercent,
+    );
   });
 
   it("penalizes circular loops that stay too small inside the ring", () => {

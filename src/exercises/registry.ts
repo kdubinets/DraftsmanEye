@@ -211,6 +211,7 @@ const FREEHAND_CONFIGS = {
       renderLoopChainCenterPath(
         _layer,
         (result as LoopChainScoredResult).loopCenters,
+        (result as LoopChainScoredResult).loopDeviations,
       );
     },
   },
@@ -232,6 +233,7 @@ const FREEHAND_CONFIGS = {
       renderLoopChainCenterPath(
         _layer,
         (result as LoopChainScoredResult).loopCenters,
+        (result as LoopChainScoredResult).loopDeviations,
       );
     },
   },
@@ -253,6 +255,7 @@ const FREEHAND_CONFIGS = {
       renderLoopChainCenterPath(
         _layer,
         (result as LoopChainScoredResult).loopCenters,
+        (result as LoopChainScoredResult).loopDeviations,
       );
     },
   },
@@ -274,6 +277,7 @@ const FREEHAND_CONFIGS = {
       renderLoopChainCenterPath(
         _layer,
         (result as LoopChainScoredResult).loopCenters,
+        (result as LoopChainScoredResult).loopDeviations,
       );
     },
   },
@@ -295,6 +299,7 @@ const FREEHAND_CONFIGS = {
       renderLoopChainCenterPath(
         _layer,
         (result as LoopChainScoredResult).loopCenters,
+        (result as LoopChainScoredResult).loopDeviations,
       );
     },
   },
@@ -356,6 +361,7 @@ const FREEHAND_CONFIGS = {
       renderLoopChainCenterPath(
         _layer,
         (result as LoopChainScoredResult).loopCenters,
+        (result as LoopChainScoredResult).loopDeviations,
       );
     },
   },

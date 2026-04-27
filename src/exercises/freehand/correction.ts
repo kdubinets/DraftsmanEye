@@ -16,6 +16,7 @@ import type {
   TargetLoopChainLinear,
   TargetLoopChainCircular,
   TargetLoopChainWedge,
+  LoopChainLoopDeviation,
   TargetSpiral,
 } from "./types";
 
@@ -230,7 +231,11 @@ export function appendFreehandCorrection(
     return;
   }
   if (result.kind === "loop-chain-scored") {
-    renderLoopChainCenterPath(parent, result.loopCenters);
+    renderLoopChainCenterPath(
+      parent,
+      result.loopCenters,
+      result.loopDeviations,
+    );
     return;
   }
   if (result.kind === "loop-chain-band") {
@@ -622,10 +627,13 @@ export function createLoopChainCircularGuides(
 export function renderLoopChainCenterPath(
   layer: SVGGElement,
   loopCenters: { x: number; y: number }[],
+  loopDeviations: LoopChainLoopDeviation[] = [],
 ): void {
   if (loopCenters.length === 0) return;
 
-  for (const c of loopCenters) {
+  for (let index = 0; index < loopCenters.length; index += 1) {
+    const c = loopCenters[index];
+    const deviation = loopDeviations[index];
     layer.append(
       s("circle", {
         class: "loop-chain-center-dot",
@@ -634,6 +642,9 @@ export function renderLoopChainCenterPath(
         r: 4,
       }),
     );
+    if (deviation) {
+      layer.append(loopDeviationTick(loopCenters, index, deviation));
+    }
   }
 
   if (loopCenters.length >= 2) {
@@ -644,4 +655,34 @@ export function renderLoopChainCenterPath(
       s("polyline", { class: "loop-chain-center-path", points: pts }),
     );
   }
+}
+
+function loopDeviationTick(
+  loopCenters: { x: number; y: number }[],
+  index: number,
+  deviation: LoopChainLoopDeviation,
+): SVGLineElement {
+  const center = loopCenters[index];
+  const before = loopCenters[Math.max(0, index - 1)];
+  const after = loopCenters[Math.min(loopCenters.length - 1, index + 1)];
+  const dx = after.x - before.x;
+  const dy = after.y - before.y;
+  const length = Math.hypot(dx, dy) || 1;
+  const nx = -dy / length;
+  const ny = dx / length;
+  const half = 7;
+  const tick = s("line", {
+    class: "loop-chain-deviation-tick",
+    x1: center.x - nx * half,
+    y1: center.y - ny * half,
+    x2: center.x + nx * half,
+    y2: center.y + ny * half,
+  });
+  tick.dataset.severity =
+    deviation.deviationPercent < 8
+      ? "low"
+      : deviation.deviationPercent < 18
+        ? "medium"
+        : "high";
+  return tick;
 }

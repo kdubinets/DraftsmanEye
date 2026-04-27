@@ -58,6 +58,14 @@ export function freehandResultStats(result: FreehandResult): HTMLElement[] {
       stat("Loops", `${result.loopCount}`),
       stat("Roundness", result.roundnessScore.toFixed(1)),
       stat("Consistency", result.radiusConsistencyScore.toFixed(1)),
+      ...(result.loopCount > 0
+        ? [
+            stat(
+              "Loopiness dev",
+              `${result.meanLoopDeviationPercent.toFixed(1)} / ${result.maxLoopDeviationPercent.toFixed(1)} %`,
+            ),
+          ]
+        : []),
       ...(result.pathAdherenceScore > 0
         ? [
             stat("Path", result.pathAdherenceScore.toFixed(1)),

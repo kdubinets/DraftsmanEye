@@ -12,6 +12,7 @@ import type {
   TargetLoopChainWedge,
 } from "../exercises/freehand/types";
 import type { DetectedLoop } from "../geometry/loopDetection";
+import type { LoopChainLoopDeviation } from "../exercises/freehand/types";
 
 function strokeLength(points: FreehandPoint[]): number {
   let len = 0;
@@ -61,6 +62,9 @@ function emptyLoopChainResult(
     pathAdherenceScore: 0,
     centerLineDeviationPixels: 0,
     loopCenters: [],
+    loopDeviations: [],
+    meanLoopDeviationPercent: 0,
+    maxLoopDeviationPercent: 0,
     strokeLengthPixels: len,
     pointCount,
   };
@@ -93,6 +97,45 @@ function loopQualityScore(
 
 function combinedGuidedScore(loopQuality: number, band: number): number {
   return clampNumber(0.5 * loopQuality + 0.5 * band, 0, 100);
+}
+
+function loopDeviations(
+  loops: DetectedLoop[],
+  meanRadius: number,
+): {
+  loopDeviations: LoopChainLoopDeviation[];
+  meanLoopDeviationPercent: number;
+  maxLoopDeviationPercent: number;
+} {
+  if (loops.length === 0 || meanRadius <= 0) {
+    return {
+      loopDeviations: [],
+      meanLoopDeviationPercent: 0,
+      maxLoopDeviationPercent: 0,
+    };
+  }
+
+  const deviations = loops.map((loop) => {
+    const radiusDeltaPercent =
+      (Math.abs(loop.radius - meanRadius) / meanRadius) * 100;
+    const circularityErrorPercent = (1 - loop.circularity) * 100;
+    return {
+      radiusDeltaPercent,
+      circularityErrorPercent,
+      deviationPercent: clampNumber(
+        0.65 * radiusDeltaPercent + 0.35 * circularityErrorPercent,
+        0,
+        100,
+      ),
+    };
+  });
+  const values = deviations.map((d) => d.deviationPercent);
+  return {
+    loopDeviations: deviations,
+    meanLoopDeviationPercent:
+      values.reduce((sum, value) => sum + value, 0) / values.length,
+    maxLoopDeviationPercent: Math.max(...values),
+  };
 }
 
 export function scoreBandContainmentLinear(
@@ -230,6 +273,7 @@ export function scoreLoopChainFreehand(
     pathAdherenceScore: 0,
     centerLineDeviationPixels: 0,
     loopCenters: loops.map((l) => l.center),
+    ...loopDeviations(loops, mean),
     strokeLengthPixels: len,
     pointCount: points.length,
   };
@@ -277,6 +321,7 @@ export function scoreLoopChainLinear(
     pathAdherenceScore: adherence,
     centerLineDeviationPixels: deviation,
     loopCenters: centers,
+    ...loopDeviations(loops, quality.meanRadius),
     strokeLengthPixels: len,
     pointCount: points.length,
   };
@@ -343,6 +388,7 @@ export function scoreLoopChainCircular(
     pathAdherenceScore: adherence,
     centerLineDeviationPixels: deviation,
     loopCenters: centers,
+    ...loopDeviations(loops, quality.meanRadius),
     strokeLengthPixels: len,
     pointCount: points.length,
   };
@@ -446,6 +492,7 @@ export function scoreLoopChainWedge(
     pathAdherenceScore: adherence,
     centerLineDeviationPixels: deviation,
     loopCenters: centers,
+    ...loopDeviations(loops, quality.meanRadius),
     strokeLengthPixels: len,
     pointCount: points.length,
   };

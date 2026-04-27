@@ -119,8 +119,17 @@ export type LoopChainScoredResult = {
   pathAdherenceScore: number;
   centerLineDeviationPixels: number;
   loopCenters: { x: number; y: number }[];
+  loopDeviations: LoopChainLoopDeviation[];
+  meanLoopDeviationPercent: number;
+  maxLoopDeviationPercent: number;
   strokeLengthPixels: number;
   pointCount: number;
+};
+
+export type LoopChainLoopDeviation = {
+  radiusDeltaPercent: number;
+  circularityErrorPercent: number;
+  deviationPercent: number;
 };
 
 export type FreehandResult =
