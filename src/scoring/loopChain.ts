@@ -48,6 +48,10 @@ function emptyLoopChainResult(
     bandScore: number;
     containmentPercent: number;
     bandTouchPercent: number;
+    target?:
+      | TargetLoopChainLinear
+      | TargetLoopChainCircular
+      | TargetLoopChainWedge;
   },
 ): LoopChainScoredResult {
   return {
@@ -293,6 +297,7 @@ export function scoreLoopChainLinear(
     bandScore: bandScore(containmentPercent, bandTouchPercent),
     containmentPercent,
     bandTouchPercent,
+    target,
   };
   if (loops.length === 0) {
     return emptyLoopChainResult(len, points.length, band);
@@ -341,6 +346,7 @@ export function scoreLoopChainCircular(
     bandScore: bandScore(containmentPercent, bandTouchPercent),
     containmentPercent,
     bandTouchPercent,
+    target,
   };
   if (loops.length === 0) {
     return emptyLoopChainResult(len, points.length, band);
@@ -463,6 +469,7 @@ export function scoreLoopChainWedge(
     bandScore: bandScore(containmentPercent, bandTouchPercent),
     containmentPercent,
     bandTouchPercent,
+    target,
   };
   if (loops.length === 0) {
     return emptyLoopChainResult(len, points.length, band);

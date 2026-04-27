@@ -10,6 +10,7 @@ import { s } from "../../render/h";
 import type {
   FreehandResult,
   FreehandTarget,
+  LoopChainScoredResult,
   TargetLine,
   TargetCircle,
   TargetAngle,
@@ -231,11 +232,7 @@ export function appendFreehandCorrection(
     return;
   }
   if (result.kind === "loop-chain-scored") {
-    renderLoopChainCenterPath(
-      parent,
-      result.loopCenters,
-      result.loopDeviations,
-    );
+    renderLoopChainReview(parent, result);
     return;
   }
   if (result.kind === "loop-chain-band") {
@@ -655,6 +652,186 @@ export function renderLoopChainCenterPath(
       s("polyline", { class: "loop-chain-center-path", points: pts }),
     );
   }
+}
+
+export function renderLoopChainReview(
+  layer: SVGGElement,
+  result: LoopChainScoredResult,
+): void {
+  renderLoopChainIdealTrace(layer, result);
+  renderLoopChainCenterPath(layer, result.loopCenters, result.loopDeviations);
+}
+
+function renderLoopChainIdealTrace(
+  layer: SVGGElement,
+  result: LoopChainScoredResult,
+): void {
+  const loops = idealLoopTraceGeometry(result);
+  if (loops.length === 0) return;
+  const d =
+    loops.length === 1
+      ? closedLoopPath(loops[0])
+      : localizedTrochoidPath(loops);
+  layer.append(s("path", { class: "loop-chain-ideal-trace", d }));
+}
+
+type IdealLoop = { center: { x: number; y: number }; radius: number };
+
+function closedLoopPath(loop: IdealLoop): string {
+  const { center, radius } = loop;
+  return (
+    `M ${(center.x + radius).toFixed(2)} ${center.y.toFixed(2)} ` +
+    `A ${radius.toFixed(2)} ${radius.toFixed(2)} 0 1 1 ${(center.x - radius).toFixed(2)} ${center.y.toFixed(2)} ` +
+    `A ${radius.toFixed(2)} ${radius.toFixed(2)} 0 1 1 ${(center.x + radius).toFixed(2)} ${center.y.toFixed(2)}`
+  );
+}
+
+function localizedTrochoidPath(loops: IdealLoop[]): string {
+  const samples: string[] = [];
+  const sampleCount = Math.max(36, Math.ceil((loops.length - 1) * 32));
+
+  for (let sample = 0; sample <= sampleCount; sample += 1) {
+    const u = (sample / sampleCount) * (loops.length - 1);
+    const point = localizedTrochoidPoint(loops, u);
+    samples.push(
+      `${sample === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`,
+    );
+  }
+
+  return samples.join(" ");
+}
+
+function localizedTrochoidPoint(
+  loops: IdealLoop[],
+  u: number,
+): { x: number; y: number } {
+  const index = Math.max(0, Math.min(loops.length - 2, Math.floor(u)));
+  const t = Math.max(0, Math.min(1, u - index));
+  const center = interpolatePoint(
+    loops[index].center,
+    loops[index + 1].center,
+    t,
+  );
+  const tangent = localTangent(loops, u);
+  const normal = { x: -tangent.y, y: tangent.x };
+  const pitch = localPitch(loops, u);
+  const radius = localRadius(loops, u);
+  const phase = u * Math.PI * 2;
+  const tangentAmplitude = Math.max(
+    radius * 0.72,
+    (pitch / (Math.PI * 2)) * 1.35,
+  );
+
+  return {
+    x:
+      center.x -
+      tangent.x * tangentAmplitude * Math.sin(phase) -
+      normal.x * radius * Math.cos(phase),
+    y:
+      center.y -
+      tangent.y * tangentAmplitude * Math.sin(phase) -
+      normal.y * radius * Math.cos(phase),
+  };
+}
+
+function localTangent(loops: IdealLoop[], u: number): { x: number; y: number } {
+  const index = Math.round(Math.max(0, Math.min(loops.length - 1, u)));
+  const before = loops[Math.max(0, index - 1)].center;
+  const after = loops[Math.min(loops.length - 1, index + 1)].center;
+  const dx = after.x - before.x;
+  const dy = after.y - before.y;
+  const len = Math.hypot(dx, dy) || 1;
+  return { x: dx / len, y: dy / len };
+}
+
+function localPitch(loops: IdealLoop[], u: number): number {
+  const index = Math.round(Math.max(0, Math.min(loops.length - 1, u)));
+  const distances: number[] = [];
+  for (
+    let segment = Math.max(0, index - 1);
+    segment <= Math.min(loops.length - 2, index + 1);
+    segment += 1
+  ) {
+    distances.push(
+      distanceBetweenPoints(loops[segment].center, loops[segment + 1].center),
+    );
+  }
+  return distances.reduce((sum, value) => sum + value, 0) / distances.length;
+}
+
+function localRadius(loops: IdealLoop[], u: number): number {
+  const index = Math.max(0, Math.min(loops.length - 2, Math.floor(u)));
+  const t = Math.max(0, Math.min(1, u - index));
+  const raw =
+    loops[index].radius + (loops[index + 1].radius - loops[index].radius) * t;
+  const before = loops[Math.max(0, index - 1)].radius;
+  const after = loops[Math.min(loops.length - 1, index + 2)].radius;
+  return (before + raw * 2 + after) / 4;
+}
+
+function interpolatePoint(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  t: number,
+): { x: number; y: number } {
+  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+}
+
+function distanceBetweenPoints(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function idealLoopTraceGeometry(result: LoopChainScoredResult): IdealLoop[] {
+  if (result.loopCenters.length === 0 || result.meanLoopRadius <= 0) return [];
+  const target = result.target;
+
+  if (target?.kind === "loop-chain-linear") {
+    return result.loopCenters.map((center) => ({
+      center: { x: center.x, y: target.centerY },
+      radius: target.bandHalf,
+    }));
+  }
+
+  if (target?.kind === "loop-chain-circular") {
+    const midRadius = (target.innerRadius + target.outerRadius) / 2;
+    const loopRadius = (target.outerRadius - target.innerRadius) / 2;
+    return result.loopCenters.map((center) => {
+      const angle = Math.atan2(
+        center.y - target.center.y,
+        center.x - target.center.x,
+      );
+      return {
+        center: {
+          x: target.center.x + Math.cos(angle) * midRadius,
+          y: target.center.y + Math.sin(angle) * midRadius,
+        },
+        radius: loopRadius,
+      };
+    });
+  }
+
+  if (target?.kind === "loop-chain-wedge") {
+    return result.loopCenters.map((center) => ({
+      center: { x: center.x, y: target.centerY },
+      radius: loopChainWedgeHalfBandAtX(target, center.x),
+    }));
+  }
+
+  return result.loopCenters.map((center) => ({
+    center,
+    radius: result.meanLoopRadius,
+  }));
+}
+
+function loopChainWedgeHalfBandAtX(
+  target: TargetLoopChainWedge,
+  x: number,
+): number {
+  const t = Math.max(0, Math.min(1, x / 1000));
+  return target.bandHalfLeft + (target.bandHalfRight - target.bandHalfLeft) * t;
 }
 
 function loopDeviationTick(

@@ -112,6 +112,10 @@ export type LoopChainScoredResult = {
   bandScore?: number;
   containmentPercent?: number;
   bandTouchPercent?: number;
+  target?:
+    | TargetLoopChainLinear
+    | TargetLoopChainCircular
+    | TargetLoopChainWedge;
   loopCount: number;
   meanLoopRadius: number;
   radiusConsistencyScore: number;

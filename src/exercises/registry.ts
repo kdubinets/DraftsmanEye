@@ -33,7 +33,7 @@ import {
   createLoopChainCircularTarget,
   createLoopChainWedgeTarget,
 } from "./freehand/targets";
-import { renderLoopChainCenterPath } from "./freehand/correction";
+import { renderLoopChainReview } from "./freehand/correction";
 import type {
   FreehandExerciseConfig,
   FreehandPoint,
@@ -208,11 +208,7 @@ const FREEHAND_CONFIGS = {
     canvasLabel: "Loop chain linear drawing field",
     renderCorrection: (_layer: SVGGElement, result: FreehandResult) => {
       if (result.kind !== "loop-chain-scored") return;
-      renderLoopChainCenterPath(
-        _layer,
-        (result as LoopChainScoredResult).loopCenters,
-        (result as LoopChainScoredResult).loopDeviations,
-      );
+      renderLoopChainReview(_layer, result as LoopChainScoredResult);
     },
   },
   "loop-chain-linear-scored": {
@@ -230,11 +226,7 @@ const FREEHAND_CONFIGS = {
     canvasLabel: "Loop chain linear scored drawing field",
     renderCorrection: (_layer: SVGGElement, result: FreehandResult) => {
       if (result.kind !== "loop-chain-scored") return;
-      renderLoopChainCenterPath(
-        _layer,
-        (result as LoopChainScoredResult).loopCenters,
-        (result as LoopChainScoredResult).loopDeviations,
-      );
+      renderLoopChainReview(_layer, result as LoopChainScoredResult);
     },
   },
   "loop-chain-circular": {
@@ -252,11 +244,7 @@ const FREEHAND_CONFIGS = {
     canvasLabel: "Loop chain circular drawing field",
     renderCorrection: (_layer: SVGGElement, result: FreehandResult) => {
       if (result.kind !== "loop-chain-scored") return;
-      renderLoopChainCenterPath(
-        _layer,
-        (result as LoopChainScoredResult).loopCenters,
-        (result as LoopChainScoredResult).loopDeviations,
-      );
+      renderLoopChainReview(_layer, result as LoopChainScoredResult);
     },
   },
   "loop-chain-circular-scored": {
@@ -274,11 +262,7 @@ const FREEHAND_CONFIGS = {
     canvasLabel: "Loop chain circular scored drawing field",
     renderCorrection: (_layer: SVGGElement, result: FreehandResult) => {
       if (result.kind !== "loop-chain-scored") return;
-      renderLoopChainCenterPath(
-        _layer,
-        (result as LoopChainScoredResult).loopCenters,
-        (result as LoopChainScoredResult).loopDeviations,
-      );
+      renderLoopChainReview(_layer, result as LoopChainScoredResult);
     },
   },
   "loop-chain-wedge": {
@@ -296,11 +280,7 @@ const FREEHAND_CONFIGS = {
     canvasLabel: "Loop chain wedge drawing field",
     renderCorrection: (_layer: SVGGElement, result: FreehandResult) => {
       if (result.kind !== "loop-chain-scored") return;
-      renderLoopChainCenterPath(
-        _layer,
-        (result as LoopChainScoredResult).loopCenters,
-        (result as LoopChainScoredResult).loopDeviations,
-      );
+      renderLoopChainReview(_layer, result as LoopChainScoredResult);
     },
   },
   "trace-spiral-archimedean-right": {
@@ -358,11 +338,7 @@ const FREEHAND_CONFIGS = {
     canvasLabel: "Loop chain wedge scored drawing field",
     renderCorrection: (_layer: SVGGElement, result: FreehandResult) => {
       if (result.kind !== "loop-chain-scored") return;
-      renderLoopChainCenterPath(
-        _layer,
-        (result as LoopChainScoredResult).loopCenters,
-        (result as LoopChainScoredResult).loopDeviations,
-      );
+      renderLoopChainReview(_layer, result as LoopChainScoredResult);
     },
   },
 } satisfies Record<FreehandKind, FreehandExerciseConfig>;

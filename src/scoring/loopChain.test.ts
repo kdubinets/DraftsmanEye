@@ -25,6 +25,7 @@ describe("loop chain scoring", () => {
     expect(result!.bandTouchPercent).toBeLessThan(40);
     expect(result!.bandScore).toBeLessThan(result!.containmentPercent!);
     expect(result!.loopDeviations).toHaveLength(result!.loopCount);
+    expect(result!.target).toEqual(target);
     expect(result!.maxLoopDeviationPercent).toBeGreaterThanOrEqual(
       result!.meanLoopDeviationPercent,
     );
