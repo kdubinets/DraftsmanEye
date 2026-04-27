@@ -229,14 +229,20 @@ export function appendFreehandCorrection(
     );
     return;
   }
-  if (
-    result.kind === "loop-chain-band" ||
-    result.kind === "loop-chain-scored"
-  ) {
+  if (result.kind === "loop-chain-scored") {
+    renderLoopChainCenterPath(parent, result.loopCenters);
+    return;
+  }
+  if (result.kind === "loop-chain-band") {
     return;
   }
   if (result.kind === "trace-spiral") {
-    parent.append(createTraceSpiralGuide(result.target, `freehand-trace-guide freehand-target-correction-spiral${isHistory ? " freehand-history-correction" : ""}`));
+    parent.append(
+      createTraceSpiralGuide(
+        result.target,
+        `freehand-trace-guide freehand-target-correction-spiral${isHistory ? " freehand-history-correction" : ""}`,
+      ),
+    );
     return;
   }
   // ellipse
@@ -543,7 +549,10 @@ function ellipseTransform(
   return `rotate(${radiansToDegrees(rotationRadians).toFixed(2)} ${cx.toFixed(2)} ${cy.toFixed(2)})`;
 }
 
-function createTraceSpiralGuide(target: TargetSpiral, className: string): SVGPathElement {
+function createTraceSpiralGuide(
+  target: TargetSpiral,
+  className: string,
+): SVGPathElement {
   const ySign = target.direction === "right" ? 1 : -1;
   const d = spiralPathData(
     target.center.x,
@@ -573,8 +582,20 @@ export function createLoopChainWedgeGuides(
 ): SVGElement[] {
   const { centerY, bandHalfLeft, bandHalfRight } = target;
   return [
-    s("line", { class: "loop-chain-guide", x1: 0, y1: centerY - bandHalfLeft, x2: 1000, y2: centerY - bandHalfRight }),
-    s("line", { class: "loop-chain-guide", x1: 0, y1: centerY + bandHalfLeft, x2: 1000, y2: centerY + bandHalfRight }),
+    s("line", {
+      class: "loop-chain-guide",
+      x1: 0,
+      y1: centerY - bandHalfLeft,
+      x2: 1000,
+      y2: centerY - bandHalfRight,
+    }),
+    s("line", {
+      class: "loop-chain-guide",
+      x1: 0,
+      y1: centerY + bandHalfLeft,
+      x2: 1000,
+      y2: centerY + bandHalfRight,
+    }),
   ];
 }
 
@@ -619,6 +640,8 @@ export function renderLoopChainCenterPath(
     const pts = loopCenters
       .map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`)
       .join(" ");
-    layer.append(s("polyline", { class: "loop-chain-center-path", points: pts }));
+    layer.append(
+      s("polyline", { class: "loop-chain-center-path", points: pts }),
+    );
   }
 }

@@ -21,12 +21,9 @@ import { scoreFreehandCircle, scoreTargetCircle } from "../scoring/circle";
 import { scoreFreehandEllipse, scoreTargetEllipse } from "../scoring/ellipse";
 import { scoreTargetAngle } from "../scoring/angle";
 import {
-  scoreBandContainmentLinear,
-  scoreBandContainmentCircular,
   scoreLoopChainFreehand,
   scoreLoopChainLinear,
   scoreLoopChainCircular,
-  scoreBandContainmentWedge,
   scoreLoopChainWedge,
 } from "../scoring/loopChain";
 import { scoreTraceSpiral } from "../scoring/spiral";
@@ -201,13 +198,21 @@ const FREEHAND_CONFIGS = {
     createTarget: () => createLoopChainLinearTarget(),
     scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) =>
       target?.kind === "loop-chain-linear"
-        ? scoreBandContainmentLinear(points, target)
+        ? scoreLoopChainLinear(points, target)
         : null,
-    promptText: "Draw a chain of loops between the two horizontal guide lines.",
+    promptText:
+      "Draw a chain of loops between the guide lines. Touch both edges and stay consistent.",
     readyText:
       "Use Pencil, touch, or mouse to draw looping chains inside the band.",
     retryText: "Stroke was too short. Draw a longer looping chain.",
     canvasLabel: "Loop chain linear drawing field",
+    renderCorrection: (_layer: SVGGElement, result: FreehandResult) => {
+      if (result.kind !== "loop-chain-scored") return;
+      renderLoopChainCenterPath(
+        _layer,
+        (result as LoopChainScoredResult).loopCenters,
+      );
+    },
   },
   "loop-chain-linear-scored": {
     isClosedShape: false,
@@ -235,13 +240,21 @@ const FREEHAND_CONFIGS = {
     createTarget: () => createLoopChainCircularTarget(),
     scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) =>
       target?.kind === "loop-chain-circular"
-        ? scoreBandContainmentCircular(points, target)
+        ? scoreLoopChainCircular(points, target)
         : null,
-    promptText: "Draw a chain of loops following the circular guide band.",
+    promptText:
+      "Draw a chain of loops following the circular band. Touch both ring edges and stay consistent.",
     readyText:
       "Use Pencil, touch, or mouse to draw looping chains inside the ring.",
     retryText: "Stroke was too short. Draw a longer looping chain.",
     canvasLabel: "Loop chain circular drawing field",
+    renderCorrection: (_layer: SVGGElement, result: FreehandResult) => {
+      if (result.kind !== "loop-chain-scored") return;
+      renderLoopChainCenterPath(
+        _layer,
+        (result as LoopChainScoredResult).loopCenters,
+      );
+    },
   },
   "loop-chain-circular-scored": {
     isClosedShape: false,
@@ -269,14 +282,21 @@ const FREEHAND_CONFIGS = {
     createTarget: () => createLoopChainWedgeTarget(),
     scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) =>
       target?.kind === "loop-chain-wedge"
-        ? scoreBandContainmentWedge(points, target)
+        ? scoreLoopChainWedge(points, target)
         : null,
     promptText:
-      "Draw a chain of loops between the converging or diverging guide lines.",
+      "Draw a chain of loops between the wedge guides. Touch both edges and stay consistent.",
     readyText:
       "Use Pencil, touch, or mouse to draw looping chains inside the wedge.",
     retryText: "Stroke was too short. Draw a longer looping chain.",
     canvasLabel: "Loop chain wedge drawing field",
+    renderCorrection: (_layer: SVGGElement, result: FreehandResult) => {
+      if (result.kind !== "loop-chain-scored") return;
+      renderLoopChainCenterPath(
+        _layer,
+        (result as LoopChainScoredResult).loopCenters,
+      );
+    },
   },
   "trace-spiral-archimedean-right": {
     isClosedShape: false,

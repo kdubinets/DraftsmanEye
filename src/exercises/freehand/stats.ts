@@ -48,13 +48,23 @@ export function freehandResultStats(result: FreehandResult): HTMLElement[] {
   if (result.kind === "loop-chain-scored") {
     return [
       stat("Score", result.score.toFixed(1)),
+      ...(result.bandScore !== undefined
+        ? [
+            stat("Band", result.bandScore.toFixed(1)),
+            stat("Touch", `${result.bandTouchPercent?.toFixed(1) ?? "0.0"} %`),
+          ]
+        : []),
+      stat("Loops score", result.loopQualityScore.toFixed(1)),
       stat("Loops", `${result.loopCount}`),
       stat("Roundness", result.roundnessScore.toFixed(1)),
       stat("Consistency", result.radiusConsistencyScore.toFixed(1)),
       ...(result.pathAdherenceScore > 0
         ? [
             stat("Path", result.pathAdherenceScore.toFixed(1)),
-            stat("Center drift", `${result.centerLineDeviationPixels.toFixed(1)} px`),
+            stat(
+              "Center drift",
+              `${result.centerLineDeviationPixels.toFixed(1)} px`,
+            ),
           ]
         : []),
     ];
@@ -163,7 +173,9 @@ function primaryResultDetail(result: FreehandResult): string {
   }
   if (result.kind === "loop-chain-scored") {
     return result.loopCount > 0
-      ? `${result.loopCount} loops · Roundness ${result.roundnessScore.toFixed(1)}`
+      ? result.bandScore !== undefined
+        ? `Band ${result.bandScore.toFixed(1)} · Loops ${result.loopQualityScore.toFixed(1)}`
+        : `${result.loopCount} loops · Roundness ${result.roundnessScore.toFixed(1)}`
       : "No loops detected";
   }
   if (result.kind === "target-angle") {
@@ -191,7 +203,10 @@ function primaryResultDetail(result: FreehandResult): string {
   return `Mean drift ${result.meanErrorPixels.toFixed(1)} px`;
 }
 
-function formatDrift(result: { meanErrorPixels: number; maxErrorPixels: number }): string {
+function formatDrift(result: {
+  meanErrorPixels: number;
+  maxErrorPixels: number;
+}): string {
   return `${result.meanErrorPixels.toFixed(1)} / ${result.maxErrorPixels.toFixed(1)} px`;
 }
 

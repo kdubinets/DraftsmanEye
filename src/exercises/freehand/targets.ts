@@ -74,21 +74,29 @@ function createTraceSpiral(
   const outerRadius = randomRange(130, 260);
   const turns = randomRange(4, 8);
   const center = { x: 500, y: 310 };
-  return { kind: "spiral", spiralKind, direction, center, innerRadius, outerRadius, turns };
+  return {
+    kind: "spiral",
+    spiralKind,
+    direction,
+    center,
+    innerRadius,
+    outerRadius,
+    turns,
+  };
 }
 
 export function createLoopChainLinearTarget(): TargetLoopChainLinear {
   return {
     kind: "loop-chain-linear",
-    centerY: randomRange(200, 420),
-    bandHalf: randomRange(35, 80),
+    centerY: randomRange(210, 410),
+    bandHalf: randomRange(60, 200),
   };
 }
 
 export function createLoopChainCircularTarget(): TargetLoopChainCircular {
-  const mid = randomRange(140, 200);
-  const half = randomRange(30, 55);
+  const half = randomRange(45, 137.5);
   const margin = 20;
+  const mid = randomRange(Math.max(140, half + 12), 290 - half);
   const minR = mid + half;
   const center = {
     x: randomRange(minR + margin, 1000 - minR - margin),
@@ -103,10 +111,11 @@ export function createLoopChainCircularTarget(): TargetLoopChainCircular {
 }
 
 export function createLoopChainWedgeTarget(): TargetLoopChainWedge {
-  const centerY = randomRange(200, 420);
-  const bandHalfLeft = randomRange(35, 80);
+  const bandHalfLeft = randomRange(60, 200);
   const factor = randomRange(0.4, 2.5);
-  const bandHalfRight = Math.max(25, Math.min(100, bandHalfLeft * factor));
+  const bandHalfRight = Math.max(35, Math.min(250, bandHalfLeft * factor));
+  const maxHalf = Math.max(bandHalfLeft, bandHalfRight);
+  const centerY = randomRange(20 + maxHalf, 600 - maxHalf);
   return { kind: "loop-chain-wedge", centerY, bandHalfLeft, bandHalfRight };
 }
 

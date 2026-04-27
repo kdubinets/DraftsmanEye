@@ -108,6 +108,10 @@ export type FreehandSpiralResult = {
 export type LoopChainScoredResult = {
   kind: "loop-chain-scored";
   score: number;
+  loopQualityScore: number;
+  bandScore?: number;
+  containmentPercent?: number;
+  bandTouchPercent?: number;
   loopCount: number;
   meanLoopRadius: number;
   radiusConsistencyScore: number;
@@ -234,5 +238,8 @@ export type FreehandExerciseConfig = {
   readyText: string;
   retryText: string;
   canvasLabel: string;
-  renderCorrection?: (correctionLayer: SVGGElement, result: FreehandResult) => void;
+  renderCorrection?: (
+    correctionLayer: SVGGElement,
+    result: FreehandResult,
+  ) => void;
 };

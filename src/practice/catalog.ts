@@ -558,56 +558,29 @@ export const EXERCISES: ExerciseDefinition[] = [
   {
     id: "loop-chain-linear",
     family: "Loop Chain",
-    label: "Linear Band",
+    label: "Linear Loops",
     description:
-      "Draw a chain of loops between two horizontal guide lines. Score shows how much of your stroke stayed inside the band.",
+      "Draw a chain of loops between two horizontal guide lines. Scored on band use, roundness, consistency, and path.",
     implemented: true,
     kind: "loop-chain-linear",
   },
   {
-    id: "loop-chain-linear-scored",
-    family: "Loop Chain",
-    label: "Linear Loops",
-    description:
-      "Draw a chain of loops between horizontal guides. Scored on loop roundness, size consistency, and how straight your path is.",
-    implemented: true,
-    kind: "loop-chain-linear-scored",
-  },
-  {
     id: "loop-chain-circular",
     family: "Loop Chain",
-    label: "Circular Band",
+    label: "Circular Loops",
     description:
-      "Draw a chain of loops following two concentric circle guides. Score shows how much of your stroke stayed inside the ring.",
+      "Draw a chain of loops following two concentric circle guides. Scored on ring use, roundness, consistency, and path.",
     implemented: true,
     kind: "loop-chain-circular",
   },
   {
-    id: "loop-chain-circular-scored",
-    family: "Loop Chain",
-    label: "Circular Loops",
-    description:
-      "Draw a chain of loops between circular guides. Scored on loop roundness, size consistency, and how closely you follow the ring.",
-    implemented: true,
-    kind: "loop-chain-circular-scored",
-  },
-  {
     id: "loop-chain-wedge",
-    family: "Loop Chain",
-    label: "Wedge Band",
-    description:
-      "Draw a chain of loops between two converging or diverging guide lines. Score shows how much of your stroke stayed inside the wedge.",
-    implemented: true,
-    kind: "loop-chain-wedge",
-  },
-  {
-    id: "loop-chain-wedge-scored",
     family: "Loop Chain",
     label: "Wedge Loops",
     description:
-      "Draw a chain of loops between wedge guides. Scored on loop roundness, size consistency, and how straight your path stays.",
+      "Draw a chain of loops between two converging or diverging guide lines. Scored on wedge use, roundness, consistency, and path.",
     implemented: true,
-    kind: "loop-chain-wedge-scored",
+    kind: "loop-chain-wedge",
   },
 ];
 
