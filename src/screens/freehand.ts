@@ -5,7 +5,7 @@ import type {
   FreehandExerciseDefinition,
 } from "../practice/catalog";
 import { getStoredProgress, updateStoredProgress } from "../storage/progress";
-import type { ProgressStore } from "../storage/progress";
+import type { ProgressAttemptMetadata, ProgressStore } from "../storage/progress";
 import { getSettings } from "../storage/settings";
 import { distanceBetween } from "../geometry/primitives";
 import { s, h } from "../render/h";
@@ -31,6 +31,14 @@ import {
   lineAngleTrackerModel,
   type LineAngleTrackerBucket,
 } from "../practice/lineAngleTracker";
+import {
+  angleOpeningMetadataFromRadians,
+  type AngleOpeningMetadata,
+} from "../practice/angleOpenings";
+import {
+  angleOpeningTrackerModel,
+  type AngleOpeningTrackerBucket,
+} from "../practice/angleOpeningTracker";
 import {
   canStartFreehandStroke,
   freehandPointFromEvent,
@@ -171,10 +179,40 @@ export function mountFreehandScreen(
           },
         })
       : null;
+  const angleOpeningWidget =
+    isAngleOpeningTrackedExercise(exercise.id)
+      ? h("button", {
+          type: "button",
+          class: "angle-opening-widget",
+          title: "Review angle opening practice",
+          on: {
+            click: () => {
+              document.body.append(
+                renderAngleOpeningTrackerModal(
+                  getStoredProgress(),
+                  exercise.id,
+                ),
+              );
+            },
+          },
+        })
+      : null;
   if (lineAngleWidget) {
     lineAngleWidget.setAttribute("aria-label", "Review line direction practice");
     renderLineAngleWidget(lineAngleWidget, getStoredProgress(), exercise.id);
     toolbar.append(lineAngleWidget);
+  }
+  if (angleOpeningWidget) {
+    angleOpeningWidget.setAttribute(
+      "aria-label",
+      "Review angle opening practice",
+    );
+    renderAngleOpeningWidget(
+      angleOpeningWidget,
+      getStoredProgress(),
+      exercise.id,
+    );
+    toolbar.append(angleOpeningWidget);
   }
 
   const historySection = h("section", {
@@ -453,10 +491,13 @@ export function mountFreehandScreen(
       exercise.id,
       result.score,
       0,
-      lineAngleMetadataForResult(exercise.id, result, points),
+      progressMetadataForResult(exercise.id, result, points),
     );
     if (lineAngleWidget) {
       renderLineAngleWidget(lineAngleWidget, nextProgress, exercise.id);
+    }
+    if (angleOpeningWidget) {
+      renderAngleOpeningWidget(angleOpeningWidget, nextProgress, exercise.id);
     }
     attempts.unshift({
       id: nextAttemptId,
@@ -881,6 +922,22 @@ function isLineAngleTrackedExercise(id: ExerciseId): boolean {
   return LINE_ANGLE_TRACKED_EXERCISES.has(id);
 }
 
+function isAngleOpeningTrackedExercise(id: ExerciseId): boolean {
+  return id.startsWith("angle-copy-");
+}
+
+function progressMetadataForResult(
+  exerciseId: ExerciseId,
+  result: FreehandResult,
+  points: FreehandPoint[],
+): ProgressAttemptMetadata | undefined {
+  const metadata = {
+    ...lineAngleMetadataForResult(exerciseId, result, points),
+    ...angleOpeningMetadataForResult(exerciseId, result),
+  };
+  return Object.keys(metadata).length === 0 ? undefined : metadata;
+}
+
 function lineAngleMetadataForResult(
   exerciseId: ExerciseId,
   result: FreehandResult,
@@ -901,6 +958,15 @@ function lineAngleMetadataForResult(
       : lineAngleMetadataFromPoints(result.fitStart, result.fitEnd);
   }
   return undefined;
+}
+
+function angleOpeningMetadataForResult(
+  exerciseId: ExerciseId,
+  result: FreehandResult,
+): AngleOpeningMetadata | undefined {
+  if (!isAngleOpeningTrackedExercise(exerciseId)) return undefined;
+  if (result.kind !== "target-angle") return undefined;
+  return angleOpeningMetadataFromRadians(result.target.openingRadians);
 }
 
 function renderLineAngleWidget(
@@ -939,6 +1005,31 @@ function renderLineAngleWidget(
   );
 
   container.replaceChildren(chart);
+}
+
+function renderAngleOpeningWidget(
+  container: HTMLElement,
+  progress: ProgressStore,
+  exerciseId: ExerciseId,
+): void {
+  const model = angleOpeningTrackerModel(progress, exerciseId);
+  const todayBars = h(
+    "div",
+    { class: "angle-opening-today-bars" },
+    model.buckets.map(angleOpeningTodayBar),
+  );
+  const cells = h(
+    "div",
+    { class: "angle-opening-cells" },
+    model.buckets.map((bucket) =>
+      h("span", {
+        class: "angle-opening-cell",
+        style: { background: bucket.cellFill },
+      }),
+    ),
+  );
+  const total = angleOpeningTotalBar(model.todayTotal, model.todayProgress);
+  container.replaceChildren(todayBars, cells, total);
 }
 
 function renderLineAngleTrackerModal(
@@ -1025,6 +1116,104 @@ function renderLineAngleTrackerModal(
   return overlay;
 }
 
+function renderAngleOpeningTrackerModal(
+  progress: ProgressStore,
+  exerciseId: ExerciseId,
+): HTMLElement {
+  const model = angleOpeningTrackerModel(progress, exerciseId);
+  let overlay: HTMLElement;
+  const close = (): void => overlay.remove();
+  const strip = h("div", { class: "angle-opening-detail-strip" }, [
+    h(
+      "div",
+      { class: "angle-opening-today-bars" },
+      model.buckets.map(angleOpeningTodayBar),
+    ),
+    h(
+      "div",
+      { class: "angle-opening-cells" },
+      model.buckets.map((bucket) =>
+        h("span", {
+          class: "angle-opening-cell",
+          style: { background: bucket.cellFill },
+          title: angleOpeningBucketSummary(bucket),
+        }),
+      ),
+    ),
+    angleOpeningTotalBar(model.todayTotal, model.todayProgress),
+  ]);
+
+  const populatedBuckets = model.buckets.filter(
+    (bucket) => bucket.aggregate !== undefined || bucket.todayAttempts > 0,
+  );
+  const details = h("div", { class: "line-angle-modal-details" }, [
+    h("p", {}, [`Today: ${model.todayTotal} angle attempts`]),
+    h("p", {}, [
+      "Cell color ranks long-term proficiency for this drill. Top bars show attempts today.",
+    ]),
+    h(
+      "ol",
+      {},
+      populatedBuckets.map((bucket) =>
+        h("li", {}, [angleOpeningBucketSummary(bucket)]),
+      ),
+    ),
+  ]);
+
+  const closeBtn = actionButton("Close", close);
+  const panel = h(
+    "div",
+    {
+      class: "line-angle-modal-panel",
+      on: { click: (event) => event.stopPropagation() },
+    },
+    [
+      h("div", { class: "line-angle-modal-header" }, [
+        h("h2", {}, ["Angle Opening Tracker"]),
+        closeBtn,
+      ]),
+      strip,
+      details,
+    ],
+  );
+  overlay = h(
+    "div",
+    {
+      class: "line-angle-modal",
+      on: { click: close },
+    },
+    [panel],
+  );
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-label", "Angle opening tracker detail");
+  return overlay;
+}
+
+function angleOpeningTodayBar(
+  bucket: AngleOpeningTrackerBucket,
+): HTMLSpanElement {
+  const bar = h("span", { class: "angle-opening-today-bar" });
+  bar.style.setProperty("--today-height", `${bucket.todayHeightPercent}%`);
+  bar.style.setProperty("--today-opacity", bucket.todayOpacity.toFixed(2));
+  return bar;
+}
+
+function angleOpeningTotalBar(
+  todayTotal: number,
+  todayProgress: number,
+): HTMLDivElement {
+  const total = h("div", {
+    class: "angle-opening-total",
+    title: `${todayTotal} angle attempts today`,
+  });
+  total.style.setProperty(
+    "--today-progress-width",
+    `${(todayProgress * 100).toFixed(1)}%`,
+  );
+  return total;
+}
+
 function angleSector(centerDegrees: number, fill: string): SVGPathElement {
   const half = LINE_ANGLE_BUCKET_SIZE_DEGREES / 2;
   const start = polarPoint(60, 60, 46, centerDegrees - half);
@@ -1064,6 +1253,14 @@ function appendSvgTitle(element: SVGElement, text: string): void {
 }
 
 function lineAngleBucketSummary(bucket: LineAngleTrackerBucket): string {
+  const score =
+    bucket.aggregate === undefined
+      ? "no proficiency score"
+      : `EMA ${bucket.aggregate.ema.toFixed(1)}, ${bucket.aggregate.attempts} counted`;
+  return `${bucket.bucket}deg: ${score}, ${bucket.todayAttempts} today`;
+}
+
+function angleOpeningBucketSummary(bucket: AngleOpeningTrackerBucket): string {
   const score =
     bucket.aggregate === undefined
       ? "no proficiency score"

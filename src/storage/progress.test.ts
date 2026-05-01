@@ -12,7 +12,8 @@ vi.stubGlobal('window', { localStorage: localStorageMock });
 
 import { getStoredProgress, updateStoredProgress, filterStaleAggregates, _resetProgressCache } from './progress';
 
-const STORAGE_KEY = 'draftsman-eye.progress.v4';
+const STORAGE_KEY = 'draftsman-eye.progress.v5';
+const LEGACY_V4_STORAGE_KEY = 'draftsman-eye.progress.v4';
 const LEGACY_V3_STORAGE_KEY = 'draftsman-eye.progress.v3';
 const LEGACY_V2_STORAGE_KEY = 'draftsman-eye.progress.v2';
 
@@ -25,10 +26,11 @@ beforeEach(() => {
 describe('getStoredProgress', () => {
   it('returns empty store when localStorage has no entry', () => {
     const p = getStoredProgress();
-    expect(p.version).toBe(4);
+    expect(p.version).toBe(5);
     expect(p.attempts).toEqual([]);
     expect(p.aggregates).toEqual({});
     expect(p.dimensions.lineAngleBuckets).toEqual({});
+    expect(p.dimensions.angleOpeningBuckets).toEqual({});
   });
 
   it('returns empty store and logs error for non-JSON payload', () => {
@@ -67,7 +69,33 @@ describe('getStoredProgress', () => {
     consoleSpy.mockRestore();
   });
 
-  it('migrates v3 progress into v4 with empty directional dimensions', () => {
+  it('migrates v4 progress into v5 with empty angle opening dimensions', () => {
+    store[LEGACY_V4_STORAGE_KEY] = JSON.stringify({
+      version: 4,
+      attempts: [{ exerciseId: 'trace-line', score: 80, signedError: 2, timestamp: 12345 }],
+      aggregates: { 'trace-line': { ema: 80, attempts: 1, lastPracticedAt: 12345 } },
+      dimensions: {
+        lineAngleBuckets: {
+          'trace-line': {
+            '90': { ema: 80, attempts: 1, lastPracticedAt: 12345 },
+          },
+        },
+        lineAngleDegreeBuckets: {
+          'trace-line': {
+            '87': { ema: 80, attempts: 1, lastPracticedAt: 12345 },
+          },
+        },
+      },
+    });
+    const p = getStoredProgress();
+    expect(p.version).toBe(5);
+    expect(p.aggregates['trace-line']!.ema).toBe(80);
+    expect(p.dimensions.lineAngleBuckets['trace-line']!['90']!.ema).toBe(80);
+    expect(p.dimensions.lineAngleDegreeBuckets!['trace-line']!['87']!.ema).toBe(80);
+    expect(p.dimensions.angleOpeningBuckets).toEqual({});
+  });
+
+  it('migrates v3 progress into v5 with empty directional dimensions', () => {
     store[LEGACY_V3_STORAGE_KEY] = JSON.stringify({
       version: 3,
       attempts: [{ exerciseId: 'trace-line', score: 80, signedError: 2, timestamp: 12345 }],
@@ -81,33 +109,35 @@ describe('getStoredProgress', () => {
       },
     });
     const p = getStoredProgress();
-    expect(p.version).toBe(4);
+    expect(p.version).toBe(5);
     expect(p.aggregates['trace-line']!.ema).toBe(80);
     expect(p.dimensions.lineAngleBuckets).toEqual({});
+    expect(p.dimensions.angleOpeningBuckets).toEqual({});
   });
 
-  it('migrates v2 progress into v4 with empty dimensions', () => {
+  it('migrates v2 progress into v5 with empty dimensions', () => {
     store[LEGACY_V2_STORAGE_KEY] = JSON.stringify({
       version: 2,
       attempts: [{ exerciseId: 'freehand-straight-line', score: 80, signedError: 2, timestamp: 12345 }],
       aggregates: { 'freehand-straight-line': { ema: 80, attempts: 1, lastPracticedAt: 12345 } },
     });
     const p = getStoredProgress();
-    expect(p.version).toBe(4);
+    expect(p.version).toBe(5);
     expect(p.aggregates['freehand-straight-line']!.ema).toBe(80);
     expect(p.dimensions.lineAngleBuckets).toEqual({});
+    expect(p.dimensions.angleOpeningBuckets).toEqual({});
   });
 
   it('returns stored data for a valid payload', () => {
     const payload = {
-      version: 4,
+      version: 5,
       attempts: [{ exerciseId: 'freehand-straight-line', score: 80, signedError: 2, timestamp: 12345 }],
       aggregates: { 'freehand-straight-line': { ema: 80, attempts: 1, lastPracticedAt: 12345 } },
-      dimensions: { lineAngleBuckets: {} },
+      dimensions: { lineAngleBuckets: {}, angleOpeningBuckets: {} },
     };
     store[STORAGE_KEY] = JSON.stringify(payload);
     const p = getStoredProgress();
-    expect(p.version).toBe(4);
+    expect(p.version).toBe(5);
     expect(p.attempts).toHaveLength(1);
     expect(p.aggregates['freehand-straight-line']!.ema).toBe(80);
   });
@@ -217,6 +247,35 @@ describe('updateStoredProgress', () => {
     expect(result.dimensions.lineAngleBuckets['trace-line']).toBeUndefined();
     expect(result.dimensions.lineAngleDegreeBuckets?.['trace-line']).toBeUndefined();
   });
+
+  it('updates angle opening bucket aggregates when metadata is provided', () => {
+    const result = updateStoredProgress('angle-copy-horizontal-aligned', 70, 0, {
+      angleOpeningDegrees: 87,
+      angleOpeningBucket: 90,
+    });
+
+    const bucket =
+      result.dimensions.angleOpeningBuckets['angle-copy-horizontal-aligned']![
+        '90'
+      ]!;
+    expect(bucket.ema).toBe(70);
+    expect(bucket.attempts).toBe(1);
+    expect(result.attempts[0].metadata?.angleOpeningBucket).toBe(90);
+  });
+
+  it('keeps low-score angle attempts out of proficiency aggregates', () => {
+    const result = updateStoredProgress('angle-copy-horizontal-aligned', 19, 0, {
+      angleOpeningDegrees: 87,
+      angleOpeningBucket: 90,
+    });
+
+    expect(result.attempts).toHaveLength(1);
+    expect(result.attempts[0].metadata?.angleOpeningBucket).toBe(90);
+    expect(result.aggregates['angle-copy-horizontal-aligned']!.attempts).toBe(1);
+    expect(
+      result.dimensions.angleOpeningBuckets['angle-copy-horizontal-aligned'],
+    ).toBeUndefined();
+  });
 });
 
 describe('filterStaleAggregates', () => {
@@ -246,6 +305,17 @@ describe('filterStaleAggregates', () => {
     const result = filterStaleAggregates(store, new Set(['freehand-straight-line']));
     expect(result.dimensions.lineAngleBuckets['trace-line']).toBeUndefined();
     expect(result.dimensions.lineAngleDegreeBuckets!['trace-line']).toBeUndefined();
+  });
+
+  it('drops angle opening bucket entries whose exercise ids are not known', () => {
+    const store = updateStoredProgress('angle-copy-horizontal-aligned', 80, 0, {
+      angleOpeningDegrees: 87,
+      angleOpeningBucket: 90,
+    });
+    const result = filterStaleAggregates(store, new Set(['trace-line']));
+    expect(
+      result.dimensions.angleOpeningBuckets['angle-copy-horizontal-aligned'],
+    ).toBeUndefined();
   });
 
   it('returns empty aggregates when known set is empty', () => {

@@ -1,5 +1,6 @@
 /** Trial target geometry generation for target and trace exercise variants. */
 import { randomRange, pointOnCircle } from "../../geometry/primitives";
+import { clampAngleOpeningDegrees } from "../../practice/angleOpenings";
 import type { FreehandExerciseDefinition } from "../../practice/catalog";
 import type {
   FreehandTarget,
@@ -15,7 +16,11 @@ import type {
 
 export function createFreehandTarget(
   kind: FreehandExerciseDefinition["kind"],
-  options: { lineAngleBucket?: number; showDirectionCue?: boolean } = {},
+  options: {
+    lineAngleBucket?: number;
+    showDirectionCue?: boolean;
+    angleOpeningBucket?: number;
+  } = {},
 ): FreehandTarget | null {
   switch (kind) {
     case "target-line-two-points":
@@ -34,17 +39,17 @@ export function createFreehandTarget(
     case "trace-ellipse":
       return createTraceEllipse();
     case "angle-copy-horizontal-aligned":
-      return createTargetAngle("horizontal", "aligned");
+      return createTargetAngle("horizontal", "aligned", options.angleOpeningBucket);
     case "angle-copy-vertical-aligned":
-      return createTargetAngle("vertical", "aligned");
+      return createTargetAngle("vertical", "aligned", options.angleOpeningBucket);
     case "angle-copy-horizontal-rotated":
-      return createTargetAngle("horizontal", "rotated");
+      return createTargetAngle("horizontal", "rotated", options.angleOpeningBucket);
     case "angle-copy-vertical-rotated":
-      return createTargetAngle("vertical", "rotated");
+      return createTargetAngle("vertical", "rotated", options.angleOpeningBucket);
     case "angle-copy-arbitrary-aligned":
-      return createTargetAngle("arbitrary", "aligned");
+      return createTargetAngle("arbitrary", "aligned", options.angleOpeningBucket);
     case "angle-copy-arbitrary-rotated":
-      return createTargetAngle("arbitrary", "rotated");
+      return createTargetAngle("arbitrary", "rotated", options.angleOpeningBucket);
     case "loop-chain-linear":
     case "loop-chain-linear-scored":
       return createLoopChainLinearTarget();
@@ -236,6 +241,7 @@ type AngleTransferMode = "aligned" | "rotated";
 function createTargetAngle(
   baseMode: AngleBaseMode,
   transferMode: AngleTransferMode,
+  openingBucket?: number,
 ): TargetAngle {
   const referenceLength = 150;
   const targetLength = 230;
@@ -244,10 +250,7 @@ function createTargetAngle(
   for (let attempt = 0; attempt < 80; attempt += 1) {
     const referenceBase = baseAngle(baseMode);
     const openingSign = Math.random() < 0.5 ? 1 : -1;
-    const openingRadians = randomRange(
-      (28 * Math.PI) / 180,
-      (145 * Math.PI) / 180,
-    );
+    const openingRadians = targetOpeningRadians(openingBucket);
     const targetBase =
       transferMode === "aligned"
         ? referenceBase
@@ -294,7 +297,7 @@ function createTargetAngle(
   const referenceBase = baseAngle(baseMode);
   const targetBase =
     transferMode === "aligned" ? referenceBase : referenceBase + Math.PI / 3;
-  const openingRadians = Math.PI / 3;
+  const openingRadians = targetOpeningRadians(openingBucket);
   const openingSign = 1;
   const referenceVertex = { x: 260, y: 310 };
   const targetVertex = { x: 720, y: 310 };
@@ -321,6 +324,14 @@ function createTargetAngle(
     openingRadians,
     openingSign,
   };
+}
+
+function targetOpeningRadians(openingBucket: number | undefined): number {
+  const degrees =
+    openingBucket === undefined
+      ? randomRange(5, 175)
+      : clampAngleOpeningDegrees(openingBucket + randomRange(-5, 5));
+  return (degrees * Math.PI) / 180;
 }
 
 function baseAngle(mode: AngleBaseMode): number {

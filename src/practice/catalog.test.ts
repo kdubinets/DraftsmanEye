@@ -5,10 +5,14 @@ import type { ProgressStore } from "../storage/progress";
 
 function emptyProgress(): ProgressStore {
   return {
-    version: 4,
+    version: 5,
     attempts: [],
     aggregates: {},
-    dimensions: { lineAngleBuckets: {} },
+    dimensions: {
+      lineAngleBuckets: {},
+      lineAngleDegreeBuckets: {},
+      angleOpeningBuckets: {},
+    },
   };
 }
 
@@ -65,12 +69,16 @@ describe("getAutoExercise", () => {
     if (!notImplemented) return; // all implemented — skip
 
     const progress: ProgressStore = {
-      version: 4,
+      version: 5,
       attempts: [],
       aggregates: {
         [notImplemented.id]: { ema: 0, attempts: 0, lastPracticedAt: 0 },
       },
-      dimensions: { lineAngleBuckets: {} },
+      dimensions: {
+        lineAngleBuckets: {},
+        lineAngleDegreeBuckets: {},
+        angleOpeningBuckets: {},
+      },
     };
     const { exercise } = getAutoExercise(progress);
     expect(exercise.implemented).toBe(true);
@@ -87,10 +95,14 @@ describe("getAutoExercise", () => {
     // Last drill has never been played — no entry
     const neverPlayed = implemented[implemented.length - 1];
     const progress: ProgressStore = {
-      version: 4,
+      version: 5,
       attempts: [],
       aggregates,
-      dimensions: { lineAngleBuckets: {} },
+      dimensions: {
+        lineAngleBuckets: {},
+        lineAngleDegreeBuckets: {},
+        angleOpeningBuckets: {},
+      },
     };
     const { exercise } = getAutoExercise(progress);
     expect(exercise.id).toBe(neverPlayed.id);
@@ -107,10 +119,14 @@ describe("getAutoExercise", () => {
     aggregates[weakDrill.id] = { ema: 10, attempts: 5, lastPracticedAt: oldMs };
 
     const progress: ProgressStore = {
-      version: 4,
+      version: 5,
       attempts: [],
       aggregates,
-      dimensions: { lineAngleBuckets: {} },
+      dimensions: {
+        lineAngleBuckets: {},
+        lineAngleDegreeBuckets: {},
+        angleOpeningBuckets: {},
+      },
     };
     const { exercise } = getAutoExercise(progress);
     expect(exercise.id).toBe(weakDrill.id);
@@ -130,10 +146,14 @@ describe("getAutoExercise", () => {
       aggregates[ex.id] = { ema: 75, attempts: 3, lastPracticedAt: oldMs };
     }
     const progress: ProgressStore = {
-      version: 4,
+      version: 5,
       attempts: [],
       aggregates,
-      dimensions: { lineAngleBuckets: {} },
+      dimensions: {
+        lineAngleBuckets: {},
+        lineAngleDegreeBuckets: {},
+        angleOpeningBuckets: {},
+      },
     };
     const first = getAutoExercise(progress).exercise.id;
     const second = getAutoExercise(progress).exercise.id;

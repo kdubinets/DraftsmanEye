@@ -681,6 +681,71 @@ button {
   stroke-width: 1;
 }
 
+.angle-opening-widget {
+  display: inline-grid;
+  grid-template-rows: 8px 18px 4px;
+  gap: 3px;
+  width: 88px;
+  height: 42px;
+  flex: 0 0 auto;
+  padding: 5px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.angle-opening-today-bars,
+.angle-opening-cells {
+  display: grid;
+  grid-template-columns: repeat(17, minmax(0, 1fr));
+  gap: 1px;
+  width: 100%;
+}
+
+.angle-opening-today-bars {
+  align-items: end;
+}
+
+.angle-opening-today-bar {
+  display: block;
+  height: var(--today-height, 0%);
+  min-height: 0;
+  border-radius: 2px 2px 0 0;
+  background: rgba(47, 85, 125, var(--today-opacity, 0));
+}
+
+.angle-opening-cell {
+  display: block;
+  min-width: 0;
+  border-radius: 1.5px;
+  box-shadow: inset 0 0 0 0.5px rgba(255, 252, 246, 0.9);
+}
+
+.angle-opening-total {
+  position: relative;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(52, 38, 27, 0.1);
+}
+
+.angle-opening-total::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: var(--today-progress-width, 0%);
+  border-radius: inherit;
+  background: rgba(47, 85, 125, 0.7);
+}
+
+.angle-opening-detail-strip {
+  display: grid;
+  grid-template-rows: 18px 34px 8px;
+  gap: 5px;
+  width: min(420px, 100%);
+  margin: 0 auto 14px;
+}
+
 .line-angle-modal {
   position: fixed;
   inset: 0;

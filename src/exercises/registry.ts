@@ -30,6 +30,7 @@ import { scoreTraceSpiral } from "../scoring/spiral";
 import { getStoredProgress } from "../storage/progress";
 import { getSettings } from "../storage/settings";
 import { selectLineAngleBucket } from "../practice/lineAngles";
+import { selectAngleOpeningBucket } from "../practice/angleOpenings";
 import {
   createFreehandTarget,
   createLoopChainLinearTarget,
@@ -61,9 +62,22 @@ function freehandConfig(
   exercise: FreehandExerciseDefinition,
 ): FreehandExerciseConfig {
   const config = FREEHAND_CONFIGS[exercise.kind];
+  const configWithTarget =
+    exercise.kind.startsWith("angle-copy-")
+      ? {
+          ...config,
+          createTarget: () =>
+            createFreehandTarget(exercise.kind, {
+              angleOpeningBucket: selectAngleOpeningBucket(
+                getStoredProgress(),
+                exercise.id,
+              ),
+            }),
+        }
+      : config;
   if (exercise.inputMode === "unlimited-strokes") {
     return {
-      ...config,
+      ...configWithTarget,
       readyText: "Draw a ray. Redraw freely before committing.",
       promptText: "Draw the missing ray; commit when it looks right.",
     };
@@ -73,7 +87,7 @@ function freehandConfig(
     exercise.inputMode === "adjustable-line-1-shot"
   ) {
     return {
-      ...config,
+      ...configWithTarget,
       readyText: "Drag the free end of the vertical segment.",
       promptText:
         exercise.inputMode === "adjustable-line-1-shot"
@@ -82,7 +96,7 @@ function freehandConfig(
       canvasLabel: "Angle copy adjustable line field",
     };
   }
-  return config;
+  return configWithTarget;
 }
 
 const FREEHAND_CONFIGS = {
@@ -370,7 +384,9 @@ const FREEHAND_CONFIGS = {
   },
 } satisfies Record<FreehandKind, FreehandExerciseConfig>;
 
-function angleCopyConfig(kind: FreehandKind): FreehandExerciseConfig {
+function angleCopyConfig(
+  kind: Extract<FreehandKind, `angle-copy-${string}`>,
+): FreehandExerciseConfig {
   return {
     isClosedShape: false,
     createTarget: () => createFreehandTarget(kind),
