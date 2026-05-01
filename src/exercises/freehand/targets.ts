@@ -15,12 +15,13 @@ import type {
 
 export function createFreehandTarget(
   kind: FreehandExerciseDefinition["kind"],
+  options: { lineAngleBucket?: number } = {},
 ): FreehandTarget | null {
   switch (kind) {
     case "target-line-two-points":
-      return createTargetLine();
+      return createTargetLine(options.lineAngleBucket);
     case "trace-line":
-      return { ...createTargetLine(), trace: true };
+      return { ...createTargetLine(options.lineAngleBucket), trace: true };
     case "target-circle-center-point":
       return createTargetCircle(1);
     case "target-circle-three-points":
@@ -69,6 +70,9 @@ export function createFreehandTarget(
 const SPIRAL_CANVAS_W = 1000;
 const SPIRAL_CANVAS_H = 620;
 const SPIRAL_MARGIN = 30;
+const LINE_CANVAS_W = 1000;
+const LINE_CANVAS_H = 620;
+const LINE_MARGIN = 48;
 
 function createTraceSpiral(
   spiralKind: "archimedean" | "logarithmic",
@@ -134,11 +138,25 @@ export function createLoopChainWedgeTarget(): TargetLoopChainWedge {
   return { kind: "loop-chain-wedge", centerY, bandHalfLeft, bandHalfRight };
 }
 
-function createTargetLine(): TargetLine {
-  const length = randomRange(340, 520);
-  const angle = randomRange(-0.45, 0.45);
-  const center = { x: randomRange(320, 680), y: randomRange(210, 410) };
+function createTargetLine(lineAngleBucket?: number): TargetLine {
+  const length = randomRange(340, 500);
+  const angle =
+    lineAngleBucket === undefined
+      ? randomRange(-0.45, 0.45)
+      : ((lineAngleBucket + randomRange(-4.5, 4.5)) * Math.PI) / 180;
   const half = length / 2;
+  const halfX = Math.abs(Math.cos(angle) * half);
+  const halfY = Math.abs(Math.sin(angle) * half);
+  const center = {
+    x: randomRange(
+      LINE_MARGIN + halfX,
+      LINE_CANVAS_W - LINE_MARGIN - halfX,
+    ),
+    y: randomRange(
+      LINE_MARGIN + halfY,
+      LINE_CANVAS_H - LINE_MARGIN - halfY,
+    ),
+  };
   return {
     kind: "line",
     start: {

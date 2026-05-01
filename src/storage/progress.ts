@@ -1,16 +1,23 @@
 /**
  * Stores and reads per-drill progress from browser local storage.
  *
- * Schema v2: a ring buffer of raw attempt records plus pre-computed aggregates.
+ * Schema v3: capped raw attempts, per-exercise aggregates, and compact long-lived
+ * sub-exercise aggregates for dimensions such as line angle proficiency.
  * v1 data (key draftsman-eye.progress.v1) is silently abandoned on first load.
  */
 import type { ExerciseId } from '../practice/catalog';
+
+export type ProgressAttemptMetadata = {
+  lineAngleDegrees?: number;
+  lineAngleBucket?: number;
+};
 
 export type AttemptRecord = {
   exerciseId: ExerciseId;
   score: number;       // 0..100
   signedError: number; // signed pixel error; 0 for exercise families with no directional concept
   timestamp: number;   // Date.now()
+  metadata?: ProgressAttemptMetadata;
 };
 
 export type ExerciseAggregate = {
@@ -19,17 +26,23 @@ export type ExerciseAggregate = {
   lastPracticedAt: number;
 };
 
-export type ProgressStore = {
-  version: 2;
-  attempts: AttemptRecord[];
-  aggregates: Partial<Record<ExerciseId, ExerciseAggregate>>;
+export type ProgressDimensions = {
+  lineAngleBuckets: Partial<
+    Record<ExerciseId, Partial<Record<string, ExerciseAggregate>>>
+  >;
 };
 
-const STORAGE_KEY = 'draftsman-eye.progress.v2';
+export type ProgressStore = {
+  version: 3;
+  attempts: AttemptRecord[];
+  aggregates: Partial<Record<ExerciseId, ExerciseAggregate>>;
+  dimensions: ProgressDimensions;
+};
+
+const STORAGE_KEY = 'draftsman-eye.progress.v3';
+const LEGACY_V2_STORAGE_KEY = 'draftsman-eye.progress.v2';
 const MAX_ATTEMPTS = 500;
 const EMA_ALPHA = 0.35;
-
-const EMPTY_STORE: ProgressStore = { version: 2, attempts: [], aggregates: {} };
 
 let cache: ProgressStore | null = null;
 
@@ -39,24 +52,29 @@ export function _resetProgressCache(): void { cache = null; }
 /** Wipes all stored progress from localStorage and resets the in-memory cache. */
 export function resetStoredProgress(): void {
   window.localStorage.removeItem(STORAGE_KEY);
+  window.localStorage.removeItem(LEGACY_V2_STORAGE_KEY);
   cache = null;
 }
 
 export function getStoredProgress(): ProgressStore {
   if (cache) return cache;
   const raw = window.localStorage.getItem(STORAGE_KEY);
-  if (!raw) return (cache = { ...EMPTY_STORE, aggregates: {} });
+  if (!raw) {
+    const migrated = migrateLegacyV2Progress();
+    if (migrated) return (cache = migrated);
+    return (cache = emptyStore());
+  }
 
   try {
     const parsed = JSON.parse(raw) as unknown;
     if (!isProgressStore(parsed)) {
       console.error('Ignoring malformed progress payload from localStorage.');
-      return (cache = { ...EMPTY_STORE, aggregates: {} });
+      return (cache = emptyStore());
     }
     return (cache = parsed);
   } catch (error) {
     console.error('Failed to parse stored progress.', error);
-    return (cache = { ...EMPTY_STORE, aggregates: {} });
+    return (cache = emptyStore());
   }
 }
 
@@ -64,25 +82,38 @@ export function updateStoredProgress(
   exerciseId: ExerciseId,
   score: number,
   signedError: number,
+  metadata?: ProgressAttemptMetadata,
 ): ProgressStore {
   const store = getStoredProgress();
 
-  const record: AttemptRecord = { exerciseId, score, signedError, timestamp: Date.now() };
+  const record: AttemptRecord = {
+    exerciseId,
+    score,
+    signedError,
+    timestamp: Date.now(),
+    ...(metadata ? { metadata } : {}),
+  };
   const attempts = [...store.attempts, record];
   if (attempts.length > MAX_ATTEMPTS) attempts.splice(0, attempts.length - MAX_ATTEMPTS);
 
-  const prev = store.aggregates[exerciseId];
-  const nextEma = prev === undefined ? score : prev.ema + EMA_ALPHA * (score - prev.ema);
-  const nextAggregate: ExerciseAggregate = {
-    ema: nextEma,
-    attempts: (prev?.attempts ?? 0) + 1,
-    lastPracticedAt: record.timestamp,
-  };
+  const nextAggregate = updateAggregate(
+    store.aggregates[exerciseId],
+    score,
+    record.timestamp,
+  );
+  const dimensions = updateDimensions(
+    store.dimensions,
+    exerciseId,
+    score,
+    record.timestamp,
+    metadata,
+  );
 
   const next: ProgressStore = {
-    version: 2,
+    version: 3,
     attempts,
     aggregates: { ...store.aggregates, [exerciseId]: nextAggregate },
+    dimensions,
   };
 
   cache = next;
@@ -110,10 +141,113 @@ export function filterStaleAggregates(
       filtered[id as keyof typeof store.aggregates] = agg;
     }
   }
-  return { ...store, aggregates: filtered };
+  const lineAngleBuckets: ProgressDimensions['lineAngleBuckets'] = {};
+  for (const [id, buckets] of Object.entries(
+    store.dimensions.lineAngleBuckets,
+  )) {
+    if (knownIds.has(id) && buckets !== undefined) {
+      lineAngleBuckets[id as ExerciseId] = buckets;
+    }
+  }
+  return {
+    ...store,
+    aggregates: filtered,
+    dimensions: { ...store.dimensions, lineAngleBuckets },
+  };
 }
 
 function isProgressStore(value: unknown): value is ProgressStore {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const v = value as Record<string, unknown>;
+  if (v['version'] !== 3) return false;
+  if (!Array.isArray(v['attempts'])) return false;
+  if (!v['aggregates'] || typeof v['aggregates'] !== 'object' || Array.isArray(v['aggregates'])) return false;
+  if (!v['dimensions'] || typeof v['dimensions'] !== 'object' || Array.isArray(v['dimensions'])) return false;
+  const dimensions = v['dimensions'] as Record<string, unknown>;
+  if (!dimensions['lineAngleBuckets'] || typeof dimensions['lineAngleBuckets'] !== 'object' || Array.isArray(dimensions['lineAngleBuckets'])) return false;
+  return true;
+}
+
+function emptyStore(): ProgressStore {
+  return {
+    version: 3,
+    attempts: [],
+    aggregates: {},
+    dimensions: { lineAngleBuckets: {} },
+  };
+}
+
+function updateAggregate(
+  previous: ExerciseAggregate | undefined,
+  score: number,
+  timestamp: number,
+): ExerciseAggregate {
+  return {
+    ema:
+      previous === undefined
+        ? score
+        : previous.ema + EMA_ALPHA * (score - previous.ema),
+    attempts: (previous?.attempts ?? 0) + 1,
+    lastPracticedAt: timestamp,
+  };
+}
+
+function updateDimensions(
+  previous: ProgressDimensions,
+  exerciseId: ExerciseId,
+  score: number,
+  timestamp: number,
+  metadata: ProgressAttemptMetadata | undefined,
+): ProgressDimensions {
+  if (metadata?.lineAngleBucket === undefined) return previous;
+  const bucketKey = String(metadata.lineAngleBucket);
+  const exerciseBuckets = previous.lineAngleBuckets[exerciseId] ?? {};
+  return {
+    ...previous,
+    lineAngleBuckets: {
+      ...previous.lineAngleBuckets,
+      [exerciseId]: {
+        ...exerciseBuckets,
+        [bucketKey]: updateAggregate(
+          exerciseBuckets[bucketKey],
+          score,
+          timestamp,
+        ),
+      },
+    },
+  };
+}
+
+function migrateLegacyV2Progress(): ProgressStore | null {
+  const raw = window.localStorage.getItem(LEGACY_V2_STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!isLegacyV2ProgressStore(parsed)) {
+      console.error('Ignoring malformed v2 progress payload from localStorage.');
+      return null;
+    }
+    const migrated: ProgressStore = {
+      version: 3,
+      attempts: parsed.attempts,
+      aggregates: parsed.aggregates,
+      dimensions: { lineAngleBuckets: {} },
+    };
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+    } catch (error) {
+      console.error('Failed to persist migrated progress.', error);
+    }
+    return migrated;
+  } catch (error) {
+    console.error('Failed to parse stored v2 progress.', error);
+    return null;
+  }
+}
+
+function isLegacyV2ProgressStore(
+  value: unknown,
+): value is Omit<ProgressStore, 'version' | 'dimensions'> & { version: 2 } {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const v = value as Record<string, unknown>;
   if (v['version'] !== 2) return false;

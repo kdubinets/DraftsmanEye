@@ -27,6 +27,8 @@ import {
   scoreLoopChainWedge,
 } from "../scoring/loopChain";
 import { scoreTraceSpiral } from "../scoring/spiral";
+import { getStoredProgress } from "../storage/progress";
+import { selectLineAngleBucket } from "../practice/lineAngles";
 import {
   createFreehandTarget,
   createLoopChainLinearTarget,
@@ -112,7 +114,13 @@ const FREEHAND_CONFIGS = {
   },
   "target-line-two-points": {
     isClosedShape: false,
-    createTarget: () => createFreehandTarget("target-line-two-points"),
+    createTarget: () =>
+      createFreehandTarget("target-line-two-points", {
+        lineAngleBucket: selectLineAngleBucket(
+          getStoredProgress(),
+          "target-line-two-points",
+        ),
+      }),
     scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) =>
       target?.kind === "line" ? scoreTargetLine(points, target) : null,
     promptText: "Draw one straight line connecting the two marks.",
@@ -142,7 +150,10 @@ const FREEHAND_CONFIGS = {
   },
   "trace-line": {
     isClosedShape: false,
-    createTarget: () => createFreehandTarget("trace-line"),
+    createTarget: () =>
+      createFreehandTarget("trace-line", {
+        lineAngleBucket: selectLineAngleBucket(getStoredProgress(), "trace-line"),
+      }),
     scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) =>
       target?.kind === "line" ? scoreTargetLine(points, target) : null,
     promptText: "Trace the faint straight guide.",

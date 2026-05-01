@@ -528,7 +528,7 @@ test("length transfer and angle copy expose family-specific subfilters", async (
   ).toBeVisible();
 });
 
-test("target line drill scores a stroke connecting two marks", async ({
+test("target line drill scores a stroke with two target marks", async ({
   page,
 }) => {
   await page.goto("/");
@@ -552,23 +552,21 @@ test("target line drill scores a stroke connecting two marks", async ({
     .getByTestId("freehand-canvas")
     .locator(".freehand-target-mark");
   await expect(marks).toHaveCount(2);
-  const [start, end] = await svgPointsToClient(page, [
-    await targetPlusCenter(marks.nth(0)),
-    await targetPlusCenter(marks.nth(1)),
+  const canvasBox = await freehandCanvasBox(page);
+  await drawPolyline(page, [
+    { x: canvasBox.x + 150, y: canvasBox.y + 210 },
+    { x: canvasBox.x + 360, y: canvasBox.y + 230 },
+    { x: canvasBox.x + 580, y: canvasBox.y + 250 },
   ]);
 
-  await page.mouse.move(start.x, start.y);
-  await page.mouse.down();
-  for (let index = 1; index <= 8; index += 1) {
-    const ratio = index / 8;
-    await page.mouse.move(
-      start.x + (end.x - start.x) * ratio,
-      start.y + (end.y - start.y) * ratio,
-    );
-  }
-  await page.mouse.up();
-
   await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
+  await expect(
+    page.locator(".exercise-toolbar .line-angle-chart"),
+  ).toBeVisible();
+  await expect(page.locator(".line-angle-chart-sector")).toHaveCount(36);
+  await expect(
+    await storedLineAngleBuckets(page, "target-line-two-points"),
+  ).toHaveLength(1);
   await expect(page.getByText("Endpoint miss", { exact: true })).toBeVisible();
   await expect(
     page
@@ -882,31 +880,21 @@ test("trace line drill scores a stroke against the faint guide", async ({
   const canvas = page.getByTestId("freehand-canvas");
   const guide = canvas.locator(".freehand-trace-guide");
   await expect(guide).toBeVisible();
-  const geometry = await guide.evaluate((line) => ({
-    start: {
-      x: Number(line.getAttribute("x1")),
-      y: Number(line.getAttribute("y1")),
-    },
-    end: {
-      x: Number(line.getAttribute("x2")),
-      y: Number(line.getAttribute("y2")),
-    },
-  }));
-  const points = await svgPointsToClient(page, [
-    geometry.start,
-    ...Array.from({ length: 7 }, (_, index) => {
-      const ratio = (index + 1) / 8;
-      return {
-        x: geometry.start.x + (geometry.end.x - geometry.start.x) * ratio,
-        y: geometry.start.y + (geometry.end.y - geometry.start.y) * ratio,
-      };
-    }),
-    geometry.end,
+  const canvasBox = await freehandCanvasBox(page);
+  await drawPolyline(page, [
+    { x: canvasBox.x + 150, y: canvasBox.y + 210 },
+    { x: canvasBox.x + 360, y: canvasBox.y + 230 },
+    { x: canvasBox.x + 580, y: canvasBox.y + 250 },
   ]);
 
-  await drawPolyline(page, points);
-
   await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
+  await expect(
+    page.locator(".exercise-toolbar .line-angle-chart"),
+  ).toBeVisible();
+  await expect(page.locator(".line-angle-chart-sector")).toHaveCount(36);
+  await expect(
+    await storedLineAngleBuckets(page, "trace-line"),
+  ).toHaveLength(1);
   await expect(
     canvas.locator(".freehand-target-correction-line"),
   ).toBeVisible();
@@ -1246,6 +1234,13 @@ test("straight line drill scores a drawn stroke and auto-clears", async ({
 
   await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await expect(
+    page.locator(".exercise-toolbar .line-angle-chart"),
+  ).toBeVisible();
+  await expect(page.locator(".line-angle-chart-sector")).toHaveCount(36);
+  await expect(
+    await storedLineAngleBuckets(page, "freehand-straight-line"),
+  ).toHaveLength(1);
+  await expect(
     page.getByTestId("freehand-canvas").locator(".freehand-fit-line"),
   ).toBeVisible();
   await expect(page.locator(".freehand-user-stroke").first()).toBeVisible();
@@ -1347,12 +1342,17 @@ test("target line early next activates new target geometry", async ({
 
   await openTargetLine(page);
   const canvas = page.getByTestId("freehand-canvas");
+  const canvasBox = await freehandCanvasBox(page);
   const oldMarks = canvas.locator(".freehand-target-mark");
-  const oldTargets = await svgPointsToClient(page, [
-    await targetPlusCenter(oldMarks.nth(0)),
-    await targetPlusCenter(oldMarks.nth(1)),
+  const oldTargets = [
+    await locatorCenter(oldMarks.nth(0)),
+    await locatorCenter(oldMarks.nth(1)),
+  ];
+  await drawPolyline(page, [
+    { x: canvasBox.x + 160, y: canvasBox.y + 180 },
+    { x: canvasBox.x + 360, y: canvasBox.y + 220 },
+    { x: canvasBox.x + 580, y: canvasBox.y + 260 },
   ]);
-  await drawPolyline(page, interpolatedPoints(oldTargets[0], oldTargets[1], 8));
 
   await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await expect(page.locator(".freehand-history-item")).toHaveCount(1);
@@ -1364,13 +1364,18 @@ test("target line early next activates new target geometry", async ({
   await expect(canvas.locator(".freehand-target-mark")).toHaveCount(2);
 
   const newMarks = canvas.locator(".freehand-target-mark");
-  const newTargets = await svgPointsToClient(page, [
-    await targetPlusCenter(newMarks.nth(0)),
-    await targetPlusCenter(newMarks.nth(1)),
-  ]);
+  const newTargets = [
+    await locatorCenter(newMarks.nth(0)),
+    await locatorCenter(newMarks.nth(1)),
+  ];
   expect(distance(oldTargets[0], newTargets[0])).toBeGreaterThan(4);
 
-  await drawPolyline(page, interpolatedPoints(newTargets[0], newTargets[1], 8));
+  const nextCanvasBox = await freehandCanvasBox(page);
+  await drawPolyline(page, [
+    { x: nextCanvasBox.x + 180, y: nextCanvasBox.y + 340 },
+    { x: nextCanvasBox.x + 380, y: nextCanvasBox.y + 310 },
+    { x: nextCanvasBox.x + 610, y: nextCanvasBox.y + 300 },
+  ]);
 
   await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await expect(page.locator(".freehand-history-item")).toHaveCount(2);
@@ -1789,7 +1794,7 @@ test("quick repeated single-mark clicks do not duplicate score updates", async (
   await expect(page.getByRole("button", { name: "Again" })).toHaveCount(0);
 
   const attempts = await page.evaluate(() => {
-    const raw = window.localStorage.getItem("draftsman-eye.progress.v2");
+    const raw = window.localStorage.getItem("draftsman-eye.progress.v3");
     if (!raw) return 0;
     const parsed = JSON.parse(raw) as { attempts?: unknown[] };
     return Array.isArray(parsed.attempts) ? parsed.attempts.length : 0;
@@ -2495,6 +2500,22 @@ async function openTargetLine(page: Page): Promise<void> {
   await expect(
     page.getByRole("heading", { level: 1, name: "Line Through Two Points" }),
   ).toBeVisible();
+}
+
+async function storedLineAngleBuckets(
+  page: Page,
+  exerciseId: string,
+): Promise<string[]> {
+  return page.evaluate((id) => {
+    const raw = window.localStorage.getItem("draftsman-eye.progress.v3");
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as {
+      dimensions?: {
+        lineAngleBuckets?: Record<string, Record<string, unknown>>;
+      };
+    };
+    return Object.keys(parsed.dimensions?.lineAngleBuckets?.[id] ?? {});
+  }, exerciseId);
 }
 
 async function openTraceCircle(page: Page): Promise<void> {

@@ -1,9 +1,11 @@
 /** Freehand exercise screen used by Freehand Control, Target Drawing, and Trace Control. */
 import type {
   ExerciseDefinition,
+  ExerciseId,
   FreehandExerciseDefinition,
 } from "../practice/catalog";
-import { updateStoredProgress } from "../storage/progress";
+import { getStoredProgress, updateStoredProgress } from "../storage/progress";
+import type { ProgressStore } from "../storage/progress";
 import { getSettings } from "../storage/settings";
 import { distanceBetween } from "../geometry/primitives";
 import { s, h } from "../render/h";
@@ -19,6 +21,12 @@ import {
   feedbackBandClass,
   feedbackLabel,
 } from "../scoring/bands";
+import {
+  LINE_ANGLE_BUCKETS,
+  LINE_ANGLE_BUCKET_SIZE_DEGREES,
+  lineAngleMetadataFromPoints,
+  type LineAngleMetadata,
+} from "../practice/lineAngles";
 import {
   canStartFreehandStroke,
   freehandPointFromEvent,
@@ -142,6 +150,14 @@ export function mountFreehandScreen(
   const feedback = h("p", { class: "feedback-banner" }, [config.readyText]);
   const summary = h("div", { class: "result-summary" });
   summary.hidden = true;
+  const lineAngleWidget =
+    isLineAngleTrackedExercise(exercise.id)
+      ? h("section", { class: "line-angle-widget" })
+      : null;
+  if (lineAngleWidget) {
+    renderLineAngleWidget(lineAngleWidget, getStoredProgress(), exercise.id);
+    toolbar.append(lineAngleWidget);
+  }
 
   const historySection = h("section", {
     class: "freehand-history",
@@ -415,7 +431,15 @@ export function mountFreehandScreen(
     result = next;
     pendingResult = null;
     commitBtn.disabled = true;
-    updateStoredProgress(exercise.id, result.score, 0);
+    const nextProgress = updateStoredProgress(
+      exercise.id,
+      result.score,
+      0,
+      lineAngleMetadataForResult(exercise.id, result),
+    );
+    if (lineAngleWidget) {
+      renderLineAngleWidget(lineAngleWidget, nextProgress, exercise.id);
+    }
     attempts.unshift({
       id: nextAttemptId,
       points: points.map((p) => ({ ...p })),
@@ -824,6 +848,91 @@ function appendGhostCorrection(
       }),
     );
   }
+}
+
+const LINE_ANGLE_TRACKED_EXERCISES = new Set<ExerciseId>([
+  "freehand-straight-line",
+  "target-line-two-points",
+  "trace-line",
+]);
+
+function isLineAngleTrackedExercise(id: ExerciseId): boolean {
+  return LINE_ANGLE_TRACKED_EXERCISES.has(id);
+}
+
+function lineAngleMetadataForResult(
+  exerciseId: ExerciseId,
+  result: FreehandResult,
+): LineAngleMetadata | undefined {
+  if (!isLineAngleTrackedExercise(exerciseId)) return undefined;
+  if (result.kind === "line") {
+    return lineAngleMetadataFromPoints(result.fitStart, result.fitEnd);
+  }
+  if (result.kind === "target-line") {
+    return lineAngleMetadataFromPoints(result.target.start, result.target.end);
+  }
+  return undefined;
+}
+
+function renderLineAngleWidget(
+  container: HTMLElement,
+  progress: ProgressStore,
+  exerciseId: ExerciseId,
+): void {
+  const buckets = progress.dimensions.lineAngleBuckets[exerciseId] ?? {};
+  const chart = s("svg", {
+    class: "line-angle-chart",
+    viewBox: "0 0 120 120",
+    role: "img",
+    "aria-label": "Angle proficiency by line direction",
+  });
+
+  for (const bucket of LINE_ANGLE_BUCKETS) {
+    const aggregate = buckets[String(bucket)];
+    const fill =
+      aggregate === undefined
+        ? "rgba(103, 103, 103, 0.16)"
+        : `hsl(${feedbackHueForError(100 - aggregate.ema)} 55% 42%)`;
+    chart.append(
+      angleSector(bucket, fill),
+      angleSector(bucket + 180, fill),
+    );
+  }
+  chart.append(
+    s("circle", {
+      class: "line-angle-chart-core",
+      cx: 60,
+      cy: 60,
+      r: 15,
+    }),
+  );
+
+  container.replaceChildren(chart);
+}
+
+function angleSector(centerDegrees: number, fill: string): SVGPathElement {
+  const half = LINE_ANGLE_BUCKET_SIZE_DEGREES / 2;
+  const start = polarPoint(60, 60, 54, centerDegrees - half);
+  const end = polarPoint(60, 60, 54, centerDegrees + half);
+  const path = s("path", {
+    class: "line-angle-chart-sector",
+    d: `M 60 60 L ${start.x.toFixed(2)} ${start.y.toFixed(2)} A 54 54 0 0 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)} Z`,
+  });
+  path.style.fill = fill;
+  return path;
+}
+
+function polarPoint(
+  cx: number,
+  cy: number,
+  radius: number,
+  degrees: number,
+): { x: number; y: number } {
+  const radians = (degrees * Math.PI) / 180;
+  return {
+    x: cx + Math.cos(radians) * radius,
+    y: cy + Math.sin(radians) * radius,
+  };
 }
 
 function initialAdjustableEndpoint(target: {

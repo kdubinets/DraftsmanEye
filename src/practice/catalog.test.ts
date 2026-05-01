@@ -4,7 +4,12 @@ import type { ExerciseId, SingleMarkExerciseDefinition } from "./catalog";
 import type { ProgressStore } from "../storage/progress";
 
 function emptyProgress(): ProgressStore {
-  return { version: 2, attempts: [], aggregates: {} };
+  return {
+    version: 3,
+    attempts: [],
+    aggregates: {},
+    dimensions: { lineAngleBuckets: {} },
+  };
 }
 
 describe("EXERCISES registry", () => {
@@ -60,11 +65,12 @@ describe("getAutoExercise", () => {
     if (!notImplemented) return; // all implemented — skip
 
     const progress: ProgressStore = {
-      version: 2,
+      version: 3,
       attempts: [],
       aggregates: {
         [notImplemented.id]: { ema: 0, attempts: 0, lastPracticedAt: 0 },
       },
+      dimensions: { lineAngleBuckets: {} },
     };
     const { exercise } = getAutoExercise(progress);
     expect(exercise.implemented).toBe(true);
@@ -80,7 +86,12 @@ describe("getAutoExercise", () => {
     }
     // Last drill has never been played — no entry
     const neverPlayed = implemented[implemented.length - 1];
-    const progress: ProgressStore = { version: 2, attempts: [], aggregates };
+    const progress: ProgressStore = {
+      version: 3,
+      attempts: [],
+      aggregates,
+      dimensions: { lineAngleBuckets: {} },
+    };
     const { exercise } = getAutoExercise(progress);
     expect(exercise.id).toBe(neverPlayed.id);
   });
@@ -95,7 +106,12 @@ describe("getAutoExercise", () => {
     const weakDrill = implemented[3];
     aggregates[weakDrill.id] = { ema: 10, attempts: 5, lastPracticedAt: oldMs };
 
-    const progress: ProgressStore = { version: 2, attempts: [], aggregates };
+    const progress: ProgressStore = {
+      version: 3,
+      attempts: [],
+      aggregates,
+      dimensions: { lineAngleBuckets: {} },
+    };
     const { exercise } = getAutoExercise(progress);
     expect(exercise.id).toBe(weakDrill.id);
   });
@@ -113,7 +129,12 @@ describe("getAutoExercise", () => {
     for (const ex of implemented) {
       aggregates[ex.id] = { ema: 75, attempts: 3, lastPracticedAt: oldMs };
     }
-    const progress: ProgressStore = { version: 2, attempts: [], aggregates };
+    const progress: ProgressStore = {
+      version: 3,
+      attempts: [],
+      aggregates,
+      dimensions: { lineAngleBuckets: {} },
+    };
     const first = getAutoExercise(progress).exercise.id;
     const second = getAutoExercise(progress).exercise.id;
     // Tie-breaking must be deterministic (no randomness breaks it across calls
