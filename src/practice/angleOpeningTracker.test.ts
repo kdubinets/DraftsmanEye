@@ -7,13 +7,15 @@ const YESTERDAY = new Date(2026, 3, 30, 23, 59, 0).getTime();
 
 function store(progress: Partial<ProgressStore>): ProgressStore {
   return {
-    version: 5,
+    version: 6,
     attempts: [],
     aggregates: {},
     dimensions: {
       lineAngleBuckets: {},
       lineAngleDegreeBuckets: {},
       angleOpeningBuckets: {},
+      divisionLengthBuckets: {},
+      divisionDirectionBuckets: {},
     },
     ...progress,
   };
@@ -46,6 +48,8 @@ describe("angleOpeningTrackerModel", () => {
               "30": { ema: 90, attempts: 2, lastPracticedAt: NOW },
             },
           },
+          divisionLengthBuckets: {},
+          divisionDirectionBuckets: {},
         },
       }),
       "angle-copy-horizontal-aligned",
@@ -71,6 +75,8 @@ describe("angleOpeningTrackerModel", () => {
               "60": { ema: 95, attempts: 3, lastPracticedAt: NOW },
             },
           },
+          divisionLengthBuckets: {},
+          divisionDirectionBuckets: {},
         },
       }),
       "angle-copy-horizontal-aligned",

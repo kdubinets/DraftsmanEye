@@ -1,7 +1,20 @@
 /**
  * Defines selectable drills and their trial generation and scoring behavior.
  */
-import type { ProgressStore } from "../storage/progress";
+import type {
+  ProgressAttemptMetadata,
+  ProgressStore,
+} from "../storage/progress";
+import {
+  bucketDivisionLength,
+  directionRadiansForBucket,
+  divisionDirectionBucketsForAxis,
+  divisionDirectionMetadata,
+  divisionLengthForBucket,
+  divisionLengthRange,
+  selectDivisionDirectionBucket,
+  selectDivisionLengthBucket,
+} from "./divisions";
 import {
   clampNumber,
   distanceBetween,
@@ -127,6 +140,7 @@ export type SingleMarkTrial = {
   projectionOrigin?: { x: number; y: number };
   anchorScalar?: number;
   anchorDirectionSign?: -1 | 1;
+  progressMetadata?: ProgressAttemptMetadata;
   scoreSelection: (placedScalar: number) => SingleMarkTrialResult;
   scorePoint?: (point: {
     x: number;
@@ -163,7 +177,7 @@ export type SingleMarkExerciseDefinition = ExerciseBase & {
   implemented: true;
   kind: "single-mark";
   inputMode?: "single-mark" | "unlimited-adjustment";
-  createTrial: () => SingleMarkTrial;
+  createTrial: (progress?: ProgressStore) => SingleMarkTrial;
 };
 
 export type FreehandExerciseDefinition = ExerciseBase & {
@@ -781,28 +795,32 @@ function divisionExercise(
     implemented: true,
     kind: "single-mark",
     inputMode: "single-mark",
-    createTrial: () =>
+    createTrial: (progress) =>
       createDivisionTrial(
+        id,
         axis,
         denominator,
         `${orientationLabel} ${fractionLabel}`,
+        progress,
       ),
   };
 }
 
 function createDivisionTrial(
+  exerciseId: DivisionExerciseId,
   axis: LineAxis,
   denominator: 2 | 3 | 4 | 5,
   label: string,
+  progress: ProgressStore | undefined,
 ): SingleMarkTrial {
   const width = 760;
   const height = axis === "horizontal" ? 320 : 640;
-  const length =
-    axis === "horizontal"
-      ? randomInteger(280, 520)
-      : axis === "vertical"
-        ? randomInteger(360, 520)
-        : randomInteger(330, 500);
+  const lengthRange = divisionLengthRange(axis);
+  const lengthBucket =
+    progress === undefined
+      ? (randomInteger(0, 4) as 0 | 1 | 2 | 3 | 4)
+      : selectDivisionLengthBucket(progress, exerciseId);
+  const length = divisionLengthForBucket(lengthBucket, lengthRange);
   const edgePadding = 52;
   const centerOffsetSigma = 0.2;
   const orientationText =
@@ -811,8 +829,25 @@ function createDivisionTrial(
       : axis === "vertical"
         ? "vertical"
         : "random";
-  const anchorDirectionSign = Math.random() < 0.5 ? -1 : 1;
   const usesDirectionCue = denominator !== 2;
+  const selectedDirectionBucket =
+    usesDirectionCue && progress !== undefined
+      ? selectDivisionDirectionBucket(
+          progress,
+          exerciseId,
+          divisionDirectionBucketsForAxis(axis),
+        )
+      : undefined;
+  const anchorDirectionSign =
+    selectedDirectionBucket === undefined
+      ? Math.random() < 0.5
+        ? -1
+        : 1
+      : anchorDirectionSignForAxis(axis, selectedDirectionBucket);
+  const lengthMetadata = {
+    divisionLengthPixels: length,
+    divisionLengthBucket: bucketDivisionLength(length, lengthRange),
+  };
 
   if (axis === "horizontal") {
     const maxCenterOffsetX = width / 2 - length / 2 - edgePadding;
@@ -828,11 +863,25 @@ function createDivisionTrial(
         anchorDirectionSign * (length / denominator)
       : startScalar + length / 2;
 
+    const trialLine: TrialLine = {
+      axis,
+      anchorX: 0,
+      anchorY,
+      startScalar,
+      endScalar,
+    };
+    const metadata: ProgressAttemptMetadata = {
+      ...lengthMetadata,
+      ...(usesDirectionCue
+        ? divisionDirectionMetadata(trialLine, anchorDirectionSign)
+        : {}),
+    };
     return {
       label,
       prompt: divisionPrompt(orientationText, denominator, usesDirectionCue),
       viewport: { width, height },
-      line: { axis, anchorX: 0, anchorY, startScalar, endScalar },
+      line: trialLine,
+      progressMetadata: metadata,
       ...(usesDirectionCue
         ? {
             anchorScalar: anchorDirectionSign < 0 ? endScalar : startScalar,
@@ -845,16 +894,31 @@ function createDivisionTrial(
   }
 
   if (axis === "free") {
-    const line = createRandomLine(width, height, length, edgePadding);
+    const directionRadians =
+      selectedDirectionBucket === undefined
+        ? undefined
+        : directionRadiansForBucket(selectedDirectionBucket);
+    const lineAngle =
+      directionRadians === undefined
+        ? undefined
+        : directionRadians + (anchorDirectionSign < 0 ? Math.PI : 0);
+    const line = createRandomLine(width, height, length, edgePadding, lineAngle);
     const targetScalar = usesDirectionCue
       ? (anchorDirectionSign < 0 ? line.endScalar : line.startScalar) +
         anchorDirectionSign * (length / denominator)
       : line.startScalar + length / 2;
+    const metadata: ProgressAttemptMetadata = {
+      ...lengthMetadata,
+      ...(usesDirectionCue
+        ? divisionDirectionMetadata(line, anchorDirectionSign)
+        : {}),
+    };
     return {
       label,
       prompt: divisionPrompt("random", denominator, usesDirectionCue),
       viewport: { width, height },
       line,
+      progressMetadata: metadata,
       ...(usesDirectionCue
         ? {
             anchorScalar:
@@ -880,11 +944,25 @@ function createDivisionTrial(
       anchorDirectionSign * (length / denominator)
     : startScalar + length / 2;
 
+  const trialLine: TrialLine = {
+    axis,
+    anchorX,
+    anchorY: 0,
+    startScalar,
+    endScalar,
+  };
+  const metadata: ProgressAttemptMetadata = {
+    ...lengthMetadata,
+    ...(usesDirectionCue
+      ? divisionDirectionMetadata(trialLine, anchorDirectionSign)
+      : {}),
+  };
   return {
     label,
     prompt: divisionPrompt(orientationText, denominator, usesDirectionCue),
     viewport: { width, height },
-    line: { axis, anchorX, anchorY: 0, startScalar, endScalar },
+    line: trialLine,
+    progressMetadata: metadata,
     ...(usesDirectionCue
       ? {
           anchorScalar: anchorDirectionSign < 0 ? endScalar : startScalar,
@@ -894,6 +972,15 @@ function createDivisionTrial(
     scoreSelection: (placedScalar) =>
       scoreSelection(placedScalar, targetScalar, length, axis),
   };
+}
+
+function anchorDirectionSignForAxis(
+  axis: LineAxis,
+  directionBucket: number,
+): -1 | 1 {
+  if (axis === "horizontal") return directionBucket === 180 ? -1 : 1;
+  if (axis === "vertical") return directionBucket === 270 ? -1 : 1;
+  return Math.random() < 0.5 ? -1 : 1;
 }
 
 function divisionPrompt(
@@ -1191,12 +1278,18 @@ function createRandomLine(
   height: number,
   length: number,
   margin: number,
+  angle?: number,
 ): TrialLine {
-  return createRandomLineInRegion(
-    { minX: margin, maxX: width - margin, minY: margin, maxY: height - margin },
-    length,
-    null,
-  );
+  const region = {
+    minX: margin,
+    maxX: width - margin,
+    minY: margin,
+    maxY: height - margin,
+  };
+  if (angle === undefined) {
+    return createRandomLineInRegion(region, length, null);
+  }
+  return createLineAtAngleInRegion(region, length, angle);
 }
 
 function createRandomLineInRegion(
@@ -1230,6 +1323,26 @@ function createRandomLineInRegion(
     length,
     avoidAngle === null ? 0.45 : avoidAngle + 1.1,
   );
+}
+
+function createLineAtAngleInRegion(
+  region: { minX: number; maxX: number; minY: number; maxY: number },
+  length: number,
+  angle: number,
+): TrialLine {
+  const halfX = Math.abs(Math.cos(angle) * length) / 2;
+  const halfY = Math.abs(Math.sin(angle) * length) / 2;
+  if (
+    halfX <= (region.maxX - region.minX) / 2 &&
+    halfY <= (region.maxY - region.minY) / 2
+  ) {
+    const center = {
+      x: randomRange(region.minX + halfX, region.maxX - halfX),
+      y: randomRange(region.minY + halfY, region.maxY - halfY),
+    };
+    return lineFromCenter(center, length, angle);
+  }
+  return createRandomLineInRegion(region, length, null);
 }
 
 function lineFromCenter(

@@ -5,13 +5,15 @@ import type { ProgressStore } from "../storage/progress";
 
 function emptyProgress(): ProgressStore {
   return {
-    version: 5,
+    version: 6,
     attempts: [],
     aggregates: {},
     dimensions: {
       lineAngleBuckets: {},
       lineAngleDegreeBuckets: {},
       angleOpeningBuckets: {},
+      divisionLengthBuckets: {},
+      divisionDirectionBuckets: {},
     },
   };
 }
@@ -69,7 +71,7 @@ describe("getAutoExercise", () => {
     if (!notImplemented) return; // all implemented — skip
 
     const progress: ProgressStore = {
-      version: 5,
+      version: 6,
       attempts: [],
       aggregates: {
         [notImplemented.id]: { ema: 0, attempts: 0, lastPracticedAt: 0 },
@@ -78,6 +80,8 @@ describe("getAutoExercise", () => {
         lineAngleBuckets: {},
         lineAngleDegreeBuckets: {},
         angleOpeningBuckets: {},
+      divisionLengthBuckets: {},
+      divisionDirectionBuckets: {},
       },
     };
     const { exercise } = getAutoExercise(progress);
@@ -95,13 +99,15 @@ describe("getAutoExercise", () => {
     // Last drill has never been played — no entry
     const neverPlayed = implemented[implemented.length - 1];
     const progress: ProgressStore = {
-      version: 5,
+      version: 6,
       attempts: [],
       aggregates,
       dimensions: {
         lineAngleBuckets: {},
         lineAngleDegreeBuckets: {},
         angleOpeningBuckets: {},
+      divisionLengthBuckets: {},
+      divisionDirectionBuckets: {},
       },
     };
     const { exercise } = getAutoExercise(progress);
@@ -119,13 +125,15 @@ describe("getAutoExercise", () => {
     aggregates[weakDrill.id] = { ema: 10, attempts: 5, lastPracticedAt: oldMs };
 
     const progress: ProgressStore = {
-      version: 5,
+      version: 6,
       attempts: [],
       aggregates,
       dimensions: {
         lineAngleBuckets: {},
         lineAngleDegreeBuckets: {},
         angleOpeningBuckets: {},
+      divisionLengthBuckets: {},
+      divisionDirectionBuckets: {},
       },
     };
     const { exercise } = getAutoExercise(progress);
@@ -146,13 +154,15 @@ describe("getAutoExercise", () => {
       aggregates[ex.id] = { ema: 75, attempts: 3, lastPracticedAt: oldMs };
     }
     const progress: ProgressStore = {
-      version: 5,
+      version: 6,
       attempts: [],
       aggregates,
       dimensions: {
         lineAngleBuckets: {},
         lineAngleDegreeBuckets: {},
         angleOpeningBuckets: {},
+      divisionLengthBuckets: {},
+      divisionDirectionBuckets: {},
       },
     };
     const first = getAutoExercise(progress).exercise.id;

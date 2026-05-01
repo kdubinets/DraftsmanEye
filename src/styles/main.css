@@ -746,6 +746,173 @@ button {
   margin: 0 auto 14px;
 }
 
+.division-tracker-widget {
+  display: inline-grid;
+  grid-template-rows: 8px 18px 4px;
+  gap: 3px;
+  width: 54px;
+  height: 42px;
+  flex: 0 0 auto;
+  padding: 5px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.division-direction-widget {
+  width: 76px;
+}
+
+.division-random-tracker-widget {
+  grid-template-rows: 25px 7px 4px;
+  gap: 2px;
+  width: 58px;
+}
+
+.division-direction-chart {
+  display: block;
+  justify-self: center;
+  width: 25px;
+  height: 25px;
+}
+
+.division-direction-chart-large {
+  width: min(150px, 46vw);
+  height: min(150px, 46vw);
+}
+
+.division-direction-sector {
+  stroke: rgba(255, 252, 246, 0.92);
+  stroke-width: 0.65;
+}
+
+.division-direction-chart-core {
+  fill: rgba(255, 252, 246, 0.94);
+  stroke: rgba(52, 38, 27, 0.14);
+  stroke-width: 1;
+}
+
+.division-tracker-today-bars,
+.division-tracker-cells {
+  display: grid;
+  grid-template-columns: repeat(var(--division-bucket-count, 5), minmax(0, 1fr));
+  gap: 1px;
+  width: 100%;
+}
+
+.division-tracker-today-bars {
+  align-items: end;
+}
+
+.division-tracker-today-bar {
+  display: block;
+  height: var(--today-height, 0%);
+  min-height: 0;
+  border-radius: 2px 2px 0 0;
+  background: rgba(47, 85, 125, var(--today-opacity, 0));
+}
+
+.division-tracker-cell {
+  display: block;
+  min-width: 0;
+  border-radius: 1.5px;
+  box-shadow: inset 0 0 0 0.5px rgba(255, 252, 246, 0.9);
+}
+
+.division-tracker-total {
+  position: relative;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(52, 38, 27, 0.1);
+}
+
+.division-tracker-total::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: var(--today-progress-width, 0%);
+  border-radius: inherit;
+  background: rgba(47, 85, 125, 0.7);
+}
+
+.division-tracker-detail-strip {
+  display: grid;
+  grid-template-rows: 18px 34px 8px;
+  gap: 5px;
+  width: min(360px, 100%);
+  margin: 0 auto 14px;
+}
+
+.division-random-detail {
+  display: grid;
+  grid-template-rows: auto 12px 8px;
+  gap: 7px;
+  width: min(260px, 100%);
+  margin: 0 auto 14px;
+}
+
+.division-tracker-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(31, 26, 23, 0.34);
+}
+
+.division-tracker-modal-panel {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  padding: 18px;
+  border: 1px solid rgba(52, 38, 27, 0.14);
+  border-radius: 8px;
+  background: var(--surface-strong);
+  box-shadow: 0 22px 70px rgba(31, 26, 23, 0.2);
+}
+
+.division-tracker-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.division-tracker-modal-header h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.division-tracker-modal-details {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.division-tracker-modal-details p {
+  margin: 0;
+}
+
+.division-tracker-modal-details h3 {
+  margin: 6px 0 0;
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+
+.division-tracker-modal-details ol {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 4px 12px;
+  max-height: 170px;
+  overflow: auto;
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
 .line-angle-modal {
   position: fixed;
   inset: 0;

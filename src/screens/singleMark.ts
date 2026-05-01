@@ -5,14 +5,23 @@
  * full rebuild is simpler than toggling visibility on many elements.
  */
 import type {
+  ExerciseId,
   SingleMarkExerciseDefinition,
   LineAxis,
   SingleMarkTrial,
   TrialLine,
   SingleMarkTrialResult,
 } from "../practice/catalog";
-import { updateStoredProgress } from "../storage/progress";
+import { getStoredProgress, updateStoredProgress } from "../storage/progress";
+import type { ProgressStore } from "../storage/progress";
 import { getSettings } from "../storage/settings";
+import {
+  DIVISION_DIRECTION_BUCKETS,
+  divisionDirectionTrackerModel,
+  divisionLengthTrackerModel,
+  type DivisionLinearTrackerBucket,
+  type DivisionTrackerModel,
+} from "../practice/divisions";
 import { localSvgPoint } from "../render/svg";
 import { s, h } from "../render/h";
 import {
@@ -40,7 +49,7 @@ export function mountSingleMarkScreen(
   listState?: ListFilterState,
 ): () => void {
   let cancelled = false;
-  let trial: SingleMarkTrial = exercise.createTrial();
+  let trial: SingleMarkTrial = exercise.createTrial(getStoredProgress());
   let result: SingleMarkTrialResult | null = null;
   let candidateScalar: number | null = null;
   let candidatePoint: { x: number; y: number } | null = null;
@@ -99,6 +108,41 @@ export function mountSingleMarkScreen(
     fullBtn,
     backBtn,
   );
+  const divisionLengthWidget = isDivisionExercise(exercise.id)
+    ? h("button", {
+        type: "button",
+        class: divisionUsesRandomDirectionTracker(exercise.id, trial)
+          ? "division-tracker-widget division-random-tracker-widget"
+          : "division-tracker-widget",
+        title: "Review division practice",
+        on: {
+          click: () => {
+            const progress = getStoredProgress();
+            document.body.append(
+              divisionUsesRandomDirectionTracker(exercise.id, trial)
+                ? renderDivisionRandomTrackerModal(progress, exercise.id)
+                : renderDivisionTrackerModal(
+                    "Division Length Tracker",
+                    divisionLengthTrackerModel(progress, exercise.id),
+                  ),
+            );
+          },
+        },
+      })
+    : null;
+  if (divisionLengthWidget) {
+    divisionLengthWidget.setAttribute(
+      "aria-label",
+      "Review division practice",
+    );
+    renderDivisionPracticeWidget(
+      divisionLengthWidget,
+      getStoredProgress(),
+      exercise.id,
+      trial,
+    );
+    toolbar.append(divisionLengthWidget);
+  }
 
   const feedback = h("p", { class: "feedback-banner" }, [
     isUnlimitedAdjustment
@@ -201,7 +245,17 @@ export function mountSingleMarkScreen(
       exercise.id,
       result.relativeAccuracyPercent,
       result.signedErrorPixels,
+      trial.progressMetadata,
     );
+    const nextProgress = getStoredProgress();
+    if (divisionLengthWidget) {
+      renderDivisionPracticeWidget(
+        divisionLengthWidget,
+        nextProgress,
+        exercise.id,
+        trial,
+      );
+    }
 
     const hue = feedbackHueForError(result.relativeErrorPercent);
     const cls = feedbackBandClass(result.relativeErrorPercent);
@@ -283,7 +337,7 @@ export function mountSingleMarkScreen(
   function resetToFreshTrial(): void {
     if (cancelled) return;
     clearAutoResetTimer();
-    trial = exercise.createTrial();
+    trial = exercise.createTrial(getStoredProgress());
     result = null;
     candidateScalar = null;
     candidatePoint = null;
@@ -375,6 +429,319 @@ export function mountSingleMarkScreen(
       pauseBtn.style.removeProperty("--timer-progress");
     }
   }
+}
+
+function isDivisionExercise(id: ExerciseId): boolean {
+  return id.startsWith("division-");
+}
+
+function divisionUsesRandomDirectionTracker(
+  id: ExerciseId,
+  trial: SingleMarkTrial,
+): boolean {
+  return (
+    id.startsWith("division-random-") &&
+    trial.progressMetadata?.divisionDirectionBucket !== undefined
+  );
+}
+
+function renderDivisionPracticeWidget(
+  container: HTMLElement,
+  progress: ProgressStore,
+  exerciseId: ExerciseId,
+  trial: SingleMarkTrial,
+): void {
+  const lengthModel = divisionLengthTrackerModel(progress, exerciseId);
+  if (divisionUsesRandomDirectionTracker(exerciseId, trial)) {
+    renderDivisionRandomTrackerWidget(
+      container,
+      lengthModel,
+      divisionDirectionTrackerModel(
+        progress,
+        exerciseId,
+        DIVISION_DIRECTION_BUCKETS,
+      ),
+    );
+    return;
+  }
+  renderDivisionTrackerWidget(container, lengthModel);
+}
+
+function renderDivisionTrackerWidget(
+  container: HTMLElement,
+  model: DivisionTrackerModel,
+): void {
+  container.style.setProperty("--division-bucket-count", String(model.buckets.length));
+  container.replaceChildren(...divisionTrackerStrip(model));
+}
+
+function renderDivisionRandomTrackerWidget(
+  container: HTMLElement,
+  lengthModel: DivisionTrackerModel,
+  directionModel: DivisionTrackerModel,
+): void {
+  container.style.setProperty("--division-bucket-count", String(lengthModel.buckets.length));
+  container.replaceChildren(
+    divisionDirectionChart(directionModel, "division-direction-chart"),
+    divisionLengthCells(lengthModel),
+    divisionTrackerTotalBar(lengthModel.todayTotal, lengthModel.todayProgress),
+  );
+}
+
+function renderDivisionTrackerModal(
+  title: string,
+  model: DivisionTrackerModel,
+): HTMLElement {
+  let overlay: HTMLElement;
+  const close = (): void => overlay.remove();
+  const strip = h("div", { class: "division-tracker-detail-strip" });
+  strip.style.setProperty("--division-bucket-count", String(model.buckets.length));
+  strip.replaceChildren(...divisionTrackerStrip(model));
+  const populatedBuckets = model.buckets.filter(
+    (bucket) => bucket.aggregate !== undefined || bucket.todayAttempts > 0,
+  );
+  const details = h("div", { class: "division-tracker-modal-details" }, [
+    h("p", {}, [`Today: ${model.todayTotal} attempts`]),
+    h("p", {}, [
+      "Cell color ranks long-term proficiency for this drill. Top bars show attempts today.",
+    ]),
+    h(
+      "ol",
+      {},
+      populatedBuckets.map((bucket) =>
+        h("li", {}, [divisionTrackerBucketSummary(bucket)]),
+      ),
+    ),
+  ]);
+  const closeBtn = actionButton("Close", close);
+  const panel = h(
+    "div",
+    {
+      class: "division-tracker-modal-panel",
+      on: { click: (event) => event.stopPropagation() },
+    },
+    [
+      h("div", { class: "division-tracker-modal-header" }, [
+        h("h2", {}, [title]),
+        closeBtn,
+      ]),
+      strip,
+      details,
+    ],
+  );
+  overlay = h(
+    "div",
+    {
+      class: "division-tracker-modal",
+      on: { click: close },
+    },
+    [panel],
+  );
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-label", title);
+  return overlay;
+}
+
+function renderDivisionRandomTrackerModal(
+  progress: ProgressStore,
+  exerciseId: ExerciseId,
+): HTMLElement {
+  const lengthModel = divisionLengthTrackerModel(progress, exerciseId);
+  const directionModel = divisionDirectionTrackerModel(
+    progress,
+    exerciseId,
+    DIVISION_DIRECTION_BUCKETS,
+  );
+  let overlay: HTMLElement;
+  const close = (): void => overlay.remove();
+  const preview = h("div", { class: "division-random-detail" }, [
+    divisionDirectionChart(directionModel, "division-direction-chart-large"),
+    divisionLengthCells(lengthModel),
+    divisionTrackerTotalBar(lengthModel.todayTotal, lengthModel.todayProgress),
+  ]);
+  preview.style.setProperty("--division-bucket-count", String(lengthModel.buckets.length));
+  const details = h("div", { class: "division-tracker-modal-details" }, [
+    h("p", {}, [`Today: ${lengthModel.todayTotal} attempts`]),
+    h("p", {}, [
+      "Circle sectors rank measurement direction. The strip ranks line length.",
+    ]),
+    h("h3", {}, ["Direction"]),
+    divisionTrackerBucketList(directionModel),
+    h("h3", {}, ["Length"]),
+    divisionTrackerBucketList(lengthModel),
+  ]);
+  const closeBtn = actionButton("Close", close);
+  const panel = h(
+    "div",
+    {
+      class: "division-tracker-modal-panel",
+      on: { click: (event) => event.stopPropagation() },
+    },
+    [
+      h("div", { class: "division-tracker-modal-header" }, [
+        h("h2", {}, ["Random Division Tracker"]),
+        closeBtn,
+      ]),
+      preview,
+      details,
+    ],
+  );
+  overlay = h(
+    "div",
+    {
+      class: "division-tracker-modal",
+      on: { click: close },
+    },
+    [panel],
+  );
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-label", "Random division tracker detail");
+  return overlay;
+}
+
+function divisionTrackerStrip(model: DivisionTrackerModel): HTMLElement[] {
+  return [
+    h(
+      "div",
+      { class: "division-tracker-today-bars" },
+      model.buckets.map(divisionTrackerTodayBar),
+    ),
+    h(
+      "div",
+      { class: "division-tracker-cells" },
+      model.buckets.map((bucket) =>
+        h("span", {
+          class: "division-tracker-cell",
+          title: divisionTrackerBucketSummary(bucket),
+          style: { background: bucket.cellFill },
+        }),
+      ),
+    ),
+    divisionTrackerTotalBar(model.todayTotal, model.todayProgress),
+  ];
+}
+
+function divisionLengthCells(model: DivisionTrackerModel): HTMLDivElement {
+  return h(
+    "div",
+    { class: "division-tracker-cells" },
+    model.buckets.map((bucket) =>
+      h("span", {
+        class: "division-tracker-cell",
+        title: divisionTrackerBucketSummary(bucket),
+        style: { background: bucket.cellFill },
+      }),
+    ),
+  );
+}
+
+function divisionTrackerBucketList(model: DivisionTrackerModel): HTMLOListElement {
+  const populatedBuckets = model.buckets.filter(
+    (bucket) => bucket.aggregate !== undefined || bucket.todayAttempts > 0,
+  );
+  return h(
+    "ol",
+    {},
+    populatedBuckets.map((bucket) =>
+      h("li", {}, [divisionTrackerBucketSummary(bucket)]),
+    ),
+  );
+}
+
+function divisionDirectionChart(
+  model: DivisionTrackerModel,
+  className: string,
+): SVGSVGElement {
+  const chart = s("svg", {
+    class: `division-direction-chart ${className}`,
+    viewBox: "0 0 48 48",
+    role: "img",
+    "aria-label": "Division direction proficiency",
+  });
+  for (const bucket of model.buckets) {
+    const sector = divisionDirectionSector(Number(bucket.bucket), bucket.cellFill);
+    appendSvgTitle(sector, divisionTrackerBucketSummary(bucket));
+    chart.append(sector);
+  }
+  chart.append(
+    s("circle", {
+      class: "division-direction-chart-core",
+      cx: 24,
+      cy: 24,
+      r: 6,
+    }),
+  );
+  return chart;
+}
+
+function divisionDirectionSector(
+  centerDegrees: number,
+  fill: string,
+): SVGPathElement {
+  const half = 15;
+  const start = polarPoint(24, 24, 22, centerDegrees - half);
+  const end = polarPoint(24, 24, 22, centerDegrees + half);
+  const path = s("path", {
+    class: "division-direction-sector",
+    d: `M 24 24 L ${start.x.toFixed(2)} ${start.y.toFixed(2)} A 22 22 0 0 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)} Z`,
+  });
+  path.style.fill = fill;
+  return path;
+}
+
+function appendSvgTitle(element: SVGElement, text: string): void {
+  const title = s("title");
+  title.textContent = text;
+  element.append(title);
+}
+
+function polarPoint(
+  cx: number,
+  cy: number,
+  radius: number,
+  degrees: number,
+): { x: number; y: number } {
+  const radians = (degrees * Math.PI) / 180;
+  return {
+    x: cx + Math.cos(radians) * radius,
+    y: cy + Math.sin(radians) * radius,
+  };
+}
+
+function divisionTrackerTodayBar(
+  bucket: DivisionLinearTrackerBucket,
+): HTMLSpanElement {
+  const bar = h("span", { class: "division-tracker-today-bar" });
+  bar.style.setProperty("--today-height", `${bucket.todayHeightPercent}%`);
+  bar.style.setProperty("--today-opacity", bucket.todayOpacity.toFixed(2));
+  return bar;
+}
+
+function divisionTrackerTotalBar(
+  todayTotal: number,
+  todayProgress: number,
+): HTMLDivElement {
+  const total = h("div", {
+    class: "division-tracker-total",
+    title: `${todayTotal} division attempts today`,
+  });
+  total.style.setProperty(
+    "--today-progress-width",
+    `${(todayProgress * 100).toFixed(1)}%`,
+  );
+  return total;
+}
+
+function divisionTrackerBucketSummary(
+  bucket: DivisionLinearTrackerBucket,
+): string {
+  const score =
+    bucket.aggregate === undefined
+      ? "no proficiency score"
+      : `EMA ${bucket.aggregate.ema.toFixed(1)}, ${bucket.aggregate.attempts} counted`;
+  return `${bucket.label}: ${score}, ${bucket.todayAttempts} today`;
 }
 
 function renderTrialSvg(

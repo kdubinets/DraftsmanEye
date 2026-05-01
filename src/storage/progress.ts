@@ -1,7 +1,7 @@
 /**
  * Stores and reads per-drill progress from browser local storage.
  *
- * Schema v5: capped raw attempts, per-exercise aggregates, and compact long-lived
+ * Schema v6: capped raw attempts, per-exercise aggregates, and compact long-lived
  * sub-exercise aggregates for dimensions such as directional line proficiency.
  * Line direction is retained at 1-degree granularity so future views can
  * re-bucket it without depending on capped raw attempt history.
@@ -14,6 +14,10 @@ export type ProgressAttemptMetadata = {
   lineAngleBucket?: number;
   angleOpeningDegrees?: number;
   angleOpeningBucket?: number;
+  divisionLengthPixels?: number;
+  divisionLengthBucket?: number;
+  divisionDirectionDegrees?: number;
+  divisionDirectionBucket?: number;
 };
 
 export type AttemptRecord = {
@@ -40,16 +44,23 @@ export type ProgressDimensions = {
   angleOpeningBuckets: Partial<
     Record<ExerciseId, Partial<Record<string, ExerciseAggregate>>>
   >;
+  divisionLengthBuckets: Partial<
+    Record<ExerciseId, Partial<Record<string, ExerciseAggregate>>>
+  >;
+  divisionDirectionBuckets: Partial<
+    Record<ExerciseId, Partial<Record<string, ExerciseAggregate>>>
+  >;
 };
 
 export type ProgressStore = {
-  version: 5;
+  version: 6;
   attempts: AttemptRecord[];
   aggregates: Partial<Record<ExerciseId, ExerciseAggregate>>;
   dimensions: ProgressDimensions;
 };
 
-const STORAGE_KEY = 'draftsman-eye.progress.v5';
+const STORAGE_KEY = 'draftsman-eye.progress.v6';
+const LEGACY_V5_STORAGE_KEY = 'draftsman-eye.progress.v5';
 const LEGACY_V4_STORAGE_KEY = 'draftsman-eye.progress.v4';
 const LEGACY_V3_STORAGE_KEY = 'draftsman-eye.progress.v3';
 const LEGACY_V2_STORAGE_KEY = 'draftsman-eye.progress.v2';
@@ -66,6 +77,7 @@ export function _resetProgressCache(): void { cache = null; }
 /** Wipes all stored progress from localStorage and resets the in-memory cache. */
 export function resetStoredProgress(): void {
   window.localStorage.removeItem(STORAGE_KEY);
+  window.localStorage.removeItem(LEGACY_V5_STORAGE_KEY);
   window.localStorage.removeItem(LEGACY_V4_STORAGE_KEY);
   window.localStorage.removeItem(LEGACY_V3_STORAGE_KEY);
   window.localStorage.removeItem(LEGACY_V2_STORAGE_KEY);
@@ -76,6 +88,8 @@ export function getStoredProgress(): ProgressStore {
   if (cache) return cache;
   const raw = window.localStorage.getItem(STORAGE_KEY);
   if (!raw) {
+    const migratedV5 = migrateLegacyV5Progress();
+    if (migratedV5) return (cache = migratedV5);
     const migratedV4 = migrateLegacyV4Progress();
     if (migratedV4) return (cache = migratedV4);
     const migratedV3 = migrateLegacyV3Progress();
@@ -130,7 +144,7 @@ export function updateStoredProgress(
   );
 
   const next: ProgressStore = {
-    version: 5,
+    version: 6,
     attempts,
     aggregates: { ...store.aggregates, [exerciseId]: nextAggregate },
     dimensions,
@@ -164,6 +178,8 @@ export function filterStaleAggregates(
   const lineAngleBuckets: ProgressDimensions['lineAngleBuckets'] = {};
   const lineAngleDegreeBuckets: ProgressDimensions['lineAngleDegreeBuckets'] = {};
   const angleOpeningBuckets: ProgressDimensions['angleOpeningBuckets'] = {};
+  const divisionLengthBuckets: ProgressDimensions['divisionLengthBuckets'] = {};
+  const divisionDirectionBuckets: ProgressDimensions['divisionDirectionBuckets'] = {};
   for (const [id, buckets] of Object.entries(
     store.dimensions.lineAngleBuckets,
   )) {
@@ -185,6 +201,20 @@ export function filterStaleAggregates(
       angleOpeningBuckets[id as ExerciseId] = buckets;
     }
   }
+  for (const [id, buckets] of Object.entries(
+    store.dimensions.divisionLengthBuckets,
+  )) {
+    if (knownIds.has(id) && buckets !== undefined) {
+      divisionLengthBuckets[id as ExerciseId] = buckets;
+    }
+  }
+  for (const [id, buckets] of Object.entries(
+    store.dimensions.divisionDirectionBuckets,
+  )) {
+    if (knownIds.has(id) && buckets !== undefined) {
+      divisionDirectionBuckets[id as ExerciseId] = buckets;
+    }
+  }
   return {
     ...store,
     aggregates: filtered,
@@ -193,6 +223,8 @@ export function filterStaleAggregates(
       lineAngleBuckets,
       lineAngleDegreeBuckets,
       angleOpeningBuckets,
+      divisionLengthBuckets,
+      divisionDirectionBuckets,
     },
   };
 }
@@ -200,25 +232,29 @@ export function filterStaleAggregates(
 function isProgressStore(value: unknown): value is ProgressStore {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const v = value as Record<string, unknown>;
-  if (v['version'] !== 5) return false;
+  if (v['version'] !== 6) return false;
   if (!Array.isArray(v['attempts'])) return false;
   if (!v['aggregates'] || typeof v['aggregates'] !== 'object' || Array.isArray(v['aggregates'])) return false;
   if (!v['dimensions'] || typeof v['dimensions'] !== 'object' || Array.isArray(v['dimensions'])) return false;
   const dimensions = v['dimensions'] as Record<string, unknown>;
   if (!dimensions['lineAngleBuckets'] || typeof dimensions['lineAngleBuckets'] !== 'object' || Array.isArray(dimensions['lineAngleBuckets'])) return false;
   if (!dimensions['angleOpeningBuckets'] || typeof dimensions['angleOpeningBuckets'] !== 'object' || Array.isArray(dimensions['angleOpeningBuckets'])) return false;
+  if (!dimensions['divisionLengthBuckets'] || typeof dimensions['divisionLengthBuckets'] !== 'object' || Array.isArray(dimensions['divisionLengthBuckets'])) return false;
+  if (!dimensions['divisionDirectionBuckets'] || typeof dimensions['divisionDirectionBuckets'] !== 'object' || Array.isArray(dimensions['divisionDirectionBuckets'])) return false;
   return true;
 }
 
 function emptyStore(): ProgressStore {
   return {
-    version: 5,
+    version: 6,
     attempts: [],
     aggregates: {},
     dimensions: {
       lineAngleBuckets: {},
       lineAngleDegreeBuckets: {},
       angleOpeningBuckets: {},
+      divisionLengthBuckets: {},
+      divisionDirectionBuckets: {},
     },
   };
 }
@@ -253,7 +289,16 @@ function updateDimensions(
     metadata.lineAngleBucket !== undefined ||
     metadata.lineAngleDegrees !== undefined;
   const hasAngleOpening = metadata.angleOpeningBucket !== undefined;
-  if (!hasLineAngle && !hasAngleOpening) return previous;
+  const hasDivisionLength = metadata.divisionLengthBucket !== undefined;
+  const hasDivisionDirection = metadata.divisionDirectionBucket !== undefined;
+  if (
+    !hasLineAngle &&
+    !hasAngleOpening &&
+    !hasDivisionLength &&
+    !hasDivisionDirection
+  ) {
+    return previous;
+  }
 
   const coarseBucketKey =
     metadata.lineAngleBucket === undefined
@@ -268,6 +313,10 @@ function updateDimensions(
     previous.lineAngleDegreeBuckets?.[exerciseId] ?? {};
   const exerciseAngleOpeningBuckets =
     previous.angleOpeningBuckets[exerciseId] ?? {};
+  const exerciseDivisionLengthBuckets =
+    previous.divisionLengthBuckets[exerciseId] ?? {};
+  const exerciseDivisionDirectionBuckets =
+    previous.divisionDirectionBuckets[exerciseId] ?? {};
   const lineAngleBuckets =
     coarseBucketKey === undefined
       ? previous.lineAngleBuckets
@@ -310,11 +359,45 @@ function updateDimensions(
             ),
           },
         };
+  const divisionLengthBuckets =
+    metadata.divisionLengthBucket === undefined
+      ? previous.divisionLengthBuckets
+      : {
+          ...previous.divisionLengthBuckets,
+          [exerciseId]: {
+            ...exerciseDivisionLengthBuckets,
+            [String(metadata.divisionLengthBucket)]: updateAggregate(
+              exerciseDivisionLengthBuckets[
+                String(metadata.divisionLengthBucket)
+              ],
+              score,
+              timestamp,
+            ),
+          },
+        };
+  const divisionDirectionBuckets =
+    metadata.divisionDirectionBucket === undefined
+      ? previous.divisionDirectionBuckets
+      : {
+          ...previous.divisionDirectionBuckets,
+          [exerciseId]: {
+            ...exerciseDivisionDirectionBuckets,
+            [String(metadata.divisionDirectionBucket)]: updateAggregate(
+              exerciseDivisionDirectionBuckets[
+                String(metadata.divisionDirectionBucket)
+              ],
+              score,
+              timestamp,
+            ),
+          },
+        };
   return {
     ...previous,
     lineAngleBuckets,
     lineAngleDegreeBuckets,
     angleOpeningBuckets,
+    divisionLengthBuckets,
+    divisionDirectionBuckets,
   };
 }
 
@@ -324,6 +407,39 @@ function fineLineAngleBucket(degrees: number): number {
     Math.round(normalized / FINE_LINE_ANGLE_BUCKET_SIZE_DEGREES) *
     FINE_LINE_ANGLE_BUCKET_SIZE_DEGREES;
   return bucket === 360 ? 0 : bucket;
+}
+
+function migrateLegacyV5Progress(): ProgressStore | null {
+  const raw = window.localStorage.getItem(LEGACY_V5_STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!isLegacyV5ProgressStore(parsed)) {
+      console.error('Ignoring malformed v5 progress payload from localStorage.');
+      return null;
+    }
+    const migrated: ProgressStore = {
+      version: 6,
+      attempts: parsed.attempts,
+      aggregates: parsed.aggregates,
+      dimensions: {
+        lineAngleBuckets: parsed.dimensions.lineAngleBuckets,
+        lineAngleDegreeBuckets: parsed.dimensions.lineAngleDegreeBuckets ?? {},
+        angleOpeningBuckets: parsed.dimensions.angleOpeningBuckets,
+        divisionLengthBuckets: {},
+        divisionDirectionBuckets: {},
+      },
+    };
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+    } catch (error) {
+      console.error('Failed to persist migrated progress.', error);
+    }
+    return migrated;
+  } catch (error) {
+    console.error('Failed to parse stored v5 progress.', error);
+    return null;
+  }
 }
 
 function migrateLegacyV4Progress(): ProgressStore | null {
@@ -336,13 +452,15 @@ function migrateLegacyV4Progress(): ProgressStore | null {
       return null;
     }
     const migrated: ProgressStore = {
-      version: 5,
+      version: 6,
       attempts: parsed.attempts,
       aggregates: parsed.aggregates,
       dimensions: {
         lineAngleBuckets: parsed.dimensions.lineAngleBuckets,
         lineAngleDegreeBuckets: parsed.dimensions.lineAngleDegreeBuckets ?? {},
         angleOpeningBuckets: {},
+        divisionLengthBuckets: {},
+        divisionDirectionBuckets: {},
       },
     };
     try {
@@ -367,13 +485,15 @@ function migrateLegacyV3Progress(): ProgressStore | null {
       return null;
     }
     const migrated: ProgressStore = {
-      version: 5,
+      version: 6,
       attempts: parsed.attempts,
       aggregates: parsed.aggregates,
       dimensions: {
         lineAngleBuckets: {},
         lineAngleDegreeBuckets: {},
         angleOpeningBuckets: {},
+        divisionLengthBuckets: {},
+        divisionDirectionBuckets: {},
       },
     };
     try {
@@ -398,13 +518,15 @@ function migrateLegacyV2Progress(): ProgressStore | null {
       return null;
     }
     const migrated: ProgressStore = {
-      version: 5,
+      version: 6,
       attempts: parsed.attempts,
       aggregates: parsed.aggregates,
       dimensions: {
         lineAngleBuckets: {},
         lineAngleDegreeBuckets: {},
         angleOpeningBuckets: {},
+        divisionLengthBuckets: {},
+        divisionDirectionBuckets: {},
       },
     };
     try {
@@ -433,6 +555,27 @@ function isLegacyV4ProgressStore(
   if (!v['dimensions'] || typeof v['dimensions'] !== 'object' || Array.isArray(v['dimensions'])) return false;
   const dimensions = v['dimensions'] as Record<string, unknown>;
   if (!dimensions['lineAngleBuckets'] || typeof dimensions['lineAngleBuckets'] !== 'object' || Array.isArray(dimensions['lineAngleBuckets'])) return false;
+  return true;
+}
+
+function isLegacyV5ProgressStore(
+  value: unknown,
+): value is Omit<ProgressStore, 'version' | 'dimensions'> & {
+  version: 5;
+  dimensions: Omit<
+    ProgressDimensions,
+    'divisionLengthBuckets' | 'divisionDirectionBuckets'
+  >;
+} {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const v = value as Record<string, unknown>;
+  if (v['version'] !== 5) return false;
+  if (!Array.isArray(v['attempts'])) return false;
+  if (!v['aggregates'] || typeof v['aggregates'] !== 'object' || Array.isArray(v['aggregates'])) return false;
+  if (!v['dimensions'] || typeof v['dimensions'] !== 'object' || Array.isArray(v['dimensions'])) return false;
+  const dimensions = v['dimensions'] as Record<string, unknown>;
+  if (!dimensions['lineAngleBuckets'] || typeof dimensions['lineAngleBuckets'] !== 'object' || Array.isArray(dimensions['lineAngleBuckets'])) return false;
+  if (!dimensions['angleOpeningBuckets'] || typeof dimensions['angleOpeningBuckets'] !== 'object' || Array.isArray(dimensions['angleOpeningBuckets'])) return false;
   return true;
 }
 

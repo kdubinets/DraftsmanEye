@@ -380,10 +380,26 @@ export function mountFreehandScreen(
   svg.addEventListener("pointerup", finishStroke);
   svg.addEventListener("pointercancel", finishStroke);
 
+  const finishAdjustableDrag = (event: PointerEvent): void => {
+    if (adjustablePointerId !== event.pointerId) return;
+    event.preventDefault();
+    adjustablePointerId = null;
+    window.removeEventListener("pointerup", finishAdjustableDrag);
+    window.removeEventListener("pointercancel", finishAdjustableDrag);
+    if (adjustableHandle.hasPointerCapture(event.pointerId)) {
+      adjustableHandle.releasePointerCapture(event.pointerId);
+    }
+    if (event.type === "pointerup" && inputMode === "adjustable-line-1-shot") {
+      commitPendingResult();
+    }
+  };
+
   adjustableHandle.addEventListener("pointerdown", (event) => {
     if (!isAdjustableLineMode || result) return;
     adjustablePointerId = event.pointerId;
     adjustableHandle.setPointerCapture(event.pointerId);
+    window.addEventListener("pointerup", finishAdjustableDrag);
+    window.addEventListener("pointercancel", finishAdjustableDrag);
     event.preventDefault();
     event.stopPropagation();
   });
@@ -396,16 +412,6 @@ export function mountFreehandScreen(
     event.preventDefault();
   });
 
-  const finishAdjustableDrag = (event: PointerEvent): void => {
-    if (adjustablePointerId !== event.pointerId) return;
-    adjustablePointerId = null;
-    if (adjustableHandle.hasPointerCapture(event.pointerId)) {
-      adjustableHandle.releasePointerCapture(event.pointerId);
-    }
-    if (event.type === "pointerup" && inputMode === "adjustable-line-1-shot") {
-      commitPendingResult();
-    }
-  };
   adjustableHandle.addEventListener("pointerup", finishAdjustableDrag);
   adjustableHandle.addEventListener("pointercancel", finishAdjustableDrag);
 
@@ -420,6 +426,8 @@ export function mountFreehandScreen(
   return () => {
     cancelled = true;
     clearAutoResetTimer();
+    window.removeEventListener("pointerup", finishAdjustableDrag);
+    window.removeEventListener("pointercancel", finishAdjustableDrag);
     if (escapeListener !== null) {
       document.removeEventListener("keydown", escapeListener);
       escapeListener = null;

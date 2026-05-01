@@ -724,12 +724,12 @@ test("angle copy default adjustable line commits after revisions", async ({
 
   const canvas = page.getByTestId("freehand-canvas");
   const handle = canvas.locator(".freehand-adjustable-handle");
+  const initial = await locatorCenter(handle);
+  await expectPointInsideLocator(canvas, initial);
   const baseEnd = await svgLineEnd(
     canvas.locator(".freehand-angle-target-base"),
   );
   const [baseEndClient] = await svgPointsToClient(page, [baseEnd]);
-  const initial = await locatorCenter(handle);
-  await expectPointInsideLocator(canvas, initial);
 
   await page.mouse.move(initial.x, initial.y);
   await page.mouse.down();
@@ -782,13 +782,12 @@ test("angle copy adjustable 1-shot scores after dragging one endpoint", async ({
 
   const canvas = page.getByTestId("freehand-canvas");
   const handle = canvas.locator(".freehand-adjustable-handle");
+  const initial = await locatorCenter(handle);
+  await expectPointInsideLocator(canvas, initial);
   const baseEnd = await svgLineEnd(
     canvas.locator(".freehand-angle-target-base"),
   );
   const [baseEndClient] = await svgPointsToClient(page, [baseEnd]);
-
-  const initial = await locatorCenter(handle);
-  await expectPointInsideLocator(canvas, initial);
 
   await page.mouse.move(initial.x, initial.y);
   await page.mouse.down();
@@ -1819,7 +1818,7 @@ test("quick repeated single-mark clicks do not duplicate score updates", async (
   await expect(page.getByRole("button", { name: "Again" })).toHaveCount(0);
 
   const attempts = await page.evaluate(() => {
-    const raw = window.localStorage.getItem("draftsman-eye.progress.v5");
+    const raw = window.localStorage.getItem("draftsman-eye.progress.v6");
     if (!raw) return 0;
     const parsed = JSON.parse(raw) as { attempts?: unknown[] };
     return Array.isArray(parsed.attempts) ? parsed.attempts.length : 0;
@@ -1916,6 +1915,7 @@ test("vertical thirds drill can be completed", async ({ page }) => {
 
   const lineXBeforeResult = lineBox.x;
   const midpoint = await svgLineMidpoint(line);
+  await scrollExerciseSvgPointIntoView(page, midpoint);
   const [midpointClient] = await exerciseSvgPointsToClient(page, [midpoint]);
   await page.mouse.click(midpointClient.x, midpointClient.y);
   await page
@@ -1978,6 +1978,7 @@ test("random thirds drill can be completed on an arbitrary segment", async ({
   }
 
   const midpoint = await svgLineMidpoint(line);
+  await scrollExerciseSvgPointIntoView(page, midpoint);
   const [midpointClient] = await exerciseSvgPointsToClient(page, [midpoint]);
   await page.mouse.click(midpointClient.x, midpointClient.y);
   await page
@@ -2258,6 +2259,7 @@ async function locatorCenter(locator: Locator): Promise<{
   x: number;
   y: number;
 }> {
+  await locator.scrollIntoViewIfNeeded();
   const box = await locator.boundingBox();
   if (!box) {
     throw new Error("Expected locator to have a bounding box.");
@@ -2282,6 +2284,31 @@ async function expectPointInsideLocator(
   expect(point.x).toBeLessThanOrEqual(box.x + box.width);
   expect(point.y).toBeGreaterThanOrEqual(box.y);
   expect(point.y).toBeLessThanOrEqual(box.y + box.height);
+}
+
+async function scrollExerciseSvgPointIntoView(
+  page: Page,
+  point: { x: number; y: number },
+): Promise<void> {
+  await page.getByTestId("exercise-canvas").evaluate((svgElement, sourcePoint) => {
+    const svg = svgElement as SVGSVGElement;
+    const matrix = svg.getScreenCTM();
+    if (!matrix) {
+      throw new Error("Expected exercise canvas to have a screen transform.");
+    }
+
+    const svgPoint = svg.createSVGPoint();
+    svgPoint.x = sourcePoint.x;
+    svgPoint.y = sourcePoint.y;
+    const transformed = svgPoint.matrixTransform(matrix);
+    const viewportMargin = 80;
+    if (
+      transformed.y < viewportMargin ||
+      transformed.y > window.innerHeight - viewportMargin
+    ) {
+      window.scrollBy(0, transformed.y - window.innerHeight / 2);
+    }
+  }, point);
 }
 
 async function targetPlusCenter(locator: Locator): Promise<{
@@ -2544,7 +2571,7 @@ async function storedLineAngleBuckets(
   exerciseId: string,
 ): Promise<string[]> {
   return page.evaluate((id) => {
-    const raw = window.localStorage.getItem("draftsman-eye.progress.v5");
+    const raw = window.localStorage.getItem("draftsman-eye.progress.v6");
     if (!raw) return [];
     const parsed = JSON.parse(raw) as {
       dimensions?: {
