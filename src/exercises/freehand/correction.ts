@@ -295,12 +295,20 @@ export function appendFreehandTargetMarks(
   }
   if (target.kind === "line") {
     if (target.trace) {
-      layer.append(createTraceLineGuide(target));
+      layer.append(
+        createTraceLineGuide(target),
+        ...(target.showDirectionCue ? [createLineDirectionCue(target)] : []),
+      );
       return;
     }
     layer.append(
-      createPlusMark(target.start, "freehand-target-mark"),
+      createPlusMark(
+        target.start,
+        "freehand-target-mark freehand-target-source-mark",
+        target.showDirectionCue ? 9 : 7,
+      ),
       createPlusMark(target.end, "freehand-target-mark"),
+      ...(target.showDirectionCue ? [createLineDirectionCue(target)] : []),
     );
     return;
   }
@@ -330,7 +338,11 @@ function appendTargetMarks(
 ): void {
   if (target.kind === "line") {
     parent.append(
-      createPlusMark(target.start, "freehand-target-mark"),
+      createPlusMark(
+        target.start,
+        "freehand-target-mark freehand-target-source-mark",
+        target.showDirectionCue ? 9 : 7,
+      ),
       createPlusMark(target.end, "freehand-target-mark"),
     );
     return;
@@ -497,6 +509,43 @@ function createTraceLineGuide(target: TargetLine): SVGLineElement {
   });
 }
 
+function createLineDirectionCue(target: TargetLine): SVGGElement {
+  const dx = target.end.x - target.start.x;
+  const dy = target.end.y - target.start.y;
+  const length = Math.hypot(dx, dy);
+  if (length === 0) return s("g", { class: "freehand-line-direction-cue" });
+  const unit = { x: dx / length, y: dy / length };
+  const normal = { x: -unit.y, y: unit.x };
+  const cueLength = Math.min(76, length * 0.24);
+  const startDistance = Math.min(42, length * 0.18);
+  const offset = target.trace ? 16 : 18;
+  const start = {
+    x: target.start.x + unit.x * startDistance + normal.x * offset,
+    y: target.start.y + unit.y * startDistance + normal.y * offset,
+  };
+  const end = {
+    x: start.x + unit.x * cueLength,
+    y: start.y + unit.y * cueLength,
+  };
+  const headBase = {
+    x: end.x - unit.x * 13,
+    y: end.y - unit.y * 13,
+  };
+  const headA = {
+    x: headBase.x + normal.x * 6,
+    y: headBase.y + normal.y * 6,
+  };
+  const headB = {
+    x: headBase.x - normal.x * 6,
+    y: headBase.y - normal.y * 6,
+  };
+  return s("g", { class: "freehand-line-direction-cue" }, [
+    s("line", { x1: start.x, y1: start.y, x2: end.x, y2: end.y }),
+    s("line", { x1: end.x, y1: end.y, x2: headA.x, y2: headA.y }),
+    s("line", { x1: end.x, y1: end.y, x2: headB.x, y2: headB.y }),
+  ]);
+}
+
 function createTraceCircleGuide(target: TargetCircle): SVGCircleElement {
   return s("circle", {
     class: "freehand-trace-guide",
@@ -529,10 +578,21 @@ function createTraceEllipseGuide(target: {
 function createPlusMark(
   point: { x: number; y: number },
   className: string,
+  size = 7,
 ): SVGElement {
   return s("g", { class: className }, [
-    s("line", { x1: point.x - 7, y1: point.y, x2: point.x + 7, y2: point.y }),
-    s("line", { x1: point.x, y1: point.y - 7, x2: point.x, y2: point.y + 7 }),
+    s("line", {
+      x1: point.x - size,
+      y1: point.y,
+      x2: point.x + size,
+      y2: point.y,
+    }),
+    s("line", {
+      x1: point.x,
+      y1: point.y - size,
+      x2: point.x,
+      y2: point.y + size,
+    }),
   ]);
 }
 

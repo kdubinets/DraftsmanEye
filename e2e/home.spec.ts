@@ -552,12 +552,12 @@ test("target line drill scores a stroke with two target marks", async ({
     .getByTestId("freehand-canvas")
     .locator(".freehand-target-mark");
   await expect(marks).toHaveCount(2);
-  const canvasBox = await freehandCanvasBox(page);
-  await drawPolyline(page, [
-    { x: canvasBox.x + 150, y: canvasBox.y + 210 },
-    { x: canvasBox.x + 360, y: canvasBox.y + 230 },
-    { x: canvasBox.x + 580, y: canvasBox.y + 250 },
-  ]);
+  await expect(
+    page.getByTestId("freehand-canvas").locator(".freehand-line-direction-cue"),
+  ).toHaveCount(1);
+  const start = await locatorCenter(marks.nth(0));
+  const end = await locatorCenter(marks.nth(1));
+  await drawPolyline(page, interpolatedPoints(start, end, 10));
 
   await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await expect(
@@ -574,6 +574,30 @@ test("target line drill scores a stroke with two target marks", async ({
       .locator(".freehand-target-correction-line"),
   ).toBeVisible();
   await expect(page.locator(".freehand-history-item")).toHaveCount(1);
+});
+
+test("target line directional prompt can be disabled", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "draftsman-eye.settings.v1",
+      JSON.stringify({ directionalLineGuides: false }),
+    );
+  });
+  await page.goto("/");
+  await openTargetLine(page);
+
+  const canvas = page.getByTestId("freehand-canvas");
+  await expect(canvas.locator(".freehand-line-direction-cue")).toHaveCount(0);
+  const marks = canvas.locator(".freehand-target-mark");
+  const start = await locatorCenter(marks.nth(0));
+  const end = await locatorCenter(marks.nth(1));
+  await drawPolyline(page, interpolatedPoints(end, start, 10));
+
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
+  await expect(page.getByText("Opposite stroke direction")).toHaveCount(0);
+  await expect(
+    await storedLineAngleBuckets(page, "target-line-two-points"),
+  ).toHaveLength(1);
 });
 
 test("angle copy free draw 1-shot scores a drawn ray from the target vertex", async ({
@@ -880,12 +904,13 @@ test("trace line drill scores a stroke against the faint guide", async ({
   const canvas = page.getByTestId("freehand-canvas");
   const guide = canvas.locator(".freehand-trace-guide");
   await expect(guide).toBeVisible();
-  const canvasBox = await freehandCanvasBox(page);
-  await drawPolyline(page, [
-    { x: canvasBox.x + 150, y: canvasBox.y + 210 },
-    { x: canvasBox.x + 360, y: canvasBox.y + 230 },
-    { x: canvasBox.x + 580, y: canvasBox.y + 250 },
+  await expect(canvas.locator(".freehand-line-direction-cue")).toHaveCount(1);
+  const guideLine = await svgLineEndpoints(guide);
+  const [start, end] = await svgPointsToClient(page, [
+    guideLine.start,
+    guideLine.end,
   ]);
+  await drawPolyline(page, interpolatedPoints(start, end, 10));
 
   await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await expect(
@@ -1794,7 +1819,7 @@ test("quick repeated single-mark clicks do not duplicate score updates", async (
   await expect(page.getByRole("button", { name: "Again" })).toHaveCount(0);
 
   const attempts = await page.evaluate(() => {
-    const raw = window.localStorage.getItem("draftsman-eye.progress.v3");
+    const raw = window.localStorage.getItem("draftsman-eye.progress.v4");
     if (!raw) return 0;
     const parsed = JSON.parse(raw) as { attempts?: unknown[] };
     return Array.isArray(parsed.attempts) ? parsed.attempts.length : 0;
@@ -1893,6 +1918,12 @@ test("vertical thirds drill can be completed", async ({ page }) => {
   const midpoint = await svgLineMidpoint(line);
   const [midpointClient] = await exerciseSvgPointsToClient(page, [midpoint]);
   await page.mouse.click(midpointClient.x, midpointClient.y);
+  await page
+    .getByText(/Error .* px/i)
+    .waitFor({ state: "visible", timeout: 800 })
+    .catch(async () => {
+      await page.mouse.click(midpointClient.x, midpointClient.y);
+    });
 
   await expect(page.getByText(/Error .* px/i)).toBeVisible();
   await expect(page.getByText(/Too high|Too low|Exact/)).toBeVisible();
@@ -1949,6 +1980,12 @@ test("random thirds drill can be completed on an arbitrary segment", async ({
   const midpoint = await svgLineMidpoint(line);
   const [midpointClient] = await exerciseSvgPointsToClient(page, [midpoint]);
   await page.mouse.click(midpointClient.x, midpointClient.y);
+  await page
+    .getByText(/Error .* px/i)
+    .waitFor({ state: "visible", timeout: 800 })
+    .catch(async () => {
+      await page.mouse.click(midpointClient.x, midpointClient.y);
+    });
 
   await expect(page.getByText(/Error .* px/i)).toBeVisible();
   await expect(
@@ -2507,7 +2544,7 @@ async function storedLineAngleBuckets(
   exerciseId: string,
 ): Promise<string[]> {
   return page.evaluate((id) => {
-    const raw = window.localStorage.getItem("draftsman-eye.progress.v3");
+    const raw = window.localStorage.getItem("draftsman-eye.progress.v4");
     if (!raw) return [];
     const parsed = JSON.parse(raw) as {
       dimensions?: {

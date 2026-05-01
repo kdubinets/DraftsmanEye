@@ -15,13 +15,16 @@ import type {
 
 export function createFreehandTarget(
   kind: FreehandExerciseDefinition["kind"],
-  options: { lineAngleBucket?: number } = {},
+  options: { lineAngleBucket?: number; showDirectionCue?: boolean } = {},
 ): FreehandTarget | null {
   switch (kind) {
     case "target-line-two-points":
-      return createTargetLine(options.lineAngleBucket);
+      return createTargetLine(options.lineAngleBucket, options.showDirectionCue);
     case "trace-line":
-      return { ...createTargetLine(options.lineAngleBucket), trace: true };
+      return {
+        ...createTargetLine(options.lineAngleBucket, options.showDirectionCue),
+        trace: true,
+      };
     case "target-circle-center-point":
       return createTargetCircle(1);
     case "target-circle-three-points":
@@ -138,7 +141,10 @@ export function createLoopChainWedgeTarget(): TargetLoopChainWedge {
   return { kind: "loop-chain-wedge", centerY, bandHalfLeft, bandHalfRight };
 }
 
-function createTargetLine(lineAngleBucket?: number): TargetLine {
+function createTargetLine(
+  lineAngleBucket?: number,
+  showDirectionCue = false,
+): TargetLine {
   const length = randomRange(340, 500);
   const angle =
     lineAngleBucket === undefined
@@ -167,6 +173,7 @@ function createTargetLine(lineAngleBucket?: number): TargetLine {
       x: center.x + Math.cos(angle) * half,
       y: center.y + Math.sin(angle) * half,
     },
+    showDirectionCue,
   };
 }
 

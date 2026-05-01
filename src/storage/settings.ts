@@ -16,6 +16,8 @@ export type Settings = {
   showScoreBoxes: boolean;
   /** Delay before a completed exercise resets; null means manual advance only. */
   autoRepeatDelayMs: AutoRepeatDelayMs;
+  /** Require prompted stroke direction for guided line drills. */
+  directionalLineGuides: boolean;
   /** Rendering style for 3D solid references. */
   solidReferenceStyle: SolidReferenceStyle;
 };
@@ -33,6 +35,7 @@ const DEFAULTS: Settings = {
   showResultString: true,
   showScoreBoxes: true,
   autoRepeatDelayMs: 2500,
+  directionalLineGuides: true,
   solidReferenceStyle: "wireframe",
 };
 
@@ -98,6 +101,10 @@ function mergeWithDefaults(raw: unknown): Settings {
         ? src["showScoreBoxes"]
         : DEFAULTS.showScoreBoxes,
     autoRepeatDelayMs: parseAutoRepeatDelay(src["autoRepeatDelayMs"]),
+    directionalLineGuides:
+      typeof src["directionalLineGuides"] === "boolean"
+        ? src["directionalLineGuides"]
+        : DEFAULTS.directionalLineGuides,
     solidReferenceStyle: parseSolidReferenceStyle(src["solidReferenceStyle"]),
   };
 }

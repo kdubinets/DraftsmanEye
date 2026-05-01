@@ -58,6 +58,13 @@ export function mountSettingsScreen(
   const togglesSection = h("section", { class: "settings-section" }, [
     h("h2", {}, ["Drawing input"]),
     settingToggle(
+      "directional-line-guides",
+      "Directional line prompts",
+      "Shows a start cue for guided line drills and scores opposite-direction strokes as misses.",
+      settings.directionalLineGuides,
+      (v) => updateSetting("directionalLineGuides", v),
+    ),
+    settingToggle(
       "allow-touch",
       "Allow touch drawing",
       "Off by default; Apple Pencil or mouse gives more precise feedback.",

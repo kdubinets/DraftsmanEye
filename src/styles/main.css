@@ -611,11 +611,25 @@ button {
   stroke-width: 1.4;
   stroke-linecap: round;
   vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.freehand-target-source-mark {
+  stroke-width: 1.7;
 }
 
 .freehand-target-center {
   fill: rgba(47, 85, 125, 0.64);
   stroke: none;
+}
+
+.freehand-line-direction-cue {
+  fill: none;
+  stroke: rgba(122, 77, 34, 0.22);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
 }
 
 .freehand-target-correction-line,

@@ -94,6 +94,32 @@ describe('scoreTargetLine', () => {
     expect(result).not.toBeNull();
     expect(result!.score).toBeCloseTo(100, 2);
     expect(result!.kind).toBe('target-line');
+    expect(result!.directionMatched).toBe(true);
+  });
+
+  it('directional mode scores a perfect forward stroke near 100', () => {
+    const result = scoreTargetLine(hLine(100, 600, 300), target, {
+      requireDirection: true,
+    })!;
+
+    expect(result.score).toBeCloseTo(100, 2);
+    expect(result.directionMatched).toBe(true);
+  });
+
+  it('directional mode scores a perfect reverse stroke as a miss', () => {
+    const result = scoreTargetLine(hLine(600, 100, 300), target, {
+      requireDirection: true,
+    })!;
+
+    expect(result.score).toBe(0);
+    expect(result.directionMatched).toBe(false);
+  });
+
+  it('non-directional mode accepts a perfect reverse stroke geometrically', () => {
+    const result = scoreTargetLine(hLine(600, 100, 300), target)!;
+
+    expect(result.score).toBeCloseTo(100, 2);
+    expect(result.directionMatched).toBe(false);
   });
 
   it('endpoint errors reduce score below perfect freehand score', () => {

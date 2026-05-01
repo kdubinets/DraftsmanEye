@@ -438,7 +438,7 @@ export function mountFreehandScreen(
       exercise.id,
       result.score,
       0,
-      lineAngleMetadataForResult(exercise.id, result),
+      lineAngleMetadataForResult(exercise.id, result, points),
     );
     if (lineAngleWidget) {
       renderLineAngleWidget(lineAngleWidget, nextProgress, exercise.id);
@@ -869,13 +869,21 @@ function isLineAngleTrackedExercise(id: ExerciseId): boolean {
 function lineAngleMetadataForResult(
   exerciseId: ExerciseId,
   result: FreehandResult,
+  points: FreehandPoint[],
 ): LineAngleMetadata | undefined {
   if (!isLineAngleTrackedExercise(exerciseId)) return undefined;
   if (result.kind === "line") {
-    return lineAngleMetadataFromPoints(result.fitStart, result.fitEnd);
+    return points.length >= 2
+      ? lineAngleMetadataFromPoints(points[0], points[points.length - 1])
+      : lineAngleMetadataFromPoints(result.fitStart, result.fitEnd);
   }
   if (result.kind === "target-line") {
-    return lineAngleMetadataFromPoints(result.target.start, result.target.end);
+    if (result.target.showDirectionCue) {
+      return lineAngleMetadataFromPoints(result.target.start, result.target.end);
+    }
+    return points.length >= 2
+      ? lineAngleMetadataFromPoints(points[0], points[points.length - 1])
+      : lineAngleMetadataFromPoints(result.fitStart, result.fitEnd);
   }
   return undefined;
 }
@@ -901,7 +909,6 @@ function renderLineAngleWidget(
         : `hsl(${feedbackHueForError(100 - aggregate.ema)} 55% 42%)`;
     chart.append(
       angleSector(bucket, fill),
-      angleSector(bucket + 180, fill),
     );
   }
   chart.append(

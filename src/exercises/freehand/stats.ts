@@ -135,6 +135,9 @@ export function freehandResultStats(result: FreehandResult): HTMLElement[] {
   if (result.kind === "target-line") {
     return [
       ...stats,
+      ...(result.directionMatched
+        ? []
+        : [stat("Direction", "Opposite")]),
       stat(
         "Endpoint miss",
         `${Math.round(result.startErrorPixels)} / ${Math.round(result.endErrorPixels)} px`,
@@ -197,6 +200,9 @@ function primaryResultDetail(result: FreehandResult): string {
   }
 
   if (result.kind === "target-line") {
+    if (!result.directionMatched) {
+      return "Opposite stroke direction";
+    }
     return `Endpoint miss ${Math.round(result.startErrorPixels)} / ${Math.round(result.endErrorPixels)} px`;
   }
 

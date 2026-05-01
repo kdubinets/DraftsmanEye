@@ -28,6 +28,7 @@ import {
 } from "../scoring/loopChain";
 import { scoreTraceSpiral } from "../scoring/spiral";
 import { getStoredProgress } from "../storage/progress";
+import { getSettings } from "../storage/settings";
 import { selectLineAngleBucket } from "../practice/lineAngles";
 import {
   createFreehandTarget,
@@ -114,15 +115,21 @@ const FREEHAND_CONFIGS = {
   },
   "target-line-two-points": {
     isClosedShape: false,
-    createTarget: () =>
-      createFreehandTarget("target-line-two-points", {
-        lineAngleBucket: selectLineAngleBucket(
-          getStoredProgress(),
-          "target-line-two-points",
-        ),
-      }),
+    createTarget: () => {
+      const directional = getSettings().directionalLineGuides;
+      return createFreehandTarget("target-line-two-points", {
+        lineAngleBucket: directional
+          ? selectLineAngleBucket(getStoredProgress(), "target-line-two-points")
+          : undefined,
+        showDirectionCue: directional,
+      });
+    },
     scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) =>
-      target?.kind === "line" ? scoreTargetLine(points, target) : null,
+      target?.kind === "line"
+        ? scoreTargetLine(points, target, {
+            requireDirection: getSettings().directionalLineGuides,
+          })
+        : null,
     promptText: "Draw one straight line connecting the two marks.",
     readyText: "Use Pencil, touch, or mouse to connect the two marks.",
     retryText: "Stroke was too short. Connect the two marks.",
@@ -150,12 +157,21 @@ const FREEHAND_CONFIGS = {
   },
   "trace-line": {
     isClosedShape: false,
-    createTarget: () =>
-      createFreehandTarget("trace-line", {
-        lineAngleBucket: selectLineAngleBucket(getStoredProgress(), "trace-line"),
-      }),
+    createTarget: () => {
+      const directional = getSettings().directionalLineGuides;
+      return createFreehandTarget("trace-line", {
+        lineAngleBucket: directional
+          ? selectLineAngleBucket(getStoredProgress(), "trace-line")
+          : undefined,
+        showDirectionCue: directional,
+      });
+    },
     scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) =>
-      target?.kind === "line" ? scoreTargetLine(points, target) : null,
+      target?.kind === "line"
+        ? scoreTargetLine(points, target, {
+            requireDirection: getSettings().directionalLineGuides,
+          })
+        : null,
     promptText: "Trace the faint straight guide.",
     readyText: "Use Pencil, touch, or mouse to trace the faint guide.",
     retryText: "Stroke was too short. Trace more of the line.",

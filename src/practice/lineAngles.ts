@@ -1,11 +1,11 @@
-/** Directionless line-angle buckets and selection helpers for line drills. */
+/** Directional line-angle buckets and selection helpers for line drills. */
 import type { Point } from "../geometry/primitives";
 import type { ExerciseId } from "./catalog";
 import type { ProgressStore } from "../storage/progress";
 
 export const LINE_ANGLE_BUCKET_SIZE_DEGREES = 10;
 export const LINE_ANGLE_BUCKETS = Array.from(
-  { length: 180 / LINE_ANGLE_BUCKET_SIZE_DEGREES },
+  { length: 360 / LINE_ANGLE_BUCKET_SIZE_DEGREES },
   (_, index) => index * LINE_ANGLE_BUCKET_SIZE_DEGREES,
 );
 
@@ -18,30 +18,30 @@ export function lineAngleMetadataFromPoints(
   start: Point,
   end: Point,
 ): LineAngleMetadata {
-  const lineAngleDegrees = directionlessLineAngleDegrees(start, end);
+  const lineAngleDegrees = directionalLineAngleDegrees(start, end);
   return {
     lineAngleDegrees,
     lineAngleBucket: bucketLineAngleDegrees(lineAngleDegrees),
   };
 }
 
-export function directionlessLineAngleDegrees(start: Point, end: Point): number {
+export function directionalLineAngleDegrees(start: Point, end: Point): number {
   const degrees =
     (Math.atan2(end.y - start.y, end.x - start.x) * 180) / Math.PI;
-  return normalizeDirectionlessAngleDegrees(degrees);
+  return normalizeDirectionalAngleDegrees(degrees);
 }
 
-export function normalizeDirectionlessAngleDegrees(degrees: number): number {
-  const normalized = ((degrees % 180) + 180) % 180;
-  return normalized === 180 ? 0 : normalized;
+export function normalizeDirectionalAngleDegrees(degrees: number): number {
+  const normalized = ((degrees % 360) + 360) % 360;
+  return normalized === 360 ? 0 : normalized;
 }
 
 export function bucketLineAngleDegrees(degrees: number): number {
-  const normalized = normalizeDirectionlessAngleDegrees(degrees);
+  const normalized = normalizeDirectionalAngleDegrees(degrees);
   const bucket =
     Math.round(normalized / LINE_ANGLE_BUCKET_SIZE_DEGREES) *
     LINE_ANGLE_BUCKET_SIZE_DEGREES;
-  return bucket === 180 ? 0 : bucket;
+  return bucket === 360 ? 0 : bucket;
 }
 
 export function selectLineAngleBucket(

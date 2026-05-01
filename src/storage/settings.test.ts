@@ -34,6 +34,7 @@ describe("getSettings", () => {
     expect(getSettings()).toMatchObject({
       showResultString: true,
       showScoreBoxes: true,
+      directionalLineGuides: true,
       solidReferenceStyle: "wireframe",
     });
   });
@@ -66,6 +67,12 @@ describe("getSettings", () => {
       showResultString: false,
       showScoreBoxes: false,
     });
+  });
+
+  it("accepts directional line prompt settings", () => {
+    store[STORAGE_KEY] = JSON.stringify({ directionalLineGuides: false });
+
+    expect(getSettings().directionalLineGuides).toBe(false);
   });
 
   it("accepts solid reference style settings", () => {
@@ -104,6 +111,14 @@ describe("updateSetting", () => {
 
     expect(JSON.parse(store[STORAGE_KEY] ?? "{}")).toMatchObject({
       showScoreBoxes: false,
+    });
+  });
+
+  it("persists directional line prompt settings", () => {
+    updateSetting("directionalLineGuides", false);
+
+    expect(JSON.parse(store[STORAGE_KEY] ?? "{}")).toMatchObject({
+      directionalLineGuides: false,
     });
   });
 

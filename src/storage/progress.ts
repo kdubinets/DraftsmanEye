@@ -1,8 +1,8 @@
 /**
  * Stores and reads per-drill progress from browser local storage.
  *
- * Schema v3: capped raw attempts, per-exercise aggregates, and compact long-lived
- * sub-exercise aggregates for dimensions such as line angle proficiency.
+ * Schema v4: capped raw attempts, per-exercise aggregates, and compact long-lived
+ * sub-exercise aggregates for dimensions such as directional line proficiency.
  * v1 data (key draftsman-eye.progress.v1) is silently abandoned on first load.
  */
 import type { ExerciseId } from '../practice/catalog';
@@ -33,13 +33,14 @@ export type ProgressDimensions = {
 };
 
 export type ProgressStore = {
-  version: 3;
+  version: 4;
   attempts: AttemptRecord[];
   aggregates: Partial<Record<ExerciseId, ExerciseAggregate>>;
   dimensions: ProgressDimensions;
 };
 
-const STORAGE_KEY = 'draftsman-eye.progress.v3';
+const STORAGE_KEY = 'draftsman-eye.progress.v4';
+const LEGACY_V3_STORAGE_KEY = 'draftsman-eye.progress.v3';
 const LEGACY_V2_STORAGE_KEY = 'draftsman-eye.progress.v2';
 const MAX_ATTEMPTS = 500;
 const EMA_ALPHA = 0.35;
@@ -52,6 +53,7 @@ export function _resetProgressCache(): void { cache = null; }
 /** Wipes all stored progress from localStorage and resets the in-memory cache. */
 export function resetStoredProgress(): void {
   window.localStorage.removeItem(STORAGE_KEY);
+  window.localStorage.removeItem(LEGACY_V3_STORAGE_KEY);
   window.localStorage.removeItem(LEGACY_V2_STORAGE_KEY);
   cache = null;
 }
@@ -60,6 +62,8 @@ export function getStoredProgress(): ProgressStore {
   if (cache) return cache;
   const raw = window.localStorage.getItem(STORAGE_KEY);
   if (!raw) {
+    const migratedV3 = migrateLegacyV3Progress();
+    if (migratedV3) return (cache = migratedV3);
     const migrated = migrateLegacyV2Progress();
     if (migrated) return (cache = migrated);
     return (cache = emptyStore());
@@ -110,7 +114,7 @@ export function updateStoredProgress(
   );
 
   const next: ProgressStore = {
-    version: 3,
+    version: 4,
     attempts,
     aggregates: { ...store.aggregates, [exerciseId]: nextAggregate },
     dimensions,
@@ -159,7 +163,7 @@ export function filterStaleAggregates(
 function isProgressStore(value: unknown): value is ProgressStore {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const v = value as Record<string, unknown>;
-  if (v['version'] !== 3) return false;
+  if (v['version'] !== 4) return false;
   if (!Array.isArray(v['attempts'])) return false;
   if (!v['aggregates'] || typeof v['aggregates'] !== 'object' || Array.isArray(v['aggregates'])) return false;
   if (!v['dimensions'] || typeof v['dimensions'] !== 'object' || Array.isArray(v['dimensions'])) return false;
@@ -170,7 +174,7 @@ function isProgressStore(value: unknown): value is ProgressStore {
 
 function emptyStore(): ProgressStore {
   return {
-    version: 3,
+    version: 4,
     attempts: [],
     aggregates: {},
     dimensions: { lineAngleBuckets: {} },
@@ -218,6 +222,33 @@ function updateDimensions(
   };
 }
 
+function migrateLegacyV3Progress(): ProgressStore | null {
+  const raw = window.localStorage.getItem(LEGACY_V3_STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!isLegacyV3ProgressStore(parsed)) {
+      console.error('Ignoring malformed v3 progress payload from localStorage.');
+      return null;
+    }
+    const migrated: ProgressStore = {
+      version: 4,
+      attempts: parsed.attempts,
+      aggregates: parsed.aggregates,
+      dimensions: { lineAngleBuckets: {} },
+    };
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+    } catch (error) {
+      console.error('Failed to persist migrated progress.', error);
+    }
+    return migrated;
+  } catch (error) {
+    console.error('Failed to parse stored v3 progress.', error);
+    return null;
+  }
+}
+
 function migrateLegacyV2Progress(): ProgressStore | null {
   const raw = window.localStorage.getItem(LEGACY_V2_STORAGE_KEY);
   if (!raw) return null;
@@ -228,7 +259,7 @@ function migrateLegacyV2Progress(): ProgressStore | null {
       return null;
     }
     const migrated: ProgressStore = {
-      version: 3,
+      version: 4,
       attempts: parsed.attempts,
       aggregates: parsed.aggregates,
       dimensions: { lineAngleBuckets: {} },
@@ -243,6 +274,18 @@ function migrateLegacyV2Progress(): ProgressStore | null {
     console.error('Failed to parse stored v2 progress.', error);
     return null;
   }
+}
+
+function isLegacyV3ProgressStore(
+  value: unknown,
+): value is Omit<ProgressStore, 'version'> & { version: 3 } {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const v = value as Record<string, unknown>;
+  if (v['version'] !== 3) return false;
+  if (!Array.isArray(v['attempts'])) return false;
+  if (!v['aggregates'] || typeof v['aggregates'] !== 'object' || Array.isArray(v['aggregates'])) return false;
+  if (!v['dimensions'] || typeof v['dimensions'] !== 'object' || Array.isArray(v['dimensions'])) return false;
+  return true;
 }
 
 function isLegacyV2ProgressStore(

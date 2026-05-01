@@ -70,6 +70,7 @@ const W_ANGLE = 0.65;
 export function scoreTargetLine(
   points: FreehandPoint[],
   target: TargetLine,
+  options: { requireDirection?: boolean } = {},
 ): FreehandTargetLineResult | null {
   const base = scoreFreehandLine(points);
   if (!base) {
@@ -81,7 +82,20 @@ export function scoreTargetLine(
   const fwdEnd = distanceBetween(points[points.length - 1], target.end);
   const revStart = distanceBetween(points[0], target.end);
   const revEnd = distanceBetween(points[points.length - 1], target.start);
-  const useForward = fwdStart + fwdEnd <= revStart + revEnd;
+  const strokeVector = {
+    x: points[points.length - 1].x - points[0].x,
+    y: points[points.length - 1].y - points[0].y,
+  };
+  const targetVector = {
+    x: target.end.x - target.start.x,
+    y: target.end.y - target.start.y,
+  };
+  const directionMatched =
+    strokeVector.x * targetVector.x + strokeVector.y * targetVector.y >= 0;
+  const useForward =
+    options.requireDirection || directionMatched
+      ? true
+      : fwdStart + fwdEnd <= revStart + revEnd;
   const startErrorPixels = useForward ? fwdStart : revEnd;
   const endErrorPixels = useForward ? fwdEnd : revStart;
   const angleErrorDegrees = lineAngleDifferenceDegrees(
@@ -91,9 +105,11 @@ export function scoreTargetLine(
     base.fitEnd,
   );
   const score = clampNumber(
-    base.score -
-      ((startErrorPixels + endErrorPixels) / targetLength) * W_ENDPOINT -
-      angleErrorDegrees * W_ANGLE,
+    options.requireDirection && !directionMatched
+      ? 0
+      : base.score -
+          ((startErrorPixels + endErrorPixels) / targetLength) * W_ENDPOINT -
+          angleErrorDegrees * W_ANGLE,
     0,
     100,
   );
@@ -106,5 +122,6 @@ export function scoreTargetLine(
     startErrorPixels,
     endErrorPixels,
     angleErrorDegrees,
+    directionMatched,
   };
 }

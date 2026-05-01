@@ -28,6 +28,7 @@ export type FreehandTargetLineResult = Omit<FreehandLineResult, "kind"> & {
   startErrorPixels: number;
   endErrorPixels: number;
   angleErrorDegrees: number;
+  directionMatched: boolean;
 };
 
 export type FreehandTargetAngleResult = Omit<FreehandLineResult, "kind"> & {
@@ -153,6 +154,7 @@ export type TargetLine = {
   start: { x: number; y: number };
   end: { x: number; y: number };
   trace?: boolean;
+  showDirectionCue?: boolean;
 };
 
 export type TargetCircle = {

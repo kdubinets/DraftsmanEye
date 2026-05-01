@@ -36,6 +36,31 @@ describe("createFreehandTarget angle copy", () => {
   });
 });
 
+describe("createFreehandTarget line direction", () => {
+  it("keeps directional line targets inside the drawing field", () => {
+    for (const kind of ["target-line-two-points", "trace-line"] as const) {
+      for (const bucket of [0, 90, 180, 270, 350]) {
+        for (let attempt = 0; attempt < 40; attempt += 1) {
+          const target = createFreehandTarget(kind, {
+            lineAngleBucket: bucket,
+            showDirectionCue: true,
+          });
+          expect(target?.kind).toBe("line");
+          if (target?.kind !== "line") continue;
+
+          expect(target.showDirectionCue).toBe(true);
+          for (const point of [target.start, target.end]) {
+            expect(point.x).toBeGreaterThanOrEqual(48);
+            expect(point.x).toBeLessThanOrEqual(952);
+            expect(point.y).toBeGreaterThanOrEqual(48);
+            expect(point.y).toBeLessThanOrEqual(572);
+          }
+        }
+      }
+    }
+  });
+});
+
 function anglePoints(target: TargetAngle): { x: number; y: number }[] {
   return [
     target.reference.vertex,

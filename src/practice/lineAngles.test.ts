@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   LINE_ANGLE_BUCKETS,
   bucketLineAngleDegrees,
-  directionlessLineAngleDegrees,
+  directionalLineAngleDegrees,
   lineAngleMetadataFromPoints,
+  normalizeDirectionalAngleDegrees,
   selectLineAngleBucket,
 } from "./lineAngles";
 import type { ProgressStore } from "../storage/progress";
@@ -12,7 +13,7 @@ function progressWithBuckets(
   buckets: Record<string, { ema: number; attempts: number }>,
 ): ProgressStore {
   return {
-    version: 3,
+    version: 4,
     attempts: [],
     aggregates: {},
     dimensions: {
@@ -32,20 +33,31 @@ function progressWithBuckets(
 }
 
 describe("line angle buckets", () => {
-  it("normalizes opposite line directions to the same angle", () => {
-    expect(directionlessLineAngleDegrees({ x: 0, y: 0 }, { x: 10, y: 0 })).toBe(
+  it("keeps opposite line directions separate", () => {
+    expect(directionalLineAngleDegrees({ x: 0, y: 0 }, { x: 10, y: 0 })).toBe(
       0,
     );
     expect(
-      directionlessLineAngleDegrees({ x: 10, y: 0 }, { x: 0, y: 0 }),
-    ).toBe(0);
+      directionalLineAngleDegrees({ x: 10, y: 0 }, { x: 0, y: 0 }),
+    ).toBe(180);
   });
 
-  it("buckets to nearest 10 degrees with wraparound at 180", () => {
+  it("normalizes to directional degrees", () => {
+    expect(normalizeDirectionalAngleDegrees(0)).toBe(0);
+    expect(normalizeDirectionalAngleDegrees(180)).toBe(180);
+    expect(normalizeDirectionalAngleDegrees(356)).toBe(356);
+    expect(normalizeDirectionalAngleDegrees(-4)).toBe(356);
+    expect(normalizeDirectionalAngleDegrees(-90)).toBe(270);
+  });
+
+  it("buckets to nearest 10 degrees with wraparound at 360", () => {
+    expect(bucketLineAngleDegrees(0)).toBe(0);
     expect(bucketLineAngleDegrees(4)).toBe(0);
-    expect(bucketLineAngleDegrees(86)).toBe(90);
-    expect(bucketLineAngleDegrees(178)).toBe(0);
-    expect(bucketLineAngleDegrees(-6)).toBe(170);
+    expect(bucketLineAngleDegrees(178)).toBe(180);
+    expect(bucketLineAngleDegrees(180)).toBe(180);
+    expect(bucketLineAngleDegrees(356)).toBe(0);
+    expect(bucketLineAngleDegrees(-4)).toBe(0);
+    expect(bucketLineAngleDegrees(-90)).toBe(270);
   });
 
   it("creates metadata from line endpoints", () => {
@@ -55,6 +67,11 @@ describe("line angle buckets", () => {
       lineAngleDegrees: 45,
       lineAngleBucket: 50,
     });
+  });
+
+  it("uses 36 buckets over the full circle", () => {
+    expect(LINE_ANGLE_BUCKETS).toHaveLength(36);
+    expect(LINE_ANGLE_BUCKETS.at(-1)).toBe(350);
   });
 });
 
