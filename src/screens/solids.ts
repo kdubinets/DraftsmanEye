@@ -19,6 +19,7 @@ import {
   exerciseToolbar,
   fullscreenButton,
   pageShell,
+  pendingResultSummary,
   resultStat,
 } from "../render/components";
 import {
@@ -211,7 +212,9 @@ export function mountSolidsScreen(
     "Click empty space to place the first vertex.",
   ]);
   const summary = h("div", { class: "result-summary" });
-  summary.hidden = true;
+  summary.classList.add("is-pending");
+  summary.hidden = !settings.showScoreBoxes;
+  summary.replaceChildren(...pendingResultSummary());
 
   stage.append(toolbar, workspace, feedback, summary);
   screen.append(header, chooser, stage);
@@ -502,6 +505,7 @@ export function mountSolidsScreen(
       `Worst edge ${next.worstEdgeErrorPercent.toFixed(1)}`;
     feedback.hidden = !settings.showResultString;
 
+    summary.classList.remove("is-pending");
     summary.hidden = !settings.showScoreBoxes;
     summary.replaceChildren(
       resultStat("Score", next.score.toFixed(1)),
@@ -539,10 +543,11 @@ export function mountSolidsScreen(
     feedback.removeAttribute("data-tone");
     feedback.style.removeProperty("--result-accent");
     feedback.textContent = "Click empty space to place the first vertex.";
-    summary.hidden = true;
-    summary.replaceChildren();
     summary.removeAttribute("data-tone");
     summary.style.removeProperty("--result-accent");
+    summary.classList.add("is-pending");
+    summary.hidden = !settings.showScoreBoxes;
+    summary.replaceChildren(...pendingResultSummary());
     doneBtn.hidden = false;
     againBtn.hidden = true;
   }

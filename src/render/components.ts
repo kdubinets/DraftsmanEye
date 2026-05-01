@@ -26,6 +26,15 @@ export function resultStat(label: string, value: string): HTMLElement {
   ]);
 }
 
+export function pendingResultSummary(): HTMLElement[] {
+  return [
+    resultStat("Score", "--"),
+    resultStat("Error", "--"),
+    resultStat("Detail", "--"),
+    resultStat("Detail", "--"),
+  ];
+}
+
 export function actionButton(
   label: string,
   onClick: () => void,

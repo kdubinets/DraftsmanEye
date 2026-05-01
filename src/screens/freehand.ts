@@ -15,6 +15,7 @@ import {
   actionButton,
   exerciseToolbar,
   fullscreenButton,
+  pendingResultSummary,
 } from "../render/components";
 import {
   feedbackHueForError,
@@ -149,7 +150,9 @@ export function mountFreehandScreen(
 
   const feedback = h("p", { class: "feedback-banner" }, [config.readyText]);
   const summary = h("div", { class: "result-summary" });
-  summary.hidden = true;
+  summary.classList.add("is-pending");
+  summary.hidden = !showScoreBoxes;
+  summary.replaceChildren(...pendingResultSummary());
   const lineAngleWidget =
     isLineAngleTrackedExercise(exercise.id)
       ? h("section", { class: "line-angle-widget" })
@@ -487,6 +490,7 @@ export function mountFreehandScreen(
     );
     feedback.hidden = !showResultString;
 
+    summary.classList.remove("is-pending");
     summary.hidden = !showScoreBoxes;
     summary.replaceChildren(...freehandResultStats(result));
 
@@ -517,7 +521,9 @@ export function mountFreehandScreen(
       startTangent,
       endTangent,
     );
-    summary.hidden = true;
+    summary.classList.add("is-pending");
+    summary.hidden = !showScoreBoxes;
+    summary.replaceChildren(...pendingResultSummary());
     feedback.removeAttribute("data-tone");
     summary.removeAttribute("data-tone");
     feedback.hidden = false;

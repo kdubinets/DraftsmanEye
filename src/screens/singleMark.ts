@@ -23,6 +23,7 @@ import {
   exerciseToolbar,
   fullscreenButton,
   formatSignedValue,
+  pendingResultSummary,
 } from "../render/components";
 import {
   feedbackHueForError,
@@ -107,7 +108,9 @@ export function mountSingleMarkScreen(
         : "Place one mark on the line.",
   ]);
   const summary = h("div", { class: "result-summary" });
-  summary.hidden = true;
+  summary.classList.add("is-pending");
+  summary.hidden = !showScoreBoxes;
+  summary.replaceChildren(...pendingResultSummary());
 
   let svg = renderTrialSvg(
     trial,
@@ -225,6 +228,7 @@ export function mountSingleMarkScreen(
             `Offset ${formatSignedValue(result.signedErrorPixels)} px`;
     feedback.hidden = !showResultString;
 
+    summary.classList.remove("is-pending");
     summary.hidden = !showScoreBoxes;
     const resultStats =
       result.distanceErrorPixels !== undefined
@@ -292,8 +296,9 @@ export function mountSingleMarkScreen(
       : trial.scorePoint
         ? "Place one mark in the field."
         : "Place one mark on the line.";
-    summary.hidden = true;
-    summary.replaceChildren();
+    summary.classList.add("is-pending");
+    summary.hidden = !showScoreBoxes;
+    summary.replaceChildren(...pendingResultSummary());
     isResultPaused = false;
     pauseBtn.hidden = true;
     againBtn.hidden = true;
