@@ -169,8 +169,11 @@ describe('updateStoredProgress', () => {
     });
 
     const bucket = result.dimensions.lineAngleBuckets['trace-line']!['90']!;
+    const fineBucket = result.dimensions.lineAngleDegreeBuckets!['trace-line']!['87']!;
     expect(bucket.ema).toBe(70);
     expect(bucket.attempts).toBe(1);
+    expect(fineBucket.ema).toBe(70);
+    expect(fineBucket.attempts).toBe(1);
     expect(result.attempts[0].metadata?.lineAngleBucket).toBe(90);
   });
 
@@ -185,6 +188,34 @@ describe('updateStoredProgress', () => {
     });
     const expected = 80 + 0.35 * (60 - 80);
     expect(result.dimensions.lineAngleBuckets['trace-line']!['90']!.ema).toBeCloseTo(expected, 10);
+  });
+
+  it('keeps durable one-degree line angle aggregates for future re-bucketing', () => {
+    updateStoredProgress('trace-line', 80, 0, {
+      lineAngleDegrees: 87.4,
+      lineAngleBucket: 90,
+    });
+    const result = updateStoredProgress('trace-line', 60, 0, {
+      lineAngleDegrees: 87.6,
+      lineAngleBucket: 90,
+    });
+
+    expect(result.dimensions.lineAngleBuckets['trace-line']!['90']!.attempts).toBe(2);
+    expect(result.dimensions.lineAngleDegreeBuckets!['trace-line']!['87']!.attempts).toBe(1);
+    expect(result.dimensions.lineAngleDegreeBuckets!['trace-line']!['88']!.attempts).toBe(1);
+  });
+
+  it('keeps low-score line attempts out of proficiency aggregates', () => {
+    const result = updateStoredProgress('trace-line', 19, 0, {
+      lineAngleDegrees: 87,
+      lineAngleBucket: 90,
+    });
+
+    expect(result.attempts).toHaveLength(1);
+    expect(result.attempts[0].metadata?.lineAngleBucket).toBe(90);
+    expect(result.aggregates['trace-line']!.attempts).toBe(1);
+    expect(result.dimensions.lineAngleBuckets['trace-line']).toBeUndefined();
+    expect(result.dimensions.lineAngleDegreeBuckets?.['trace-line']).toBeUndefined();
   });
 });
 
@@ -214,6 +245,7 @@ describe('filterStaleAggregates', () => {
     });
     const result = filterStaleAggregates(store, new Set(['freehand-straight-line']));
     expect(result.dimensions.lineAngleBuckets['trace-line']).toBeUndefined();
+    expect(result.dimensions.lineAngleDegreeBuckets!['trace-line']).toBeUndefined();
   });
 
   it('returns empty aggregates when known set is empty', () => {

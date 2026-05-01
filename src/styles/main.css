@@ -654,6 +654,10 @@ button {
   width: 42px;
   height: 42px;
   flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
 }
 
 .line-angle-chart {
@@ -667,10 +671,76 @@ button {
   stroke-width: 0.65;
 }
 
+.line-angle-chart-today-sector {
+  stroke: rgba(255, 252, 246, 0.95);
+  stroke-width: 0.6;
+}
+
 .line-angle-chart-core {
-  fill: rgba(255, 252, 246, 0.94);
   stroke: rgba(52, 38, 27, 0.14);
   stroke-width: 1;
+}
+
+.line-angle-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(31, 26, 23, 0.34);
+}
+
+.line-angle-modal-panel {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  padding: 18px;
+  border: 1px solid rgba(52, 38, 27, 0.14);
+  border-radius: 8px;
+  background: var(--surface-strong);
+  box-shadow: 0 22px 70px rgba(31, 26, 23, 0.2);
+}
+
+.line-angle-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.line-angle-modal-header h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.line-angle-chart-large {
+  display: block;
+  width: min(260px, 74vw);
+  height: min(260px, 74vw);
+  margin: 0 auto 14px;
+}
+
+.line-angle-modal-details {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.line-angle-modal-details p {
+  margin: 0;
+}
+
+.line-angle-modal-details ol {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 4px 12px;
+  max-height: 170px;
+  overflow: auto;
+  margin: 4px 0 0;
+  padding-left: 18px;
 }
 
 .loop-chain-guide {

@@ -23,11 +23,14 @@ import {
   feedbackLabel,
 } from "../scoring/bands";
 import {
-  LINE_ANGLE_BUCKETS,
   LINE_ANGLE_BUCKET_SIZE_DEGREES,
   lineAngleMetadataFromPoints,
   type LineAngleMetadata,
 } from "../practice/lineAngles";
+import {
+  lineAngleTrackerModel,
+  type LineAngleTrackerBucket,
+} from "../practice/lineAngleTracker";
 import {
   canStartFreehandStroke,
   freehandPointFromEvent,
@@ -155,9 +158,21 @@ export function mountFreehandScreen(
   summary.replaceChildren(...pendingResultSummary());
   const lineAngleWidget =
     isLineAngleTrackedExercise(exercise.id)
-      ? h("section", { class: "line-angle-widget" })
+      ? h("button", {
+          type: "button",
+          class: "line-angle-widget",
+          title: "Review line direction practice",
+          on: {
+            click: () => {
+              document.body.append(
+                renderLineAngleTrackerModal(getStoredProgress(), exercise.id),
+              );
+            },
+          },
+        })
       : null;
   if (lineAngleWidget) {
+    lineAngleWidget.setAttribute("aria-label", "Review line direction practice");
     renderLineAngleWidget(lineAngleWidget, getStoredProgress(), exercise.id);
     toolbar.append(lineAngleWidget);
   }
@@ -893,7 +908,7 @@ function renderLineAngleWidget(
   progress: ProgressStore,
   exerciseId: ExerciseId,
 ): void {
-  const buckets = progress.dimensions.lineAngleBuckets[exerciseId] ?? {};
+  const model = lineAngleTrackerModel(progress, exerciseId);
   const chart = s("svg", {
     class: "line-angle-chart",
     viewBox: "0 0 120 120",
@@ -901,14 +916,16 @@ function renderLineAngleWidget(
     "aria-label": "Angle proficiency by line direction",
   });
 
-  for (const bucket of LINE_ANGLE_BUCKETS) {
-    const aggregate = buckets[String(bucket)];
-    const fill =
-      aggregate === undefined
-        ? "rgba(103, 103, 103, 0.16)"
-        : `hsl(${feedbackHueForError(100 - aggregate.ema)} 55% 42%)`;
+  for (const bucket of model.buckets) {
+    chart.append(angleSector(bucket.bucket, bucket.sectorFill));
+  }
+  for (const bucket of model.buckets) {
+    if (bucket.todayOpacity <= 0) continue;
     chart.append(
-      angleSector(bucket, fill),
+      angleRingSector(
+        bucket.bucket,
+        `rgba(47, 85, 125, ${bucket.todayOpacity.toFixed(2)})`,
+      ),
     );
   }
   chart.append(
@@ -917,22 +934,141 @@ function renderLineAngleWidget(
       cx: 60,
       cy: 60,
       r: 15,
+      fill: model.centerFill,
     }),
   );
 
   container.replaceChildren(chart);
 }
 
+function renderLineAngleTrackerModal(
+  progress: ProgressStore,
+  exerciseId: ExerciseId,
+): HTMLElement {
+  const model = lineAngleTrackerModel(progress, exerciseId);
+  let overlay: HTMLElement;
+  const close = (): void => overlay.remove();
+  const chart = s("svg", {
+    class: "line-angle-chart line-angle-chart-large",
+    viewBox: "0 0 120 120",
+    role: "img",
+    "aria-label": "Detailed angle proficiency by line direction",
+  });
+  for (const bucket of model.buckets) {
+    const sector = angleSector(bucket.bucket, bucket.sectorFill);
+    appendSvgTitle(sector, lineAngleBucketSummary(bucket));
+    chart.append(sector);
+  }
+  for (const bucket of model.buckets) {
+    if (bucket.todayOpacity <= 0) continue;
+    const sector = angleRingSector(
+      bucket.bucket,
+      `rgba(47, 85, 125, ${bucket.todayOpacity.toFixed(2)})`,
+    );
+    appendSvgTitle(sector, lineAngleBucketSummary(bucket));
+    chart.append(sector);
+  }
+  chart.append(
+    s("circle", {
+      class: "line-angle-chart-core",
+      cx: 60,
+      cy: 60,
+      r: 15,
+      fill: model.centerFill,
+    }),
+  );
+
+  const populatedBuckets = model.buckets.filter(
+    (bucket) => bucket.aggregate !== undefined || bucket.todayAttempts > 0,
+  );
+  const details = h("div", { class: "line-angle-modal-details" }, [
+    h("p", {}, [`Today: ${model.todayTotal} line attempts`]),
+    h("p", {}, [
+      "Sector color ranks long-term proficiency for this drill. Outer ring shows attempts today.",
+    ]),
+    h(
+      "ol",
+      {},
+      populatedBuckets.map((bucket) =>
+        h("li", {}, [lineAngleBucketSummary(bucket)]),
+      ),
+    ),
+  ]);
+
+  const closeBtn = actionButton("Close", close);
+  const panel = h(
+    "div",
+    {
+      class: "line-angle-modal-panel",
+      on: { click: (event) => event.stopPropagation() },
+    },
+    [
+      h("div", { class: "line-angle-modal-header" }, [
+        h("h2", {}, ["Line Direction Tracker"]),
+        closeBtn,
+      ]),
+      chart,
+      details,
+    ],
+  );
+  overlay = h(
+    "div",
+    {
+      class: "line-angle-modal",
+      on: { click: close },
+    },
+    [panel],
+  );
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-label", "Line direction tracker detail");
+  return overlay;
+}
+
 function angleSector(centerDegrees: number, fill: string): SVGPathElement {
   const half = LINE_ANGLE_BUCKET_SIZE_DEGREES / 2;
-  const start = polarPoint(60, 60, 54, centerDegrees - half);
-  const end = polarPoint(60, 60, 54, centerDegrees + half);
+  const start = polarPoint(60, 60, 46, centerDegrees - half);
+  const end = polarPoint(60, 60, 46, centerDegrees + half);
   const path = s("path", {
     class: "line-angle-chart-sector",
-    d: `M 60 60 L ${start.x.toFixed(2)} ${start.y.toFixed(2)} A 54 54 0 0 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)} Z`,
+    d: `M 60 60 L ${start.x.toFixed(2)} ${start.y.toFixed(2)} A 46 46 0 0 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)} Z`,
   });
   path.style.fill = fill;
   return path;
+}
+
+function angleRingSector(centerDegrees: number, fill: string): SVGPathElement {
+  const half = LINE_ANGLE_BUCKET_SIZE_DEGREES / 2;
+  const outerStart = polarPoint(60, 60, 58, centerDegrees - half);
+  const outerEnd = polarPoint(60, 60, 58, centerDegrees + half);
+  const innerStart = polarPoint(60, 60, 49, centerDegrees - half);
+  const innerEnd = polarPoint(60, 60, 49, centerDegrees + half);
+  const path = s("path", {
+    class: "line-angle-chart-today-sector",
+    d: [
+      `M ${outerStart.x.toFixed(2)} ${outerStart.y.toFixed(2)}`,
+      `A 58 58 0 0 1 ${outerEnd.x.toFixed(2)} ${outerEnd.y.toFixed(2)}`,
+      `L ${innerEnd.x.toFixed(2)} ${innerEnd.y.toFixed(2)}`,
+      `A 49 49 0 0 0 ${innerStart.x.toFixed(2)} ${innerStart.y.toFixed(2)}`,
+      "Z",
+    ].join(" "),
+  });
+  path.style.fill = fill;
+  return path;
+}
+
+function appendSvgTitle(element: SVGElement, text: string): void {
+  const title = s("title");
+  title.textContent = text;
+  element.append(title);
+}
+
+function lineAngleBucketSummary(bucket: LineAngleTrackerBucket): string {
+  const score =
+    bucket.aggregate === undefined
+      ? "no proficiency score"
+      : `EMA ${bucket.aggregate.ema.toFixed(1)}, ${bucket.aggregate.attempts} counted`;
+  return `${bucket.bucket}deg: ${score}, ${bucket.todayAttempts} today`;
 }
 
 function polarPoint(

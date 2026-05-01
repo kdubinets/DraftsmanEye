@@ -3,6 +3,8 @@
  *
  * Schema v4: capped raw attempts, per-exercise aggregates, and compact long-lived
  * sub-exercise aggregates for dimensions such as directional line proficiency.
+ * Line direction is retained at 1-degree granularity so future views can
+ * re-bucket it without depending on capped raw attempt history.
  * v1 data (key draftsman-eye.progress.v1) is silently abandoned on first load.
  */
 import type { ExerciseId } from '../practice/catalog';
@@ -30,6 +32,9 @@ export type ProgressDimensions = {
   lineAngleBuckets: Partial<
     Record<ExerciseId, Partial<Record<string, ExerciseAggregate>>>
   >;
+  lineAngleDegreeBuckets?: Partial<
+    Record<ExerciseId, Partial<Record<string, ExerciseAggregate>>>
+  >;
 };
 
 export type ProgressStore = {
@@ -44,6 +49,8 @@ const LEGACY_V3_STORAGE_KEY = 'draftsman-eye.progress.v3';
 const LEGACY_V2_STORAGE_KEY = 'draftsman-eye.progress.v2';
 const MAX_ATTEMPTS = 500;
 const EMA_ALPHA = 0.35;
+const FINE_LINE_ANGLE_BUCKET_SIZE_DEGREES = 1;
+export const LINE_ANGLE_PROFICIENCY_MIN_SCORE = 20;
 
 let cache: ProgressStore | null = null;
 
@@ -146,6 +153,7 @@ export function filterStaleAggregates(
     }
   }
   const lineAngleBuckets: ProgressDimensions['lineAngleBuckets'] = {};
+  const lineAngleDegreeBuckets: ProgressDimensions['lineAngleDegreeBuckets'] = {};
   for (const [id, buckets] of Object.entries(
     store.dimensions.lineAngleBuckets,
   )) {
@@ -153,10 +161,17 @@ export function filterStaleAggregates(
       lineAngleBuckets[id as ExerciseId] = buckets;
     }
   }
+  for (const [id, buckets] of Object.entries(
+    store.dimensions.lineAngleDegreeBuckets ?? {},
+  )) {
+    if (knownIds.has(id) && buckets !== undefined) {
+      lineAngleDegreeBuckets[id as ExerciseId] = buckets;
+    }
+  }
   return {
     ...store,
     aggregates: filtered,
-    dimensions: { ...store.dimensions, lineAngleBuckets },
+    dimensions: { ...store.dimensions, lineAngleBuckets, lineAngleDegreeBuckets },
   };
 }
 
@@ -177,7 +192,7 @@ function emptyStore(): ProgressStore {
     version: 4,
     attempts: [],
     aggregates: {},
-    dimensions: { lineAngleBuckets: {} },
+    dimensions: { lineAngleBuckets: {}, lineAngleDegreeBuckets: {} },
   };
 }
 
@@ -203,23 +218,65 @@ function updateDimensions(
   timestamp: number,
   metadata: ProgressAttemptMetadata | undefined,
 ): ProgressDimensions {
-  if (metadata?.lineAngleBucket === undefined) return previous;
-  const bucketKey = String(metadata.lineAngleBucket);
+  if (
+    metadata?.lineAngleBucket === undefined &&
+    metadata?.lineAngleDegrees === undefined
+  ) {
+    return previous;
+  }
+  if (score < LINE_ANGLE_PROFICIENCY_MIN_SCORE) return previous;
+  const coarseBucketKey =
+    metadata.lineAngleBucket === undefined
+      ? undefined
+      : String(metadata.lineAngleBucket);
+  const fineBucketKey =
+    metadata.lineAngleDegrees === undefined
+      ? undefined
+      : String(fineLineAngleBucket(metadata.lineAngleDegrees));
   const exerciseBuckets = previous.lineAngleBuckets[exerciseId] ?? {};
+  const exerciseFineBuckets =
+    previous.lineAngleDegreeBuckets?.[exerciseId] ?? {};
+  const lineAngleBuckets =
+    coarseBucketKey === undefined
+      ? previous.lineAngleBuckets
+      : {
+          ...previous.lineAngleBuckets,
+          [exerciseId]: {
+            ...exerciseBuckets,
+            [coarseBucketKey]: updateAggregate(
+              exerciseBuckets[coarseBucketKey],
+              score,
+              timestamp,
+            ),
+          },
+        };
+  const lineAngleDegreeBuckets =
+    fineBucketKey === undefined
+      ? previous.lineAngleDegreeBuckets
+      : {
+          ...(previous.lineAngleDegreeBuckets ?? {}),
+          [exerciseId]: {
+            ...exerciseFineBuckets,
+            [fineBucketKey]: updateAggregate(
+              exerciseFineBuckets[fineBucketKey],
+              score,
+              timestamp,
+            ),
+          },
+        };
   return {
     ...previous,
-    lineAngleBuckets: {
-      ...previous.lineAngleBuckets,
-      [exerciseId]: {
-        ...exerciseBuckets,
-        [bucketKey]: updateAggregate(
-          exerciseBuckets[bucketKey],
-          score,
-          timestamp,
-        ),
-      },
-    },
+    lineAngleBuckets,
+    lineAngleDegreeBuckets,
   };
+}
+
+function fineLineAngleBucket(degrees: number): number {
+  const normalized = ((degrees % 360) + 360) % 360;
+  const bucket =
+    Math.round(normalized / FINE_LINE_ANGLE_BUCKET_SIZE_DEGREES) *
+    FINE_LINE_ANGLE_BUCKET_SIZE_DEGREES;
+  return bucket === 360 ? 0 : bucket;
 }
 
 function migrateLegacyV3Progress(): ProgressStore | null {
@@ -235,7 +292,7 @@ function migrateLegacyV3Progress(): ProgressStore | null {
       version: 4,
       attempts: parsed.attempts,
       aggregates: parsed.aggregates,
-      dimensions: { lineAngleBuckets: {} },
+      dimensions: { lineAngleBuckets: {}, lineAngleDegreeBuckets: {} },
     };
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
@@ -262,7 +319,7 @@ function migrateLegacyV2Progress(): ProgressStore | null {
       version: 4,
       attempts: parsed.attempts,
       aggregates: parsed.aggregates,
-      dimensions: { lineAngleBuckets: {} },
+      dimensions: { lineAngleBuckets: {}, lineAngleDegreeBuckets: {} },
     };
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
