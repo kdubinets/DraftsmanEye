@@ -770,11 +770,29 @@ button {
   width: 58px;
 }
 
+.transfer-random-tracker-widget {
+  grid-template-rows: 18px 7px 4px;
+  gap: 2px;
+  width: 58px;
+}
+
 .division-direction-chart {
   display: block;
   justify-self: center;
   width: 25px;
   height: 25px;
+}
+
+.transfer-angle-chart {
+  display: block;
+  justify-self: center;
+  width: 34px;
+  height: 18px;
+}
+
+.transfer-angle-chart-large {
+  width: min(170px, 54vw);
+  height: min(96px, 30vw);
 }
 
 .division-direction-chart-large {

@@ -16,6 +16,13 @@ import {
   selectDivisionLengthBucket,
 } from "./divisions";
 import {
+  selectTransferLengthBucket,
+  transferAngleMetadata,
+  transferLengthMetadata,
+  transferLengthRange,
+  transferTargetDistanceForBucket,
+} from "./lengthTransfers";
+import {
   clampNumber,
   distanceBetween,
   radiansToDegrees,
@@ -1061,8 +1068,8 @@ function transferExercise(
     implemented: true,
     kind: "single-mark",
     inputMode: "single-mark",
-    createTrial: () =>
-      createTransferTrial(mode, referenceAxis, guideAxis, label),
+    createTrial: (progress) =>
+      createTransferTrial(mode, referenceAxis, guideAxis, label, id, progress),
   };
 }
 
@@ -1071,20 +1078,31 @@ function createTransferTrial(
   referenceAxis: LineAxis,
   guideAxis: LineAxis,
   label: string,
+  exerciseId: ExerciseId,
+  progress?: ProgressStore,
 ): SingleMarkTrial {
   const width = 760;
   const height = 640;
   const margin = 52;
   const multiplier = mode === "copy" ? 1 : 2;
-  const referenceLength =
-    mode === "copy" ? randomInteger(130, 230) : randomInteger(95, 155);
-  const targetDistance = referenceLength * multiplier;
+  const lengthRange = transferLengthRange(mode);
+  const selectedBucket =
+    progress === undefined
+      ? undefined
+      : selectTransferLengthBucket(progress, exerciseId);
+  const targetDistance =
+    selectedBucket === undefined
+      ? randomInteger(lengthRange.min, lengthRange.max)
+      : transferTargetDistanceForBucket(selectedBucket, lengthRange);
+  const referenceLength = targetDistance / multiplier;
+  const progressMetadata = transferLengthMetadata(targetDistance, lengthRange);
   if (referenceAxis === "free" && guideAxis === "free") {
     return createRandomTransferTrial(
       mode,
       referenceLength,
       targetDistance,
       label,
+      progressMetadata,
     );
   }
   const guideStart = margin;
@@ -1132,6 +1150,10 @@ function createTransferTrial(
     referenceLine,
     anchorScalar,
     anchorDirectionSign,
+    progressMetadata: {
+      ...progressMetadata,
+      ...transferAngleMetadata(referenceLine, guideLine),
+    },
     scoreSelection: (placedScalar) =>
       scoreSelection(placedScalar, targetScalar, targetDistance, guideAxis),
   };
@@ -1142,6 +1164,7 @@ function createRandomTransferTrial(
   referenceLength: number,
   targetDistance: number,
   label: string,
+  progressMetadata: ProgressAttemptMetadata,
 ): SingleMarkTrial {
   const width = 760;
   const height = 640;
@@ -1181,6 +1204,10 @@ function createRandomTransferTrial(
     referenceLine,
     anchorScalar,
     anchorDirectionSign,
+    progressMetadata: {
+      ...progressMetadata,
+      ...transferAngleMetadata(referenceLine, guideLine),
+    },
     scoreSelection: (placedScalar) =>
       scoreSelection(placedScalar, targetScalar, targetDistance, "free"),
   };

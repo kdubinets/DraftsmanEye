@@ -13,7 +13,7 @@ function progressWithBuckets(
   buckets: Record<string, { ema: number; attempts: number }>,
 ): ProgressStore {
   return {
-    version: 6,
+    version: 8,
     attempts: [],
     aggregates: {},
     dimensions: {
@@ -32,6 +32,8 @@ function progressWithBuckets(
       angleOpeningBuckets: {},
       divisionLengthBuckets: {},
       divisionDirectionBuckets: {},
+      transferLengthBuckets: {},
+      transferAngleBuckets: {},
     },
   };
 }

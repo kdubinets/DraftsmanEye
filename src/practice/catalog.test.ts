@@ -1,11 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { EXERCISES, getExerciseById, getAutoExercise } from "./catalog";
 import type { ExerciseId, SingleMarkExerciseDefinition } from "./catalog";
 import type { ProgressStore } from "../storage/progress";
 
 function emptyProgress(): ProgressStore {
   return {
-    version: 6,
+    version: 8,
     attempts: [],
     aggregates: {},
     dimensions: {
@@ -14,6 +14,8 @@ function emptyProgress(): ProgressStore {
       angleOpeningBuckets: {},
       divisionLengthBuckets: {},
       divisionDirectionBuckets: {},
+      transferLengthBuckets: {},
+      transferAngleBuckets: {},
     },
   };
 }
@@ -71,7 +73,7 @@ describe("getAutoExercise", () => {
     if (!notImplemented) return; // all implemented — skip
 
     const progress: ProgressStore = {
-      version: 6,
+      version: 8,
       attempts: [],
       aggregates: {
         [notImplemented.id]: { ema: 0, attempts: 0, lastPracticedAt: 0 },
@@ -80,8 +82,10 @@ describe("getAutoExercise", () => {
         lineAngleBuckets: {},
         lineAngleDegreeBuckets: {},
         angleOpeningBuckets: {},
-      divisionLengthBuckets: {},
-      divisionDirectionBuckets: {},
+        divisionLengthBuckets: {},
+        divisionDirectionBuckets: {},
+        transferLengthBuckets: {},
+      transferAngleBuckets: {},
       },
     };
     const { exercise } = getAutoExercise(progress);
@@ -99,15 +103,17 @@ describe("getAutoExercise", () => {
     // Last drill has never been played — no entry
     const neverPlayed = implemented[implemented.length - 1];
     const progress: ProgressStore = {
-      version: 6,
+      version: 8,
       attempts: [],
       aggregates,
       dimensions: {
         lineAngleBuckets: {},
         lineAngleDegreeBuckets: {},
         angleOpeningBuckets: {},
-      divisionLengthBuckets: {},
-      divisionDirectionBuckets: {},
+        divisionLengthBuckets: {},
+        divisionDirectionBuckets: {},
+        transferLengthBuckets: {},
+      transferAngleBuckets: {},
       },
     };
     const { exercise } = getAutoExercise(progress);
@@ -125,15 +131,17 @@ describe("getAutoExercise", () => {
     aggregates[weakDrill.id] = { ema: 10, attempts: 5, lastPracticedAt: oldMs };
 
     const progress: ProgressStore = {
-      version: 6,
+      version: 8,
       attempts: [],
       aggregates,
       dimensions: {
         lineAngleBuckets: {},
         lineAngleDegreeBuckets: {},
         angleOpeningBuckets: {},
-      divisionLengthBuckets: {},
-      divisionDirectionBuckets: {},
+        divisionLengthBuckets: {},
+        divisionDirectionBuckets: {},
+        transferLengthBuckets: {},
+      transferAngleBuckets: {},
       },
     };
     const { exercise } = getAutoExercise(progress);
@@ -154,15 +162,17 @@ describe("getAutoExercise", () => {
       aggregates[ex.id] = { ema: 75, attempts: 3, lastPracticedAt: oldMs };
     }
     const progress: ProgressStore = {
-      version: 6,
+      version: 8,
       attempts: [],
       aggregates,
       dimensions: {
         lineAngleBuckets: {},
         lineAngleDegreeBuckets: {},
         angleOpeningBuckets: {},
-      divisionLengthBuckets: {},
-      divisionDirectionBuckets: {},
+        divisionLengthBuckets: {},
+        divisionDirectionBuckets: {},
+        transferLengthBuckets: {},
+      transferAngleBuckets: {},
       },
     };
     const first = getAutoExercise(progress).exercise.id;
@@ -362,6 +372,35 @@ describe("single-mark scoreSelection", () => {
     expect(result.relativeErrorPercent).toBeCloseTo(
       (10 / (referenceLength * 2)) * 100,
     );
+  });
+
+  it("transfer length progress controls generated target distance", () => {
+    const drill = EXERCISES.find(
+      (e): e is SingleMarkExerciseDefinition =>
+        e.id === "copy-horizontal-horizontal" &&
+        e.implemented &&
+        "createTrial" in e,
+    )!;
+    const progress = emptyProgress();
+    progress.dimensions.transferLengthBuckets["copy-horizontal-horizontal"] = {
+      "0": { ema: 95, attempts: 10, lastPracticedAt: Date.now() },
+      "1": { ema: 95, attempts: 10, lastPracticedAt: Date.now() },
+      "2": { ema: 20, attempts: 10, lastPracticedAt: Date.now() },
+      "3": { ema: 95, attempts: 10, lastPracticedAt: Date.now() },
+      "4": { ema: 95, attempts: 10, lastPracticedAt: Date.now() },
+    };
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.5);
+    try {
+      const trial = drill.createTrial(progress);
+      const targetDistance =
+        Math.abs(trial.scoreSelection(trial.anchorScalar!).signedErrorPixels);
+      expect(targetDistance).toBeGreaterThanOrEqual(170);
+      expect(targetDistance).toBeLessThanOrEqual(190);
+      expect(trial.progressMetadata?.transferLengthBucket).toBe(2);
+      expect(trial.progressMetadata?.transferLengthPixels).toBe(targetDistance);
+    } finally {
+      randomSpy.mockRestore();
+    }
   });
 
   it("intersection drill uses a separate pointing segment and angle scoring", () => {

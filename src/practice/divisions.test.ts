@@ -21,7 +21,7 @@ const YESTERDAY = new Date(2026, 3, 30, 23, 59, 0).getTime();
 
 function store(progress: Partial<ProgressStore>): ProgressStore {
   return {
-    version: 6,
+    version: 8,
     attempts: [],
     aggregates: {},
     dimensions: {
@@ -30,6 +30,8 @@ function store(progress: Partial<ProgressStore>): ProgressStore {
       angleOpeningBuckets: {},
       divisionLengthBuckets: {},
       divisionDirectionBuckets: {},
+      transferLengthBuckets: {},
+      transferAngleBuckets: {},
     },
     ...progress,
   };
@@ -68,6 +70,8 @@ describe("division length buckets", () => {
           },
         },
         divisionDirectionBuckets: {},
+      transferLengthBuckets: {},
+      transferAngleBuckets: {},
       },
     });
 
@@ -135,6 +139,8 @@ describe("division direction buckets", () => {
             "0": { ema: 90, attempts: 8, lastPracticedAt: NOW },
           },
         },
+        transferLengthBuckets: {},
+      transferAngleBuckets: {},
       },
     });
 
@@ -179,6 +185,8 @@ describe("division tracker models", () => {
             },
           },
           divisionDirectionBuckets: {},
+          transferLengthBuckets: {},
+      transferAngleBuckets: {},
         },
       }),
       "division-horizontal-thirds",
@@ -208,6 +216,8 @@ describe("division tracker models", () => {
               "180": { ema: 90, attempts: 3, lastPracticedAt: NOW },
             },
           },
+          transferLengthBuckets: {},
+      transferAngleBuckets: {},
         },
       }),
       "division-horizontal-thirds",
