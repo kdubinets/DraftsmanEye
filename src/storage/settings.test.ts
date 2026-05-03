@@ -36,6 +36,7 @@ describe("getSettings", () => {
       showScoreBoxes: true,
       directionalLineGuides: true,
       solidReferenceStyle: "wireframe",
+      lastHomeView: "exercise-list",
     });
   });
 
@@ -87,6 +88,18 @@ describe("getSettings", () => {
     expect(getSettings().solidReferenceStyle).toBe("wireframe");
   });
 
+  it("accepts the stored home view setting", () => {
+    store[STORAGE_KEY] = JSON.stringify({ lastHomeView: "curriculum" });
+
+    expect(getSettings().lastHomeView).toBe("curriculum");
+  });
+
+  it("rejects malformed home view settings", () => {
+    store[STORAGE_KEY] = JSON.stringify({ lastHomeView: "auto" });
+
+    expect(getSettings().lastHomeView).toBe("exercise-list");
+  });
+
   it("returns defaults and logs for invalid JSON", () => {
     store[STORAGE_KEY] = "{{not-json";
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -127,6 +140,14 @@ describe("updateSetting", () => {
 
     expect(JSON.parse(store[STORAGE_KEY] ?? "{}")).toMatchObject({
       solidReferenceStyle: "shaded",
+    });
+  });
+
+  it("persists the home view setting", () => {
+    updateSetting("lastHomeView", "curriculum");
+
+    expect(JSON.parse(store[STORAGE_KEY] ?? "{}")).toMatchObject({
+      lastHomeView: "curriculum",
     });
   });
 });

@@ -108,7 +108,7 @@ export function mountSingleMarkScreen(
     () => {
       onNavigate(
         source === "curriculum"
-          ? { screen: "curriculum" }
+          ? { screen: "list", homeView: "curriculum" }
           : { screen: "list", listState },
       );
     },
@@ -145,10 +145,7 @@ export function mountSingleMarkScreen(
       })
     : null;
   if (divisionLengthWidget) {
-    divisionLengthWidget.setAttribute(
-      "aria-label",
-      "Review division practice",
-    );
+    divisionLengthWidget.setAttribute("aria-label", "Review division practice");
     renderDivisionPracticeWidget(
       divisionLengthWidget,
       getStoredProgress(),
@@ -504,7 +501,9 @@ function isTransferExercise(id: ExerciseId): boolean {
 }
 
 function isRandomTransferExercise(id: ExerciseId): boolean {
-  return id.startsWith("copy-random-random") || id.startsWith("double-random-random");
+  return (
+    id.startsWith("copy-random-random") || id.startsWith("double-random-random")
+  );
 }
 
 type LinearTrackerBucket = {
@@ -572,7 +571,10 @@ function renderDivisionTrackerWidget(
   container: HTMLElement,
   model: LinearTrackerModel,
 ): void {
-  container.style.setProperty("--division-bucket-count", String(model.buckets.length));
+  container.style.setProperty(
+    "--division-bucket-count",
+    String(model.buckets.length),
+  );
   container.replaceChildren(...divisionTrackerStrip(model));
 }
 
@@ -581,7 +583,10 @@ function renderTransferRandomTrackerWidget(
   lengthModel: LinearTrackerModel,
   angleModel: LinearTrackerModel,
 ): void {
-  container.style.setProperty("--division-bucket-count", String(lengthModel.buckets.length));
+  container.style.setProperty(
+    "--division-bucket-count",
+    String(lengthModel.buckets.length),
+  );
   container.replaceChildren(
     transferAngleChart(angleModel, "transfer-angle-chart"),
     divisionLengthCells(lengthModel),
@@ -594,7 +599,10 @@ function renderDivisionRandomTrackerWidget(
   lengthModel: LinearTrackerModel,
   directionModel: LinearTrackerModel,
 ): void {
-  container.style.setProperty("--division-bucket-count", String(lengthModel.buckets.length));
+  container.style.setProperty(
+    "--division-bucket-count",
+    String(lengthModel.buckets.length),
+  );
   container.replaceChildren(
     divisionDirectionChart(directionModel, "division-direction-chart"),
     divisionLengthCells(lengthModel),
@@ -609,7 +617,10 @@ function renderDivisionTrackerModal(
   let overlay: HTMLElement;
   const close = (): void => overlay.remove();
   const strip = h("div", { class: "division-tracker-detail-strip" });
-  strip.style.setProperty("--division-bucket-count", String(model.buckets.length));
+  strip.style.setProperty(
+    "--division-bucket-count",
+    String(model.buckets.length),
+  );
   strip.replaceChildren(...divisionTrackerStrip(model));
   const populatedBuckets = model.buckets.filter(
     (bucket) => bucket.aggregate !== undefined || bucket.todayAttempts > 0,
@@ -674,7 +685,10 @@ function renderDivisionRandomTrackerModal(
     divisionLengthCells(lengthModel),
     divisionTrackerTotalBar(lengthModel.todayTotal, lengthModel.todayProgress),
   ]);
-  preview.style.setProperty("--division-bucket-count", String(lengthModel.buckets.length));
+  preview.style.setProperty(
+    "--division-bucket-count",
+    String(lengthModel.buckets.length),
+  );
   const details = h("div", { class: "division-tracker-modal-details" }, [
     h("p", {}, [`Today: ${lengthModel.todayTotal} attempts`]),
     h("p", {}, [
@@ -728,7 +742,10 @@ function renderTransferRandomTrackerModal(
     divisionLengthCells(lengthModel),
     divisionTrackerTotalBar(lengthModel.todayTotal, lengthModel.todayProgress),
   ]);
-  preview.style.setProperty("--division-bucket-count", String(lengthModel.buckets.length));
+  preview.style.setProperty(
+    "--division-bucket-count",
+    String(lengthModel.buckets.length),
+  );
   const details = h("div", { class: "division-tracker-modal-details" }, [
     h("p", {}, [`Today: ${lengthModel.todayTotal} attempts`]),
     h("p", {}, [
@@ -805,7 +822,9 @@ function divisionLengthCells(model: LinearTrackerModel): HTMLDivElement {
   );
 }
 
-function divisionTrackerBucketList(model: LinearTrackerModel): HTMLOListElement {
+function divisionTrackerBucketList(
+  model: LinearTrackerModel,
+): HTMLOListElement {
   const populatedBuckets = model.buckets.filter(
     (bucket) => bucket.aggregate !== undefined || bucket.todayAttempts > 0,
   );
@@ -829,7 +848,10 @@ function divisionDirectionChart(
     "aria-label": "Division direction proficiency",
   });
   for (const bucket of model.buckets) {
-    const sector = divisionDirectionSector(Number(bucket.bucket), bucket.cellFill);
+    const sector = divisionDirectionSector(
+      Number(bucket.bucket),
+      bucket.cellFill,
+    );
     appendSvgTitle(sector, divisionTrackerBucketSummary(bucket));
     chart.append(sector);
   }
@@ -920,9 +942,7 @@ function polarPoint(
   };
 }
 
-function divisionTrackerTodayBar(
-  bucket: LinearTrackerBucket,
-): HTMLSpanElement {
+function divisionTrackerTodayBar(bucket: LinearTrackerBucket): HTMLSpanElement {
   const bar = h("span", { class: "division-tracker-today-bar" });
   bar.style.setProperty("--today-height", `${bucket.todayHeightPercent}%`);
   bar.style.setProperty("--today-opacity", bucket.todayOpacity.toFixed(2));
@@ -944,9 +964,7 @@ function divisionTrackerTotalBar(
   return total;
 }
 
-function divisionTrackerBucketSummary(
-  bucket: LinearTrackerBucket,
-): string {
+function divisionTrackerBucketSummary(bucket: LinearTrackerBucket): string {
   const score =
     bucket.aggregate === undefined
       ? "no proficiency score"

@@ -5,7 +5,10 @@ import type {
   FreehandExerciseDefinition,
 } from "../practice/catalog";
 import { getStoredProgress, updateStoredProgress } from "../storage/progress";
-import type { ProgressAttemptMetadata, ProgressStore } from "../storage/progress";
+import type {
+  ProgressAttemptMetadata,
+  ProgressStore,
+} from "../storage/progress";
 import { startActivePracticeTimer } from "../storage/activePracticeTimer";
 import { recordCurriculumCompletion } from "../storage/curriculumStats";
 import { getSettings } from "../storage/settings";
@@ -153,7 +156,7 @@ export function mountFreehandScreen(
     () => {
       onNavigate(
         source === "curriculum"
-          ? { screen: "curriculum" }
+          ? { screen: "list", homeView: "curriculum" }
           : { screen: "list", listState },
       );
     },
@@ -174,41 +177,39 @@ export function mountFreehandScreen(
   summary.classList.add("is-pending");
   summary.hidden = !showScoreBoxes;
   summary.replaceChildren(...pendingResultSummary());
-  const lineAngleWidget =
-    isLineAngleTrackedExercise(exercise.id)
-      ? h("button", {
-          type: "button",
-          class: "line-angle-widget",
-          title: "Review line direction practice",
-          on: {
-            click: () => {
-              document.body.append(
-                renderLineAngleTrackerModal(getStoredProgress(), exercise.id),
-              );
-            },
+  const lineAngleWidget = isLineAngleTrackedExercise(exercise.id)
+    ? h("button", {
+        type: "button",
+        class: "line-angle-widget",
+        title: "Review line direction practice",
+        on: {
+          click: () => {
+            document.body.append(
+              renderLineAngleTrackerModal(getStoredProgress(), exercise.id),
+            );
           },
-        })
-      : null;
-  const angleOpeningWidget =
-    isAngleOpeningTrackedExercise(exercise.id)
-      ? h("button", {
-          type: "button",
-          class: "angle-opening-widget",
-          title: "Review angle opening practice",
-          on: {
-            click: () => {
-              document.body.append(
-                renderAngleOpeningTrackerModal(
-                  getStoredProgress(),
-                  exercise.id,
-                ),
-              );
-            },
+        },
+      })
+    : null;
+  const angleOpeningWidget = isAngleOpeningTrackedExercise(exercise.id)
+    ? h("button", {
+        type: "button",
+        class: "angle-opening-widget",
+        title: "Review angle opening practice",
+        on: {
+          click: () => {
+            document.body.append(
+              renderAngleOpeningTrackerModal(getStoredProgress(), exercise.id),
+            );
           },
-        })
-      : null;
+        },
+      })
+    : null;
   if (lineAngleWidget) {
-    lineAngleWidget.setAttribute("aria-label", "Review line direction practice");
+    lineAngleWidget.setAttribute(
+      "aria-label",
+      "Review line direction practice",
+    );
     renderLineAngleWidget(lineAngleWidget, getStoredProgress(), exercise.id);
     toolbar.append(lineAngleWidget);
   }
@@ -979,7 +980,10 @@ function lineAngleMetadataForResult(
   }
   if (result.kind === "target-line") {
     if (result.target.showDirectionCue) {
-      return lineAngleMetadataFromPoints(result.target.start, result.target.end);
+      return lineAngleMetadataFromPoints(
+        result.target.start,
+        result.target.end,
+      );
     }
     return points.length >= 2
       ? lineAngleMetadataFromPoints(points[0], points[points.length - 1])

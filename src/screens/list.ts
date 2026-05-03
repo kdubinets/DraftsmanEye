@@ -1,15 +1,15 @@
 /**
- * List screen: app home page showing the exercise grid, Auto card, and per-drill scores.
- * Calls getAutoExercise() on the stored progress snapshot so the Auto button always
- * reflects current performance data rather than a static fallback ID.
+ * List screen: app home page showing either the exercise grid or curriculum hierarchy.
  */
-import { EXERCISES, getAutoExercise } from "../practice/catalog";
+import { EXERCISES } from "../practice/catalog";
 import type { ExerciseDefinition } from "../practice/catalog";
 import { getStoredProgress, filterStaleAggregates } from "../storage/progress";
 import type { ProgressStore } from "../storage/progress";
+import { getSettings, updateSetting, type HomeView } from "../storage/settings";
 import { pageShell, formatScore, actionButton } from "../render/components";
 import { h } from "../render/h";
 import type { AppState, ListFilterState } from "../app/state";
+import { curriculumView } from "./curriculum";
 
 const FAMILY_ORDER = [
   "Division",
@@ -28,13 +28,19 @@ export function mountListScreen(
   root: HTMLElement,
   onNavigate: (next: AppState) => void,
   initialListState?: ListFilterState,
+  initialHomeView?: HomeView,
 ): () => void {
   const knownIds = new Set(EXERCISES.map((e) => e.id));
   const progress = filterStaleAggregates(getStoredProgress(), knownIds);
+  let homeView = initialHomeView ?? getSettings().lastHomeView;
+  if (initialHomeView) {
+    updateSetting("lastHomeView", initialHomeView);
+  }
   let activeFamily: string | null = initialListState?.activeFamily ?? null;
   const activeSubfilters = cloneSubfilters(initialListState?.activeSubfilters);
   const familyNav = h("div", { class: "exercise-filter-list" });
   const groupedList = h("div", { class: "exercise-group-list" });
+  const shell = pageShell();
 
   function currentListState(): ListFilterState {
     return {
@@ -75,27 +81,55 @@ export function mountListScreen(
     );
   }
 
-  renderExerciseIndex();
+  function setHomeView(next: HomeView): void {
+    homeView = next;
+    updateSetting("lastHomeView", next);
+    renderHome();
+  }
 
-  root.append(
-    pageShell(
-      headerBlock(onNavigate),
-      autoCard(onNavigate, progress, currentListState),
+  function renderHome(): void {
+    if (homeView === "curriculum") {
+      shell.replaceChildren(
+        headerBlock(homeView, setHomeView, onNavigate),
+        curriculumView(onNavigate),
+      );
+      return;
+    }
+
+    renderExerciseIndex();
+    shell.replaceChildren(
+      headerBlock(homeView, setHomeView, onNavigate),
       exerciseIndex(familyNav, groupedList),
-    ),
-  );
+    );
+  }
+
+  renderHome();
+
+  root.append(shell);
   return () => {};
 }
 
-function headerBlock(onNavigate: (next: AppState) => void): HTMLElement {
+function headerBlock(
+  homeView: HomeView,
+  onViewChange: (next: HomeView) => void,
+  onNavigate: (next: AppState) => void,
+): HTMLElement {
   const img = h("img", { class: "hero-image", alt: "" });
   img.setAttribute("src", "/title-image.webp");
+  const nextHomeView =
+    homeView === "curriculum" ? "exercise-list" : "curriculum";
   return h("header", { class: "hero" }, [
     h("div", { class: "hero-content" }, [
       h("p", { class: "eyebrow" }, ["Draftsman Eye"]),
-      h("h1", {}, ["Choose a drill and keep the loop short."]),
+      h("h1", {}, [
+        homeView === "curriculum"
+          ? "Follow a practice path."
+          : "Choose a drill and keep the loop short.",
+      ]),
       h("p", { class: "hero-copy" }, [
-        "Practice one skill at a time, review the result immediately, then repeat, return to the list, or let Auto choose the next drill.",
+        homeView === "curriculum"
+          ? "Practice related drills in a progression."
+          : "Practice one skill at a time, review the result immediately, then repeat or return to the list.",
       ]),
       h("div", { class: "hero-link-row" }, [
         h(
@@ -103,9 +137,9 @@ function headerBlock(onNavigate: (next: AppState) => void): HTMLElement {
           {
             type: "button",
             class: "hero-settings-link",
-            on: { click: () => onNavigate({ screen: "curriculum" }) },
+            on: { click: () => onViewChange(nextHomeView) },
           },
-          ["Curriculum"],
+          [homeView === "curriculum" ? "Exercise List" : "Curriculum"],
         ),
         h(
           "button",
@@ -119,38 +153,6 @@ function headerBlock(onNavigate: (next: AppState) => void): HTMLElement {
       ]),
     ]),
     img,
-  ]);
-}
-
-function autoCard(
-  onNavigate: (next: AppState) => void,
-  progress: ProgressStore,
-  getListState: () => ListFilterState,
-): HTMLElement {
-  const { exercise: next, reason } = getAutoExercise(progress);
-  return h("section", { class: "auto-card" }, [
-    h("p", { class: "card-kicker" }, ["Auto"]),
-    h("h2", {}, ["Let the app choose the next drill."]),
-    h("p", { class: "auto-suggestion" }, [
-      `Next up: ${next.label} — ${reason}`,
-    ]),
-    h(
-      "button",
-      {
-        type: "button",
-        class: "primary-action",
-        on: {
-          click: () =>
-            onNavigate({
-              screen: "exercise",
-              exerciseId: next.id,
-              source: "auto",
-              listState: getListState(),
-            }),
-        },
-      },
-      ["Start Auto"],
-    ),
   ]);
 }
 

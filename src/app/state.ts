@@ -1,5 +1,6 @@
 /** App routing state. One screen at a time; navigating replaces the current screen. */
 import type { ExerciseId } from "../practice/catalog";
+import type { HomeView } from "../storage/settings";
 
 export type ListFilterState = {
   activeFamily: string | null;
@@ -7,8 +8,7 @@ export type ListFilterState = {
 };
 
 export type AppState =
-  | { screen: "list"; listState?: ListFilterState }
-  | { screen: "curriculum" }
+  | { screen: "list"; listState?: ListFilterState; homeView?: HomeView }
   | { screen: "settings" }
   | {
       screen: "exercise";

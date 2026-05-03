@@ -161,7 +161,7 @@ export function mountSolidsScreen(
     () => {
       onNavigate(
         source === "curriculum"
-          ? { screen: "curriculum" }
+          ? { screen: "list", homeView: "curriculum" }
           : { screen: "list", listState },
       );
     },
@@ -1302,8 +1302,18 @@ function triangularPyramidPosePresets(): SolidPosePreset[] {
 
 function cubePosePresets3pt(): SolidPosePreset[] {
   return [
-    { model: CUBE_SOLID, yawDegrees: [20, 70], pitchDegrees: [40, 60], pitchDirection: "either" },
-    { model: CUBE_SOLID, yawDegrees: [25, 65], pitchDegrees: [44, 62], pitchDirection: "either" },
+    {
+      model: CUBE_SOLID,
+      yawDegrees: [20, 70],
+      pitchDegrees: [40, 60],
+      pitchDirection: "either",
+    },
+    {
+      model: CUBE_SOLID,
+      yawDegrees: [25, 65],
+      pitchDegrees: [44, 62],
+      pitchDirection: "either",
+    },
     {
       model: CUBE_SOLID,
       yawDegrees: [24, 62],

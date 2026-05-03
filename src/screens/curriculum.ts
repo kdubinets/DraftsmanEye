@@ -31,6 +31,15 @@ export function mountCurriculumScreen(
   root: HTMLElement,
   onNavigate: (next: AppState) => void,
 ): () => void {
+  root.append(
+    pageShell(curriculumHeader(onNavigate), curriculumView(onNavigate)),
+  );
+  return () => {};
+}
+
+export function curriculumView(
+  onNavigate: (next: AppState) => void,
+): HTMLElement {
   const ui = getCurriculumUiStore();
   let expandedGroupId =
     validGroupId(ui.expandedGroupId) ?? CURRICULUM_GROUPS[0]?.id;
@@ -64,40 +73,37 @@ export function mountCurriculumScreen(
 
   render();
 
-  root.append(
-    pageShell(
-      h("header", { class: "curriculum-header" }, [
-        h("p", { class: "eyebrow" }, ["Draftsman Eye"]),
-        h("h1", {}, ["Curriculum"]),
-        h("p", { class: "hero-copy" }, [
-          "Practice related drills in a progression, while keeping every exercise available as a direct choice.",
-        ]),
-        h("div", { class: "hero-link-row" }, [
-          h(
-            "button",
-            {
-              type: "button",
-              class: "hero-settings-link",
-              on: { click: () => onNavigate({ screen: "list" }) },
-            },
-            ["Exercise List"],
-          ),
-          h(
-            "button",
-            {
-              type: "button",
-              class: "hero-settings-link",
-              on: { click: () => onNavigate({ screen: "settings" }) },
-            },
-            ["Settings"],
-          ),
-        ]),
-      ]),
-      list,
-    ),
-  );
+  return list;
+}
 
-  return () => {};
+function curriculumHeader(onNavigate: (next: AppState) => void): HTMLElement {
+  return h("header", { class: "curriculum-header" }, [
+    h("p", { class: "eyebrow" }, ["Draftsman Eye"]),
+    h("h1", {}, ["Curriculum"]),
+    h("p", { class: "hero-copy" }, [
+      "Practice related drills in a progression.",
+    ]),
+    h("div", { class: "hero-link-row" }, [
+      h(
+        "button",
+        {
+          type: "button",
+          class: "hero-settings-link",
+          on: { click: () => onNavigate({ screen: "list" }) },
+        },
+        ["Exercise List"],
+      ),
+      h(
+        "button",
+        {
+          type: "button",
+          class: "hero-settings-link",
+          on: { click: () => onNavigate({ screen: "settings" }) },
+        },
+        ["Settings"],
+      ),
+    ]),
+  ]);
 }
 
 function renderGroup(
@@ -160,9 +166,7 @@ function renderGroup(
   return h(
     "section",
     {
-      class: expanded
-        ? "curriculum-group is-expanded"
-        : "curriculum-group",
+      class: expanded ? "curriculum-group is-expanded" : "curriculum-group",
     },
     [
       h("div", { class: "curriculum-group-summary" }, [
@@ -268,16 +272,20 @@ function renderStatCells(summary: CurriculumStatsSummary): HTMLElement[] {
     statCell(formatNumber(summary.executionsToday)),
     statCell(formatDuration(summary.averageActiveSeconds7Days)),
     statCell(formatAverage(summary.averageExecutions7Days)),
-    statCell(summary.practicedDays7 === 0 ? "—" : String(summary.practicedDays7)),
+    statCell(
+      summary.practicedDays7 === 0 ? "—" : String(summary.practicedDays7),
+    ),
     statCell(formatDelta(summary.scoreDeltaTodayPercent)),
     statCell(formatDelta(summary.scoreDelta7DaysPercent)),
   ];
 }
 
 function statCell(value: string): HTMLElement {
-  return h("span", { class: value === "—" ? "curriculum-stat is-empty" : "curriculum-stat" }, [
-    value,
-  ]);
+  return h(
+    "span",
+    { class: value === "—" ? "curriculum-stat is-empty" : "curriculum-stat" },
+    [value],
+  );
 }
 
 function formatDuration(seconds: number | null): string {

@@ -20,6 +20,8 @@ export type Settings = {
   directionalLineGuides: boolean;
   /** Rendering style for 3D solid references. */
   solidReferenceStyle: SolidReferenceStyle;
+  /** Last selected home-page presentation. */
+  lastHomeView: HomeView;
 };
 
 const STORAGE_KEY = "draftsman-eye.settings.v1";
@@ -27,6 +29,8 @@ export const AUTO_REPEAT_DELAYS = [null, 1500, 2500, 4000] as const;
 export type AutoRepeatDelayMs = (typeof AUTO_REPEAT_DELAYS)[number];
 export const SOLID_REFERENCE_STYLES = ["wireframe", "shaded"] as const;
 export type SolidReferenceStyle = (typeof SOLID_REFERENCE_STYLES)[number];
+export const HOME_VIEWS = ["exercise-list", "curriculum"] as const;
+export type HomeView = (typeof HOME_VIEWS)[number];
 
 const DEFAULTS: Settings = {
   allowTouchDrawing: false,
@@ -37,6 +41,7 @@ const DEFAULTS: Settings = {
   autoRepeatDelayMs: 2500,
   directionalLineGuides: true,
   solidReferenceStyle: "wireframe",
+  lastHomeView: "exercise-list",
 };
 
 let cache: Settings | null = null;
@@ -106,6 +111,7 @@ function mergeWithDefaults(raw: unknown): Settings {
         ? src["directionalLineGuides"]
         : DEFAULTS.directionalLineGuides,
     solidReferenceStyle: parseSolidReferenceStyle(src["solidReferenceStyle"]),
+    lastHomeView: parseHomeView(src["lastHomeView"]),
   };
 }
 
@@ -119,4 +125,10 @@ function parseSolidReferenceStyle(raw: unknown): SolidReferenceStyle {
   return SOLID_REFERENCE_STYLES.includes(raw as SolidReferenceStyle)
     ? (raw as SolidReferenceStyle)
     : DEFAULTS.solidReferenceStyle;
+}
+
+function parseHomeView(raw: unknown): HomeView {
+  return HOME_VIEWS.includes(raw as HomeView)
+    ? (raw as HomeView)
+    : DEFAULTS.lastHomeView;
 }

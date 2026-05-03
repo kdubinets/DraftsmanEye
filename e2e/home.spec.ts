@@ -1,12 +1,17 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
 
-test("home page lists drills and auto entry point", async ({ page }) => {
+test("home page lists drills and switches to curriculum presentation", async ({
+  page,
+}) => {
   await page.goto("/");
 
   await expect(
     page.getByRole("heading", { level: 1, name: /choose a drill/i }),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Start Auto" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Curriculum" })).toBeVisible();
+  await expect(
+    page.getByText("Let the app choose the next drill."),
+  ).toHaveCount(0);
   await expect(
     page.getByRole("heading", {
       level: 3,
@@ -222,6 +227,20 @@ test("home page lists drills and auto entry point", async ({ page }) => {
       })
       .getByRole("button", { name: "Practice" }),
   ).toBeEnabled();
+
+  await page.getByRole("button", { name: "Curriculum" }).click();
+  await expect(page).toHaveURL("/");
+  await expect(
+    page.getByRole("button", { name: "Exercise List" }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: /Division/ })).toHaveAttribute(
+    "aria-expanded",
+    "true",
+  );
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "Exercise List" }),
+  ).toBeVisible();
 });
 
 test("settings page exposes install affordance when the browser allows it", async ({
@@ -916,9 +935,9 @@ test("trace line drill scores a stroke against the faint guide", async ({
     page.locator(".exercise-toolbar .line-angle-chart"),
   ).toBeVisible();
   await expect(page.locator(".line-angle-chart-sector")).toHaveCount(36);
-  await expect(
-    await storedLineAngleBuckets(page, "trace-line"),
-  ).toHaveLength(1);
+  await expect(await storedLineAngleBuckets(page, "trace-line")).toHaveLength(
+    1,
+  );
   await expect(
     canvas.locator(".freehand-target-correction-line"),
   ).toBeVisible();
@@ -2290,25 +2309,27 @@ async function scrollExerciseSvgPointIntoView(
   page: Page,
   point: { x: number; y: number },
 ): Promise<void> {
-  await page.getByTestId("exercise-canvas").evaluate((svgElement, sourcePoint) => {
-    const svg = svgElement as SVGSVGElement;
-    const matrix = svg.getScreenCTM();
-    if (!matrix) {
-      throw new Error("Expected exercise canvas to have a screen transform.");
-    }
+  await page
+    .getByTestId("exercise-canvas")
+    .evaluate((svgElement, sourcePoint) => {
+      const svg = svgElement as SVGSVGElement;
+      const matrix = svg.getScreenCTM();
+      if (!matrix) {
+        throw new Error("Expected exercise canvas to have a screen transform.");
+      }
 
-    const svgPoint = svg.createSVGPoint();
-    svgPoint.x = sourcePoint.x;
-    svgPoint.y = sourcePoint.y;
-    const transformed = svgPoint.matrixTransform(matrix);
-    const viewportMargin = 80;
-    if (
-      transformed.y < viewportMargin ||
-      transformed.y > window.innerHeight - viewportMargin
-    ) {
-      window.scrollBy(0, transformed.y - window.innerHeight / 2);
-    }
-  }, point);
+      const svgPoint = svg.createSVGPoint();
+      svgPoint.x = sourcePoint.x;
+      svgPoint.y = sourcePoint.y;
+      const transformed = svgPoint.matrixTransform(matrix);
+      const viewportMargin = 80;
+      if (
+        transformed.y < viewportMargin ||
+        transformed.y > window.innerHeight - viewportMargin
+      ) {
+        window.scrollBy(0, transformed.y - window.innerHeight / 2);
+      }
+    }, point);
 }
 
 async function targetPlusCenter(locator: Locator): Promise<{

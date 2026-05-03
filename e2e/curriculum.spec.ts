@@ -5,9 +5,9 @@ test("curriculum page renders hierarchy and remembers stage tabs", async ({
 }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Curriculum" }).click();
-  await expect(page).toHaveURL("/curriculum");
+  await expect(page).toHaveURL("/");
   await expect(
-    page.getByRole("heading", { level: 1, name: "Curriculum" }),
+    page.getByRole("heading", { level: 1, name: "Follow a practice path." }),
   ).toBeVisible();
 
   await expect(page.getByRole("button", { name: /Division/ })).toHaveAttribute(
@@ -110,8 +110,10 @@ test("curriculum practice returns to curriculum and records completions", async 
   await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await page.getByRole("button", { name: "Back to Curriculum" }).click();
 
-  await expect(page).toHaveURL("/curriculum");
-  const row = page.locator(".curriculum-row").filter({ hasText: "Horizontal Halves" });
+  await expect(page).toHaveURL("/");
+  const row = page
+    .locator(".curriculum-row")
+    .filter({ hasText: "Horizontal Halves" });
   await expect(row).toContainText("1");
 });
 
@@ -119,9 +121,7 @@ test("curriculum target settings appear on top-level groups", async ({
   page,
 }) => {
   await page.goto("/settings");
-  await page
-    .getByLabel("Division")
-    .fill("10");
+  await page.getByLabel("Division").fill("10");
 
   await page.getByRole("button", { name: "Back to list" }).click();
   await page.getByRole("button", { name: "Curriculum" }).click();

@@ -5,14 +5,13 @@
  *
  * URL scheme:
  *   /                        → list screen
- *   /curriculum              → curriculum screen
+ *   /curriculum              → legacy curriculum URL, now rendered on /
  *   /settings                → settings screen
  *   /exercise/:id            → exercise screen (source defaults to 'direct' on deep-link)
  */
 import "./styles/main.css";
 import { getMountableById } from "./exercises/registry";
 import { mountScreen } from "./app/screens";
-import { mountCurriculumScreen } from "./screens/curriculum";
 import { mountListScreen } from "./screens/list";
 import { mountSettingsScreen } from "./screens/settings";
 import { initializePwa } from "./app/pwa";
@@ -44,7 +43,7 @@ function stateFromUrl(): AppState {
     return { screen: "settings" };
   }
   if (pathname === "/curriculum") {
-    return { screen: "curriculum" };
+    return { screen: "list", homeView: "curriculum" };
   }
   return { screen: "list" };
 }
@@ -52,7 +51,6 @@ function stateFromUrl(): AppState {
 function urlFromState(state: AppState): string {
   if (state.screen === "exercise") return `/exercise/${state.exerciseId}`;
   if (state.screen === "settings") return "/settings";
-  if (state.screen === "curriculum") return "/curriculum";
   return "/";
 }
 
@@ -72,20 +70,13 @@ function mountState(state: AppState): void {
 
   if (state.screen === "list") {
     currentCleanup = mountScreen(root, (r) =>
-      mountListScreen(r, navigate, state.listState),
+      mountListScreen(r, navigate, state.listState, state.homeView),
     );
     return;
   }
 
   if (state.screen === "settings") {
     currentCleanup = mountScreen(root, (r) => mountSettingsScreen(r, navigate));
-    return;
-  }
-
-  if (state.screen === "curriculum") {
-    currentCleanup = mountScreen(root, (r) =>
-      mountCurriculumScreen(r, navigate),
-    );
     return;
   }
 
