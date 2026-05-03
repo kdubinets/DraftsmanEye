@@ -6,6 +6,7 @@ import {
   EXERCISES,
   getExerciseById,
   getAutoExercise,
+  isSolidExercise,
 } from "../practice/catalog";
 import type {
   ExerciseDefinition,
@@ -453,22 +454,6 @@ function toMountable(exercise: ExerciseDefinition): MountableExercise {
   };
 }
 
-function isSolidExercise(
-  exercise: ExerciseDefinition,
-): exercise is SolidExerciseDefinition {
-  return (
-    exercise.implemented &&
-    (exercise.kind === "solid-cube-2pt" ||
-      exercise.kind === "solid-box-2pt" ||
-      exercise.kind === "solid-triangular-prism-2pt" ||
-      exercise.kind === "solid-square-pyramid-2pt" ||
-      exercise.kind === "solid-triangular-pyramid-2pt" ||
-      exercise.kind === "flat-triangle" ||
-      exercise.kind === "flat-quadrilateral" ||
-      exercise.kind === "flat-pentagon" ||
-      exercise.kind === "flat-hexagon")
-  );
-}
 
 export const MOUNTABLE_EXERCISES: MountableExercise[] =
   EXERCISES.map(toMountable);

@@ -47,7 +47,7 @@ test("curriculum page renders hierarchy and remembers stage tabs", async ({
   await expect(
     page.getByText("Four-Sided Figure", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Solids" }).click();
+  await page.getByRole("button", { name: "Solids", exact: true }).click();
   await expect(
     page.getByText("Cube — 2-Point Perspective", { exact: true }),
   ).toBeVisible();

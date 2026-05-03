@@ -223,19 +223,34 @@ export type FreehandExerciseDefinition = ExerciseBase & {
     | "adjustable-line-1-shot";
 };
 
+export const SOLID_EXERCISE_KINDS = [
+  "solid-cube-2pt",
+  "solid-box-2pt",
+  "solid-triangular-prism-2pt",
+  "solid-square-pyramid-2pt",
+  "solid-triangular-pyramid-2pt",
+  "solid-cube-3pt",
+  "solid-box-3pt",
+  "solid-triangular-prism-3pt",
+  "solid-square-pyramid-3pt",
+  "solid-triangular-pyramid-3pt",
+  "flat-triangle",
+  "flat-quadrilateral",
+  "flat-pentagon",
+  "flat-hexagon",
+] as const;
+
 export type SolidExerciseDefinition = ExerciseBase & {
   implemented: true;
-  kind:
-    | "solid-cube-2pt"
-    | "solid-box-2pt"
-    | "solid-triangular-prism-2pt"
-    | "solid-square-pyramid-2pt"
-    | "solid-triangular-pyramid-2pt"
-    | "flat-triangle"
-    | "flat-quadrilateral"
-    | "flat-pentagon"
-    | "flat-hexagon";
+  kind: (typeof SOLID_EXERCISE_KINDS)[number];
 };
+
+export function isSolidExercise(
+  exercise: ExerciseDefinition,
+): exercise is SolidExerciseDefinition {
+  if (!exercise.implemented) return false;
+  return (SOLID_EXERCISE_KINDS as readonly string[]).includes(exercise.kind);
+}
 
 export type UnimplementedExerciseDefinition = ExerciseBase & {
   implemented: false;
@@ -433,6 +448,51 @@ export const EXERCISES: ExerciseDefinition[] = [
       "Build a rectangular box with varied proportions from a reference drawing.",
     implemented: true,
     kind: "solid-box-2pt",
+  },
+  {
+    id: "solids-cube-3pt",
+    family: "Solids",
+    label: "Cube — 3-Point Perspective",
+    description:
+      "Build the visible corner-and-edge graph of a cube from a steep bird's-eye or worm's-eye reference drawing.",
+    implemented: true,
+    kind: "solid-cube-3pt",
+  },
+  {
+    id: "solids-box-3pt",
+    family: "Solids",
+    label: "Box — 3-Point Perspective",
+    description:
+      "Build a rectangular box with varied proportions from a steep bird's-eye or worm's-eye reference drawing.",
+    implemented: true,
+    kind: "solid-box-3pt",
+  },
+  {
+    id: "solids-triangular-prism-3pt",
+    family: "Solids",
+    label: "Triangular Prism — 3-Point Perspective",
+    description:
+      "Build a triangular prism in standing or lying poses from a steep bird's-eye or worm's-eye reference drawing.",
+    implemented: true,
+    kind: "solid-triangular-prism-3pt",
+  },
+  {
+    id: "solids-square-pyramid-3pt",
+    family: "Solids",
+    label: "Square Pyramid — 3-Point Perspective",
+    description:
+      "Build the visible base and apex edges of a square pyramid from a steep bird's-eye or worm's-eye reference drawing.",
+    implemented: true,
+    kind: "solid-square-pyramid-3pt",
+  },
+  {
+    id: "solids-triangular-pyramid-3pt",
+    family: "Solids",
+    label: "Triangular Pyramid — 3-Point Perspective",
+    description:
+      "Build the visible base and apex edges of a triangular pyramid from a steep bird's-eye or worm's-eye reference drawing.",
+    implemented: true,
+    kind: "solid-triangular-pyramid-3pt",
   },
   ...angleCopyExercises(
     "angle-copy-horizontal-aligned",

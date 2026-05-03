@@ -174,6 +174,18 @@ export const CURRICULUM_GROUPS: CurriculumGroup[] = [
           "solids-triangular-pyramid-2pt",
         ],
       },
+      {
+        id: "solids-3pt",
+        label: "Solids 3pt",
+        title: "Solids — 3-Point Perspective",
+        exerciseIds: [
+          "solids-cube-3pt",
+          "solids-box-3pt",
+          "solids-triangular-prism-3pt",
+          "solids-square-pyramid-3pt",
+          "solids-triangular-pyramid-3pt",
+        ],
+      },
     ],
   },
   {

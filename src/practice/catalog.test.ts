@@ -1,5 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
-import { EXERCISES, getExerciseById, getAutoExercise } from "./catalog";
+import {
+  EXERCISES,
+  SOLID_EXERCISE_KINDS,
+  getExerciseById,
+  getAutoExercise,
+  isSolidExercise,
+} from "./catalog";
 import type { ExerciseId, SingleMarkExerciseDefinition } from "./catalog";
 import type { ProgressStore } from "../storage/progress";
 
@@ -19,6 +25,26 @@ function emptyProgress(): ProgressStore {
     },
   };
 }
+
+describe("isSolidExercise", () => {
+  it("returns true for every solid exercise kind in EXERCISES", () => {
+    const solidExercises = EXERCISES.filter((e) =>
+      e.implemented && SOLID_EXERCISE_KINDS.includes((e as any).kind),
+    );
+    expect(solidExercises.length).toBe(SOLID_EXERCISE_KINDS.length);
+    for (const ex of solidExercises) {
+      expect(isSolidExercise(ex)).toBe(true);
+    }
+  });
+
+  it("returns false for non-solid exercises", () => {
+    const nonSolid = EXERCISES.find(
+      (e) => e.implemented && !SOLID_EXERCISE_KINDS.includes((e as any).kind),
+    );
+    if (!nonSolid) return;
+    expect(isSolidExercise(nonSolid)).toBe(false);
+  });
+});
 
 describe("EXERCISES registry", () => {
   it("every id is reachable via getExerciseById", () => {

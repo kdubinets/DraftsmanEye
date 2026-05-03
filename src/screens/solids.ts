@@ -1011,7 +1011,12 @@ function isProjectedSolidKind(
     kind === "solid-box-2pt" ||
     kind === "solid-triangular-prism-2pt" ||
     kind === "solid-square-pyramid-2pt" ||
-    kind === "solid-triangular-pyramid-2pt"
+    kind === "solid-triangular-pyramid-2pt" ||
+    kind === "solid-cube-3pt" ||
+    kind === "solid-box-3pt" ||
+    kind === "solid-triangular-prism-3pt" ||
+    kind === "solid-square-pyramid-3pt" ||
+    kind === "solid-triangular-pyramid-3pt"
   );
 }
 
@@ -1087,7 +1092,17 @@ function randomSolidPose(
           ? squarePyramidPosePresets()
           : kind === "solid-triangular-pyramid-2pt"
             ? triangularPyramidPosePresets()
-            : cubePosePresets();
+            : kind === "solid-cube-3pt"
+              ? cubePosePresets3pt()
+              : kind === "solid-box-3pt"
+                ? boxPosePresets3pt()
+                : kind === "solid-triangular-prism-3pt"
+                  ? triangularPrismPosePresets3pt()
+                  : kind === "solid-square-pyramid-3pt"
+                    ? squarePyramidPosePresets3pt()
+                    : kind === "solid-triangular-pyramid-3pt"
+                      ? triangularPyramidPosePresets3pt()
+                      : cubePosePresets();
   return presets[Math.floor(Math.random() * presets.length)];
 }
 
@@ -1279,6 +1294,173 @@ function triangularPyramidPosePresets(): SolidPosePreset[] {
       model: TRIANGULAR_PYRAMID_SOLID,
       yawDegrees: [28, 58],
       pitchDegrees: [14, 28],
+      rollDegrees: [180, 180],
+      rollDirection: 1,
+    },
+  ];
+}
+
+function cubePosePresets3pt(): SolidPosePreset[] {
+  return [
+    { model: CUBE_SOLID, yawDegrees: [20, 70], pitchDegrees: [40, 60], pitchDirection: "either" },
+    { model: CUBE_SOLID, yawDegrees: [25, 65], pitchDegrees: [44, 62], pitchDirection: "either" },
+    {
+      model: CUBE_SOLID,
+      yawDegrees: [24, 62],
+      pitchDegrees: [40, 58],
+      pitchDirection: "either",
+      rollDegrees: [18, 38],
+      rollDirection: "either",
+    },
+    {
+      model: CUBE_SOLID,
+      yawDegrees: [28, 62],
+      pitchDegrees: [42, 60],
+      pitchDirection: "either",
+      rollDegrees: [48, 72],
+      rollDirection: "either",
+    },
+  ];
+}
+
+function boxPosePresets3pt(): SolidPosePreset[] {
+  return [
+    {
+      model: cuboidSolid(2.8, 1.45, 1.45),
+      yawDegrees: [24, 64],
+      pitchDegrees: [38, 58],
+      pitchDirection: "either",
+    },
+    {
+      model: cuboidSolid(2.8, 1.45, 1.45),
+      yawDegrees: [26, 64],
+      pitchDegrees: [40, 58],
+      pitchDirection: "either",
+      rollDegrees: [20, 42],
+      rollDirection: "either",
+    },
+    {
+      model: cuboidSolid(1.45, 2.8, 1.45),
+      yawDegrees: [24, 60],
+      pitchDegrees: [38, 56],
+      pitchDirection: "either",
+    },
+    {
+      model: cuboidSolid(1.45, 2.8, 1.45),
+      yawDegrees: [26, 58],
+      pitchDegrees: [40, 58],
+      pitchDirection: "either",
+      rollDegrees: [14, 28],
+      rollDirection: "either",
+    },
+    {
+      model: cuboidSolid(2.7, 0.9, 1.8),
+      yawDegrees: [22, 66],
+      pitchDegrees: [40, 58],
+      pitchDirection: "either",
+    },
+    {
+      model: cuboidSolid(1.55, 1.4, 2.8),
+      yawDegrees: [28, 68],
+      pitchDegrees: [38, 56],
+      pitchDirection: "either",
+    },
+  ];
+}
+
+function triangularPrismPosePresets3pt(): SolidPosePreset[] {
+  return [
+    {
+      model: TRIANGULAR_PRISM_LYING_SOLID,
+      yawDegrees: [24, 66],
+      pitchDegrees: [40, 58],
+      pitchDirection: "either",
+    },
+    {
+      model: TRIANGULAR_PRISM_LYING_SOLID,
+      yawDegrees: [24, 62],
+      pitchDegrees: [42, 58],
+      pitchDirection: "either",
+      rollDegrees: [46, 70],
+      rollDirection: "either",
+    },
+    {
+      model: TRIANGULAR_PRISM_STANDING_SOLID,
+      yawDegrees: [22, 58],
+      pitchDegrees: [40, 58],
+      pitchDirection: "either",
+    },
+    {
+      model: TRIANGULAR_PRISM_STANDING_SOLID,
+      yawDegrees: [28, 58],
+      pitchDegrees: [40, 56],
+      pitchDirection: "either",
+      rollDegrees: [10, 18],
+      rollDirection: "either",
+    },
+  ];
+}
+
+function squarePyramidPosePresets3pt(): SolidPosePreset[] {
+  return [
+    {
+      model: SQUARE_PYRAMID_SOLID,
+      yawDegrees: [24, 64],
+      pitchDegrees: [38, 58],
+      pitchDirection: "either",
+    },
+    {
+      model: SQUARE_PYRAMID_SOLID,
+      yawDegrees: [30, 58],
+      pitchDegrees: [42, 60],
+      pitchDirection: "either",
+    },
+    {
+      model: SQUARE_PYRAMID_SOLID,
+      yawDegrees: [26, 62],
+      pitchDegrees: [38, 56],
+      pitchDirection: "either",
+      rollDegrees: [16, 32],
+      rollDirection: "either",
+    },
+    {
+      model: SQUARE_PYRAMID_SOLID,
+      yawDegrees: [28, 60],
+      pitchDegrees: [40, 58],
+      pitchDirection: "either",
+      rollDegrees: [180, 180],
+      rollDirection: 1,
+    },
+  ];
+}
+
+function triangularPyramidPosePresets3pt(): SolidPosePreset[] {
+  return [
+    {
+      model: TRIANGULAR_PYRAMID_SOLID,
+      yawDegrees: [24, 60],
+      pitchDegrees: [40, 58],
+      pitchDirection: "either",
+    },
+    {
+      model: TRIANGULAR_PYRAMID_SOLID,
+      yawDegrees: [30, 58],
+      pitchDegrees: [42, 60],
+      pitchDirection: "either",
+    },
+    {
+      model: TRIANGULAR_PYRAMID_SOLID,
+      yawDegrees: [28, 60],
+      pitchDegrees: [40, 56],
+      pitchDirection: "either",
+      rollDegrees: [18, 34],
+      rollDirection: "either",
+    },
+    {
+      model: TRIANGULAR_PYRAMID_SOLID,
+      yawDegrees: [28, 58],
+      pitchDegrees: [40, 58],
+      pitchDirection: "either",
       rollDegrees: [180, 180],
       rollDirection: 1,
     },

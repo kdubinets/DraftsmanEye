@@ -30,6 +30,7 @@ describe("curriculum config", () => {
     expect(group?.stages?.map((stage) => stage.title)).toEqual([
       "Flat Shapes",
       "Solids",
+      "Solids — 3-Point Perspective",
     ]);
     expect(group?.stages?.map((stage) => stage.exerciseIds)).toEqual([
       [
@@ -44,6 +45,13 @@ describe("curriculum config", () => {
         "solids-triangular-prism-2pt",
         "solids-square-pyramid-2pt",
         "solids-triangular-pyramid-2pt",
+      ],
+      [
+        "solids-cube-3pt",
+        "solids-box-3pt",
+        "solids-triangular-prism-3pt",
+        "solids-square-pyramid-3pt",
+        "solids-triangular-pyramid-3pt",
       ],
     ]);
   });
