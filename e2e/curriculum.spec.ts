@@ -38,6 +38,31 @@ test("curriculum page renders hierarchy and remembers stage tabs", async ({
   await expect(
     page.getByText("Extrapolated Segment Intersection", { exact: true }),
   ).toBeVisible();
+
+  await page.getByRole("button", { name: /Straight Lines/ }).click();
+  await expect(page.getByRole("button", { name: "Freehand" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(page.getByText("Straight Line", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Target" }).click();
+  await expect(
+    page.getByText("Line Through Two Points", { exact: true }),
+  ).toBeVisible();
+
+  await page
+    .getByRole("button", { name: /Circle \/ Ellipse \/ Loopy Figures/ })
+    .click();
+  await expect(page.getByText("Circle", { exact: true })).toBeVisible();
+  await expect(page.getByText("Ellipse", { exact: true })).toBeVisible();
+  await expect(page.getByText("Free Loops", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Trace+" }).click();
+  await expect(page.getByText("Trace Circle", { exact: true })).toBeVisible();
+  await expect(page.getByText("Trace Ellipse", { exact: true })).toBeVisible();
+  await expect(page.getByText("Linear Loops", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Trace Archimedean Spiral — Right", { exact: true }),
+  ).toBeVisible();
 });
 
 test("curriculum practice returns to curriculum and records completions", async ({

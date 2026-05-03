@@ -17,7 +17,44 @@ describe("curriculum config", () => {
       "Length",
       "Angle",
       "Intersection",
-      "Straight Line Drawing",
+      "Straight Lines",
+      "Circle / Ellipse / Loopy Figures",
+    ]);
+  });
+
+  it("orders straight-line drawing from freehand through trace to target", () => {
+    const group = CURRICULUM_GROUPS.find(
+      (candidate) => candidate.id === "straight-lines",
+    );
+    expect(group?.stages?.map((stage) => stage.title)).toEqual([
+      "Freehand straight lines",
+      "Trace straight lines",
+      "Target drawing through 2 points",
+    ]);
+    expect(group?.stages?.map((stage) => stage.exerciseIds)).toEqual([
+      ["freehand-straight-line"],
+      ["trace-line"],
+      ["target-line-two-points"],
+    ]);
+  });
+
+  it("groups circle, ellipse, loops, and spirals into the requested progression", () => {
+    const group = CURRICULUM_GROUPS.find(
+      (candidate) => candidate.id === "circle-ellipse-loops",
+    );
+    expect(group?.stages?.map((stage) => stage.exerciseIds)).toEqual([
+      ["freehand-circle", "freehand-ellipse", "loop-chain-freehand"],
+      [
+        "trace-circle",
+        "trace-ellipse",
+        "loop-chain-linear",
+        "loop-chain-circular",
+        "loop-chain-wedge",
+        "trace-spiral-archimedean-right",
+        "trace-spiral-archimedean-left",
+        "trace-spiral-logarithmic-right",
+        "trace-spiral-logarithmic-left",
+      ],
     ]);
   });
 
