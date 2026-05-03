@@ -7,6 +7,11 @@ import {
   getSettings,
   updateSetting,
 } from "../storage/settings";
+import { CURRICULUM_GROUPS } from "../practice/curriculum";
+import {
+  dailyTargetMinutesForGroup,
+  setDailyTargetMinutesForGroup,
+} from "../storage/curriculumTargets";
 import { resetStoredProgress } from "../storage/progress";
 import { pageShell, actionButton } from "../render/components";
 import { h } from "../render/h";
@@ -52,6 +57,21 @@ export function mountSettingsScreen(
       "solid-reference-style",
       settings.solidReferenceStyle,
       (v) => updateSetting("solidReferenceStyle", v),
+    ),
+  ]);
+
+  const curriculumTargetSection = h("section", { class: "settings-section" }, [
+    h("h2", {}, ["Curriculum targets"]),
+    h("p", { class: "settings-note" }, [
+      "Daily practice targets are tracked per curriculum category. Leave blank for no target.",
+    ]),
+    ...CURRICULUM_GROUPS.map((group) =>
+      curriculumTargetInput(
+        `curriculum-target-${group.id}`,
+        group.title,
+        dailyTargetMinutesForGroup(group.id),
+        (minutes) => setDailyTargetMinutesForGroup(group.id, minutes),
+      ),
     ),
   ]);
 
@@ -121,6 +141,7 @@ export function mountSettingsScreen(
       loopSection,
       resultSection,
       referenceSection,
+      curriculumTargetSection,
       togglesSection,
       dangerSection,
       installSection,
@@ -128,6 +149,43 @@ export function mountSettingsScreen(
     ),
   );
   return cleanupInstallButton;
+}
+
+function curriculumTargetInput(
+  id: string,
+  label: string,
+  initialValue: number | null,
+  onChange: (value: number | null) => void,
+): HTMLElement {
+  const input = h("input", {
+    id,
+    class: "settings-number",
+    type: "number",
+    min: "0",
+    max: String(24 * 60),
+    step: "1",
+    inputMode: "numeric",
+    value: initialValue === null ? "" : String(initialValue),
+  });
+  input.addEventListener("change", () => {
+    onChange(parseTargetMinutes(input.value));
+    input.value = input.value === "0" ? "" : input.value;
+  });
+
+  return h("div", { class: "settings-row" }, [
+    h("div", { class: "settings-label-group" }, [
+      h("label", { htmlFor: id, class: "settings-label" }, [label]),
+      h("p", { class: "settings-note" }, ["Target minutes per day"]),
+    ]),
+    input,
+  ]);
+}
+
+function parseTargetMinutes(value: string): number | null {
+  if (value.trim() === "") return null;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return null;
+  return numeric;
 }
 
 function solidReferenceStyleSelect(

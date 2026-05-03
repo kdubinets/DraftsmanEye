@@ -29,7 +29,8 @@ function emptyProgress(): ProgressStore {
 describe("isSolidExercise", () => {
   it("returns true for every solid exercise kind in EXERCISES", () => {
     const solidExercises = EXERCISES.filter((e) =>
-      e.implemented && SOLID_EXERCISE_KINDS.includes((e as any).kind),
+      e.implemented &&
+      (SOLID_EXERCISE_KINDS as readonly string[]).includes(e.kind),
     );
     expect(solidExercises.length).toBe(SOLID_EXERCISE_KINDS.length);
     for (const ex of solidExercises) {
@@ -39,7 +40,9 @@ describe("isSolidExercise", () => {
 
   it("returns false for non-solid exercises", () => {
     const nonSolid = EXERCISES.find(
-      (e) => e.implemented && !SOLID_EXERCISE_KINDS.includes((e as any).kind),
+      (e) =>
+        e.implemented &&
+        !(SOLID_EXERCISE_KINDS as readonly string[]).includes(e.kind),
     );
     if (!nonSolid) return;
     expect(isSolidExercise(nonSolid)).toBe(false);

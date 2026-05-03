@@ -12,7 +12,6 @@ import type {
   ExerciseDefinition,
   ExerciseId,
   FreehandExerciseDefinition,
-  SolidExerciseDefinition,
 } from "../practice/catalog";
 import { mountSingleMarkScreen } from "../screens/singleMark";
 import { mountFreehandScreen } from "../screens/freehand";

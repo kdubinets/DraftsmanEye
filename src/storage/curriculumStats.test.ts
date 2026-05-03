@@ -19,6 +19,7 @@ vi.stubGlobal("window", { localStorage: localStorageMock });
 import {
   _resetCurriculumStatsCache,
   aggregateCurriculumSummaries,
+  calendarAverageActiveSecondsForExercises,
   curriculumSummaryForExercise,
   curriculumSummaryForExercises,
   getCurriculumStatsStore,
@@ -96,6 +97,28 @@ describe("curriculum stats storage", () => {
     expect(summary.averageActiveSeconds7Days).toBe(60);
     expect(summary.averageExecutions7Days).toBe(1);
     expect(summary.scoreDelta7DaysPercent).toBe(12);
+  });
+
+  it("computes calendar-day active-time averages including missed days", () => {
+    recordCurriculumActiveTime(
+      "division-horizontal-halves",
+      70,
+      new Date(2026, 3, 29),
+    );
+    recordCurriculumActiveTime(
+      "division-horizontal-halves",
+      140,
+      new Date(2026, 4, 3),
+    );
+
+    expect(
+      calendarAverageActiveSecondsForExercises(
+        getCurriculumStatsStore(),
+        ["division-horizontal-halves"],
+        7,
+        new Date(2026, 4, 3),
+      ),
+    ).toBe(30);
   });
 
   it("aggregates count-like stats by sum and score deltas by average", () => {

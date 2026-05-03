@@ -56,6 +56,10 @@ test("curriculum page renders hierarchy and remembers stage tabs", async ({
       exact: true,
     }),
   ).toBeVisible();
+  const tableOverflows = await page
+    .locator(".curriculum-table")
+    .evaluate((element) => element.scrollWidth > element.clientWidth);
+  expect(tableOverflows).toBe(false);
 
   await page.getByRole("button", { name: /Straight Lines/ }).click();
   await expect(page.getByRole("button", { name: "Freehand" })).toHaveAttribute(
@@ -90,7 +94,7 @@ test("curriculum practice returns to curriculum and records completions", async 
   await page
     .locator(".curriculum-row")
     .filter({ hasText: "Horizontal Halves" })
-    .getByRole("button", { name: "Practice" })
+    .getByRole("button", { name: "Horizontal Halves" })
     .click();
 
   await expect(
@@ -109,4 +113,23 @@ test("curriculum practice returns to curriculum and records completions", async 
   await expect(page).toHaveURL("/curriculum");
   const row = page.locator(".curriculum-row").filter({ hasText: "Horizontal Halves" });
   await expect(row).toContainText("1");
+});
+
+test("curriculum target settings appear on top-level groups", async ({
+  page,
+}) => {
+  await page.goto("/settings");
+  await page
+    .getByLabel("Division")
+    .fill("10");
+
+  await page.getByRole("button", { name: "Back to list" }).click();
+  await page.getByRole("button", { name: "Curriculum" }).click();
+
+  await expect(page.getByRole("button", { name: /Division/ })).toContainText(
+    "Need 10m today",
+  );
+  await expect(page.getByRole("button", { name: /Division/ })).toContainText(
+    "10m below 7d target",
+  );
 });

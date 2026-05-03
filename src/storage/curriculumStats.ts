@@ -148,6 +148,22 @@ export function curriculumSummaryForExercises(
   };
 }
 
+export function calendarAverageActiveSecondsForExercises(
+  store: CurriculumStatsStore,
+  exerciseIds: readonly ExerciseId[],
+  dayCount = 7,
+  now = new Date(),
+): number {
+  const windowKeys = lastCalendarDayKeys(now, dayCount);
+  return (
+    sum(
+      windowKeys.map(
+        (key) => daySummaryForExercises(store, key, exerciseIds).activeSeconds,
+      ),
+    ) / dayCount
+  );
+}
+
 function curriculumSummaryForSingleExercise(
   store: CurriculumStatsStore,
   exerciseId: ExerciseId,

@@ -11,17 +11,19 @@ import {
   type CurriculumStage,
 } from "../practice/curriculum";
 import {
+  calendarAverageActiveSecondsForExercises,
   curriculumSummaryForExercise,
   curriculumSummaryForExercises,
   getCurriculumStatsStore,
   type CurriculumStatsSummary,
 } from "../storage/curriculumStats";
+import { dailyTargetMinutesForGroup } from "../storage/curriculumTargets";
 import {
   getCurriculumUiStore,
   setCurriculumExpandedGroup,
   setCurriculumSelectedStage,
 } from "../storage/curriculumUi";
-import { pageShell, actionButton } from "../render/components";
+import { pageShell } from "../render/components";
 import { h } from "../render/h";
 import type { AppState } from "../app/state";
 
@@ -109,6 +111,15 @@ function renderGroup(
 ): HTMLElement {
   const exerciseIds = exerciseIdsForGroup(group);
   const groupSummary = curriculumSummaryForExercises(statsStore, exerciseIds);
+  const targetMinutes = dailyTargetMinutesForGroup(group.id);
+  const targetSummary =
+    targetMinutes === null
+      ? null
+      : curriculumTargetSummary(
+          groupSummary.activeSecondsToday ?? 0,
+          calendarAverageActiveSecondsForExercises(statsStore, exerciseIds),
+          targetMinutes,
+        );
   const body = h("div", { class: "curriculum-group-body" });
   if (expanded) {
     if (group.stages && group.stages.length > 0) {
@@ -133,10 +144,15 @@ function renderGroup(
       on: { click: () => onExpand(group.id) },
     },
     [
-      h("span", { class: "curriculum-group-name" }, [group.title]),
-      h("span", { class: "curriculum-group-count" }, [
-        `${exerciseIds.length} drills`,
+      h("span", { class: "curriculum-group-title" }, [
+        h("span", { class: "curriculum-group-name" }, [group.title]),
+        h("span", { class: "curriculum-group-count" }, [
+          `${exerciseIds.length} drills`,
+        ]),
       ]),
+      targetSummary
+        ? h("span", { class: "curriculum-target-summary" }, [targetSummary])
+        : null,
     ],
   );
   toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
@@ -217,7 +233,6 @@ function renderHeaderRow(): HTMLElement {
     h("span", {}, ["Days"]),
     h("span", {}, ["Today Δ"]),
     h("span", {}, ["7d Δ"]),
-    h("span", {}, [""]),
   ]);
 }
 
@@ -227,15 +242,23 @@ function renderExerciseRow(
   onNavigate: (next: AppState) => void,
 ): HTMLElement {
   return h("div", { class: "curriculum-row" }, [
-    h("span", { class: "curriculum-exercise-name" }, [exercise.label]),
-    ...renderStatCells(summary),
-    actionButton("Practice", () =>
-      onNavigate({
-        screen: "exercise",
-        exerciseId: exercise.id,
-        source: "curriculum",
-      }),
+    h(
+      "button",
+      {
+        type: "button",
+        class: "curriculum-exercise-action",
+        on: {
+          click: () =>
+            onNavigate({
+              screen: "exercise",
+              exerciseId: exercise.id,
+              source: "curriculum",
+            }),
+        },
+      },
+      [exercise.label],
     ),
+    ...renderStatCells(summary),
   ]);
 }
 
@@ -277,6 +300,21 @@ function formatDelta(value: number | null): string {
   if (value === null) return "—";
   const rounded = Math.round(value * 10) / 10;
   return rounded > 0 ? `+${rounded}%` : `${rounded}%`;
+}
+
+function curriculumTargetSummary(
+  activeSecondsToday: number,
+  averageActiveSeconds7Days: number,
+  targetMinutes: number,
+): string {
+  const targetSeconds = targetMinutes * 60;
+  const remainingSeconds = Math.max(0, targetSeconds - activeSecondsToday);
+  const averageDeltaSeconds = averageActiveSeconds7Days - targetSeconds;
+  const averageStatus =
+    averageDeltaSeconds >= 0
+      ? `${formatDuration(averageDeltaSeconds)} above 7d target`
+      : `${formatDuration(Math.abs(averageDeltaSeconds))} below 7d target`;
+  return `Need ${formatDuration(remainingSeconds)} today · ${averageStatus}`;
 }
 
 function validGroupId(value: string | undefined): string | undefined {
