@@ -39,6 +39,24 @@ test("curriculum page renders hierarchy and remembers stage tabs", async ({
     page.getByText("Extrapolated Segment Intersection", { exact: true }),
   ).toBeVisible();
 
+  await page.getByRole("button", { name: /Figure Representation/ }).click();
+  await expect(
+    page.getByRole("button", { name: "Flat Shapes" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("Triangle", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Four-Sided Figure", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Solids" }).click();
+  await expect(
+    page.getByText("Cube — 2-Point Perspective", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Triangular Pyramid — 2-Point Perspective", {
+      exact: true,
+    }),
+  ).toBeVisible();
+
   await page.getByRole("button", { name: /Straight Lines/ }).click();
   await expect(page.getByRole("button", { name: "Freehand" })).toHaveAttribute(
     "aria-pressed",

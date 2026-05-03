@@ -148,6 +148,35 @@ export const CURRICULUM_GROUPS: CurriculumGroup[] = [
     exerciseIds: ["intersection-random", "intersection-extrapolated"],
   },
   {
+    id: "figure-representation",
+    title: "Figure Representation",
+    stages: [
+      {
+        id: "flat-shapes",
+        label: "Flat Shapes",
+        title: "Flat Shapes",
+        exerciseIds: [
+          "flat-triangle",
+          "flat-quadrilateral",
+          "flat-pentagon",
+          "flat-hexagon",
+        ],
+      },
+      {
+        id: "solids",
+        label: "Solids",
+        title: "Solids",
+        exerciseIds: [
+          "solids-cube-2pt",
+          "solids-box-2pt",
+          "solids-triangular-prism-2pt",
+          "solids-square-pyramid-2pt",
+          "solids-triangular-pyramid-2pt",
+        ],
+      },
+    ],
+  },
+  {
     id: "straight-lines",
     title: "Straight Lines",
     stages: [

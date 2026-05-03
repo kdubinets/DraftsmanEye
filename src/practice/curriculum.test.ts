@@ -17,8 +17,34 @@ describe("curriculum config", () => {
       "Length",
       "Angle",
       "Intersection",
+      "Figure Representation",
       "Straight Lines",
       "Circle / Ellipse / Loopy Figures",
+    ]);
+  });
+
+  it("groups figure representation from flat shapes to solids", () => {
+    const group = CURRICULUM_GROUPS.find(
+      (candidate) => candidate.id === "figure-representation",
+    );
+    expect(group?.stages?.map((stage) => stage.title)).toEqual([
+      "Flat Shapes",
+      "Solids",
+    ]);
+    expect(group?.stages?.map((stage) => stage.exerciseIds)).toEqual([
+      [
+        "flat-triangle",
+        "flat-quadrilateral",
+        "flat-pentagon",
+        "flat-hexagon",
+      ],
+      [
+        "solids-cube-2pt",
+        "solids-box-2pt",
+        "solids-triangular-prism-2pt",
+        "solids-square-pyramid-2pt",
+        "solids-triangular-pyramid-2pt",
+      ],
     ]);
   });
 
