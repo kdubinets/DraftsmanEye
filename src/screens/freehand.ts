@@ -6,6 +6,8 @@ import type {
 } from "../practice/catalog";
 import { getStoredProgress, updateStoredProgress } from "../storage/progress";
 import type { ProgressAttemptMetadata, ProgressStore } from "../storage/progress";
+import { startActivePracticeTimer } from "../storage/activePracticeTimer";
+import { recordCurriculumCompletion } from "../storage/curriculumStats";
 import { getSettings } from "../storage/settings";
 import { distanceBetween } from "../geometry/primitives";
 import { s, h } from "../render/h";
@@ -77,7 +79,7 @@ export function mountFreehandScreen(
   root: HTMLElement,
   exercise: ExerciseDefinition,
   config: FreehandExerciseConfig,
-  source: "direct" | "auto",
+  source: "direct" | "auto" | "curriculum",
   onNavigate: (next: AppState) => void,
   listState?: ListFilterState,
 ): () => void {
@@ -106,6 +108,7 @@ export function mountFreehandScreen(
     (exercise as FreehandExerciseDefinition).inputMode ?? "single-stroke";
   const isAdjustableLineMode =
     inputMode === "adjustable-line" || inputMode === "adjustable-line-1-shot";
+  const stopActiveTimer = startActivePracticeTimer(exercise.id, root);
 
   const isClosedShapeExercise = config.isClosedShape;
 
@@ -145,9 +148,16 @@ export function mountFreehandScreen(
 
   const fullBtn = fullscreenButton(stage);
 
-  const backBtn = actionButton("Back to List", () => {
-    onNavigate({ screen: "list", listState });
-  });
+  const backBtn = actionButton(
+    source === "curriculum" ? "Back to Curriculum" : "Back to List",
+    () => {
+      onNavigate(
+        source === "curriculum"
+          ? { screen: "curriculum" }
+          : { screen: "list", listState },
+      );
+    },
+  );
 
   const toolbar = exerciseToolbar(
     prompt,
@@ -426,6 +436,7 @@ export function mountFreehandScreen(
   return () => {
     cancelled = true;
     clearAutoResetTimer();
+    stopActiveTimer();
     window.removeEventListener("pointerup", finishAdjustableDrag);
     window.removeEventListener("pointercancel", finishAdjustableDrag);
     if (escapeListener !== null) {
@@ -495,12 +506,21 @@ export function mountFreehandScreen(
     result = next;
     pendingResult = null;
     commitBtn.disabled = true;
+    const previousProgress = getStoredProgress();
     const nextProgress = updateStoredProgress(
       exercise.id,
       result.score,
       0,
       progressMetadataForResult(exercise.id, result, points),
     );
+    const nextAggregate = nextProgress.aggregates[exercise.id];
+    if (nextAggregate) {
+      recordCurriculumCompletion(
+        exercise.id,
+        nextAggregate.ema,
+        previousProgress.aggregates[exercise.id]?.ema,
+      );
+    }
     if (lineAngleWidget) {
       renderLineAngleWidget(lineAngleWidget, nextProgress, exercise.id);
     }

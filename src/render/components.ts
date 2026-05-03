@@ -8,11 +8,15 @@ export function pageShell(...children: HTMLElement[]): HTMLElement {
 
 export function exerciseHeader(
   exercise: ExerciseDefinition,
-  source: "direct" | "auto",
+  source: "direct" | "auto" | "curriculum",
 ): HTMLElement {
   return h("header", { class: "exercise-header" }, [
     h("p", { class: "eyebrow" }, [
-      source === "auto" ? "Auto Drill" : exercise.family,
+      source === "auto"
+        ? "Auto Drill"
+        : source === "curriculum"
+          ? "Curriculum"
+          : exercise.family,
     ]),
     h("h1", { class: "exercise-title" }, [exercise.label]),
     h("p", { class: "hero-copy" }, [exercise.description]),

@@ -103,6 +103,15 @@ function headerBlock(onNavigate: (next: AppState) => void): HTMLElement {
           {
             type: "button",
             class: "hero-settings-link",
+            on: { click: () => onNavigate({ screen: "curriculum" }) },
+          },
+          ["Curriculum"],
+        ),
+        h(
+          "button",
+          {
+            type: "button",
+            class: "hero-settings-link",
             on: { click: () => onNavigate({ screen: "settings" }) },
           },
           ["Settings"],

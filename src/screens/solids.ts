@@ -34,7 +34,9 @@ import type {
   SolidReferenceGraph,
   SolidScoreResult,
 } from "../scoring/solids";
-import { updateStoredProgress } from "../storage/progress";
+import { getStoredProgress, updateStoredProgress } from "../storage/progress";
+import { startActivePracticeTimer } from "../storage/activePracticeTimer";
+import { recordCurriculumCompletion } from "../storage/curriculumStats";
 import { getSettings } from "../storage/settings";
 import type { AppState, ListFilterState } from "../app/state";
 
@@ -93,7 +95,7 @@ type ProjectedSolidKind = Exclude<
 export function mountSolidsScreen(
   root: HTMLElement,
   exercise: SolidExerciseDefinition,
-  source: "direct" | "auto",
+  source: "direct" | "auto" | "curriculum",
   onNavigate: (next: AppState) => void,
   listState?: ListFilterState,
 ): () => void {
@@ -115,6 +117,7 @@ export function mountSolidsScreen(
   let transformMode = false;
   let referencePanelWidth = 260;
   const settings = getSettings();
+  const stopActiveTimer = startActivePracticeTimer(exercise.id, root);
 
   const screen = pageShell();
   const header = exerciseHeader(exercise, source);
@@ -153,9 +156,16 @@ export function mountSolidsScreen(
   const againBtn = actionButton("Again", resetToFreshTrial);
   againBtn.hidden = true;
   const fullBtn = fullscreenButton(stage);
-  const backBtn = actionButton("Back to List", () => {
-    onNavigate({ screen: "list", listState });
-  });
+  const backBtn = actionButton(
+    source === "curriculum" ? "Back to Curriculum" : "Back to List",
+    () => {
+      onNavigate(
+        source === "curriculum"
+          ? { screen: "curriculum" }
+          : { screen: "list", listState },
+      );
+    },
+  );
 
   const toolbar = exerciseToolbar(
     prompt,
@@ -237,6 +247,7 @@ export function mountSolidsScreen(
 
   return () => {
     cancelled = true;
+    stopActiveTimer();
     svg.removeEventListener("pointerdown", handlePointerDown);
     svg.removeEventListener("pointermove", handlePointerMove);
     svg.removeEventListener("pointerup", handlePointerUp);
@@ -490,7 +501,16 @@ export function mountSolidsScreen(
     }
 
     result = next;
-    updateStoredProgress(exercise.id, next.score, 0);
+    const previousProgress = getStoredProgress();
+    const nextProgress = updateStoredProgress(exercise.id, next.score, 0);
+    const nextAggregate = nextProgress.aggregates[exercise.id];
+    if (nextAggregate) {
+      recordCurriculumCompletion(
+        exercise.id,
+        nextAggregate.ema,
+        previousProgress.aggregates[exercise.id]?.ema,
+      );
+    }
 
     const hue = feedbackHueForError(next.relativeErrorPercent);
     const cls = feedbackBandClass(next.relativeErrorPercent);

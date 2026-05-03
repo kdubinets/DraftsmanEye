@@ -1747,6 +1747,158 @@ button {
   color: var(--accent);
 }
 
+.curriculum-header,
+.curriculum-group {
+  background: var(--surface);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: 0 12px 30px rgba(70, 51, 32, 0.08);
+}
+
+.curriculum-header {
+  padding: 1.5rem;
+}
+
+.curriculum-header h1 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  font-weight: 600;
+}
+
+.curriculum-group-list {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.curriculum-group {
+  padding: 0.9rem;
+}
+
+.curriculum-group-summary {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) repeat(7, minmax(4.6rem, auto));
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.curriculum-group-toggle {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.curriculum-group-name {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.curriculum-group-count,
+.curriculum-stage-title,
+.curriculum-stat.is-empty {
+  color: var(--muted);
+}
+
+.curriculum-group-count {
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.curriculum-group-body {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.8rem;
+}
+
+.curriculum-stage-tabs {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+  padding-bottom: 0.15rem;
+  scrollbar-width: thin;
+}
+
+.curriculum-stage-tab {
+  flex: 0 0 auto;
+  min-height: 2rem;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-strong);
+  color: #4e4136;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 650;
+}
+
+.curriculum-stage-tab.is-active {
+  background: var(--accent-soft);
+  border-color: rgba(122, 77, 34, 0.28);
+}
+
+.curriculum-stage-title {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.curriculum-table {
+  display: grid;
+  gap: 0.35rem;
+  overflow-x: auto;
+}
+
+.curriculum-row {
+  display: grid;
+  grid-template-columns: minmax(13rem, 1fr) repeat(7, minmax(4.6rem, auto)) auto;
+  gap: 0.55rem;
+  align-items: center;
+  min-width: 760px;
+  padding: 0.45rem 0;
+  border-top: 1px solid rgba(77, 58, 37, 0.1);
+}
+
+.curriculum-row-header {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.curriculum-exercise-name {
+  min-width: 0;
+  font-weight: 650;
+}
+
+.curriculum-stat {
+  color: #3f3127;
+  font-size: 0.88rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.curriculum-row .secondary-action {
+  justify-self: end;
+  padding: 0.45rem 0.75rem;
+}
+
+@media (max-width: 820px) {
+  .curriculum-group-summary {
+    grid-template-columns: 1fr repeat(3, minmax(4.5rem, auto));
+  }
+
+  .curriculum-group-summary .curriculum-stat:nth-of-type(n + 4) {
+    display: none;
+  }
+}
+
 .install-help {
   display: block;
   max-width: 24rem;

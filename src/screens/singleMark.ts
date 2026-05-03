@@ -14,6 +14,8 @@ import type {
 } from "../practice/catalog";
 import { getStoredProgress, updateStoredProgress } from "../storage/progress";
 import type { ProgressStore } from "../storage/progress";
+import { startActivePracticeTimer } from "../storage/activePracticeTimer";
+import { recordCurriculumCompletion } from "../storage/curriculumStats";
 import { getSettings } from "../storage/settings";
 import {
   DIVISION_DIRECTION_BUCKETS,
@@ -48,7 +50,7 @@ import type { AppState, ListFilterState } from "../app/state";
 export function mountSingleMarkScreen(
   root: HTMLElement,
   exercise: SingleMarkExerciseDefinition,
-  source: "direct" | "auto",
+  source: "direct" | "auto" | "curriculum",
   onNavigate: (next: AppState) => void,
   listState?: ListFilterState,
 ): () => void {
@@ -67,6 +69,7 @@ export function mountSingleMarkScreen(
   const autoRepeatDelayMs = settings.autoRepeatDelayMs;
   const showResultString = settings.showResultString;
   const showScoreBoxes = settings.showScoreBoxes;
+  const stopActiveTimer = startActivePracticeTimer(exercise.id, root);
 
   const screen = pageShell();
   const header = exerciseHeader(exercise, source);
@@ -100,9 +103,16 @@ export function mountSingleMarkScreen(
 
   const fullBtn = fullscreenButton(stage);
 
-  const backBtn = actionButton("Back to List", () => {
-    onNavigate({ screen: "list", listState });
-  });
+  const backBtn = actionButton(
+    source === "curriculum" ? "Back to Curriculum" : "Back to List",
+    () => {
+      onNavigate(
+        source === "curriculum"
+          ? { screen: "curriculum" }
+          : { screen: "list", listState },
+      );
+    },
+  );
 
   const toolbar = exerciseToolbar(
     prompt,
@@ -209,6 +219,7 @@ export function mountSingleMarkScreen(
   return () => {
     cancelled = true;
     clearAutoResetTimer();
+    stopActiveTimer();
   };
 
   function onSelect(scalar: number): void {
@@ -279,13 +290,21 @@ export function mountSingleMarkScreen(
     const revealScrollX = window.scrollX;
     const revealScrollY = window.scrollY;
     result = next;
-    updateStoredProgress(
+    const previousProgress = getStoredProgress();
+    const nextProgress = updateStoredProgress(
       exercise.id,
       result.relativeAccuracyPercent,
       result.signedErrorPixels,
       trial.progressMetadata,
     );
-    const nextProgress = getStoredProgress();
+    const nextAggregate = nextProgress.aggregates[exercise.id];
+    if (nextAggregate) {
+      recordCurriculumCompletion(
+        exercise.id,
+        nextAggregate.ema,
+        previousProgress.aggregates[exercise.id]?.ema,
+      );
+    }
     if (divisionLengthWidget) {
       renderDivisionPracticeWidget(
         divisionLengthWidget,

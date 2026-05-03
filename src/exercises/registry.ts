@@ -50,7 +50,7 @@ import type { AppState, ListFilterState } from "../app/state";
 export type MountableExercise = ExerciseDefinition & {
   mount(
     root: HTMLElement,
-    source: "direct" | "auto",
+    source: "direct" | "auto" | "curriculum",
     onNavigate: (next: AppState) => void,
     listState?: ListFilterState,
   ): () => void;

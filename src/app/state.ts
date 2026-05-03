@@ -8,10 +8,11 @@ export type ListFilterState = {
 
 export type AppState =
   | { screen: "list"; listState?: ListFilterState }
+  | { screen: "curriculum" }
   | { screen: "settings" }
   | {
       screen: "exercise";
       exerciseId: ExerciseId;
-      source: "direct" | "auto";
+      source: "direct" | "auto" | "curriculum";
       listState?: ListFilterState;
     };

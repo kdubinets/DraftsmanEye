@@ -5,12 +5,14 @@
  *
  * URL scheme:
  *   /                        → list screen
+ *   /curriculum              → curriculum screen
  *   /settings                → settings screen
  *   /exercise/:id            → exercise screen (source defaults to 'direct' on deep-link)
  */
 import "./styles/main.css";
 import { getMountableById } from "./exercises/registry";
 import { mountScreen } from "./app/screens";
+import { mountCurriculumScreen } from "./screens/curriculum";
 import { mountListScreen } from "./screens/list";
 import { mountSettingsScreen } from "./screens/settings";
 import { initializePwa } from "./app/pwa";
@@ -41,12 +43,16 @@ function stateFromUrl(): AppState {
   if (pathname === "/settings") {
     return { screen: "settings" };
   }
+  if (pathname === "/curriculum") {
+    return { screen: "curriculum" };
+  }
   return { screen: "list" };
 }
 
 function urlFromState(state: AppState): string {
   if (state.screen === "exercise") return `/exercise/${state.exerciseId}`;
   if (state.screen === "settings") return "/settings";
+  if (state.screen === "curriculum") return "/curriculum";
   return "/";
 }
 
@@ -73,6 +79,13 @@ function mountState(state: AppState): void {
 
   if (state.screen === "settings") {
     currentCleanup = mountScreen(root, (r) => mountSettingsScreen(r, navigate));
+    return;
+  }
+
+  if (state.screen === "curriculum") {
+    currentCleanup = mountScreen(root, (r) =>
+      mountCurriculumScreen(r, navigate),
+    );
     return;
   }
 
