@@ -12,6 +12,10 @@ import type {
 import { startActivePracticeTimer } from "../storage/activePracticeTimer";
 import { recordCurriculumCompletion } from "../storage/curriculumStats";
 import { getSettings } from "../storage/settings";
+import {
+  createDoubleTapCommitDetector,
+  installSpaceCommitShortcut,
+} from "../input/commitGestures";
 import { distanceBetween } from "../geometry/primitives";
 import { s, h } from "../render/h";
 import {
@@ -143,6 +147,19 @@ export function mountFreehandScreen(
   commitBtn.hidden =
     inputMode === "single-stroke" || inputMode === "adjustable-line-1-shot";
   commitBtn.disabled = true;
+  const hasManualCommit =
+    inputMode === "unlimited-strokes" || inputMode === "adjustable-line";
+  const canCommitPendingResult = (): boolean =>
+    hasManualCommit &&
+    result === null &&
+    !commitBtn.hidden &&
+    !commitBtn.disabled;
+  const removeSpaceCommitShortcut = hasManualCommit
+    ? installSpaceCommitShortcut({
+        canCommit: canCommitPendingResult,
+        onCommit: commitPendingResult,
+      })
+    : null;
 
   const resetLineBtn = actionButton("Reset", () => {
     resetAdjustableLine();
@@ -329,6 +346,16 @@ export function mountFreehandScreen(
     ],
   );
   svg.dataset.testid = "freehand-canvas";
+  const doubleTapCommit = createDoubleTapCommitDetector({
+    canCommit: canCommitPendingResult,
+    isSafeCommitPoint: isSafeFreehandCommitTap,
+    onCommit: commitPendingResult,
+  });
+  if (hasManualCommit) {
+    svg.addEventListener("pointerdown", doubleTapCommit.onPointerDown);
+    svg.addEventListener("pointerup", doubleTapCommit.onPointerUp);
+    svg.addEventListener("pointercancel", doubleTapCommit.reset);
+  }
 
   svg.addEventListener("pointerdown", (event) => {
     event.preventDefault();
@@ -438,6 +465,7 @@ export function mountFreehandScreen(
     cancelled = true;
     clearAutoResetTimer();
     stopActiveTimer();
+    removeSpaceCommitShortcut?.();
     window.removeEventListener("pointerup", finishAdjustableDrag);
     window.removeEventListener("pointercancel", finishAdjustableDrag);
     if (escapeListener !== null) {
@@ -445,6 +473,61 @@ export function mountFreehandScreen(
       escapeListener = null;
     }
   };
+
+  function isSafeFreehandCommitTap(event: PointerEvent): boolean {
+    const point = freehandPointFromEvent(svg, event);
+    if (!point) return false;
+
+    if (!isAdjustableLineMode) {
+      const edgeMargin = 48;
+      return (
+        point.x < edgeMargin ||
+        point.x > CANVAS_WIDTH - edgeMargin ||
+        point.y < edgeMargin ||
+        point.y > CANVAS_HEIGHT - edgeMargin
+      );
+    }
+
+    const start = adjustableLinePoint("x1", "y1");
+    const end = adjustableLinePoint("x2", "y2");
+    return (
+      distanceBetween(point, end) > 80 &&
+      distanceToSegment(point, start, end) > 56
+    );
+  }
+
+  function adjustableLinePoint(
+    xAttribute: "x1" | "x2",
+    yAttribute: "y1" | "y2",
+  ): { x: number; y: number } {
+    return {
+      x: Number(adjustableLine.getAttribute(xAttribute)),
+      y: Number(adjustableLine.getAttribute(yAttribute)),
+    };
+  }
+
+  function distanceToSegment(
+    point: { x: number; y: number },
+    start: { x: number; y: number },
+    end: { x: number; y: number },
+  ): number {
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const lengthSquared = dx * dx + dy * dy;
+    if (lengthSquared === 0) return distanceBetween(point, start);
+    const ratio = Math.max(
+      0,
+      Math.min(
+        1,
+        ((point.x - start.x) * dx + (point.y - start.y) * dy) /
+          lengthSquared,
+      ),
+    );
+    return distanceBetween(point, {
+      x: start.x + dx * ratio,
+      y: start.y + dy * ratio,
+    });
+  }
 
   function revealFreehandResult(): void {
     const next = config.scoreStroke(points, target);
@@ -493,6 +576,7 @@ export function mountFreehandScreen(
         feedback.textContent = config.retryText;
         return;
       }
+      doubleTapCommit.reset();
       points = adjustablePoints();
       renderFreehandStroke(strokeLayer, points, "freehand-user-stroke");
       adjustableLayer.style.display = "none";
@@ -500,6 +584,7 @@ export function mountFreehandScreen(
       return;
     }
     if (!pendingResult) return;
+    doubleTapCommit.reset();
     commitResult(pendingResult);
   }
 
@@ -593,6 +678,7 @@ export function mountFreehandScreen(
     pendingResult = null;
     drawingPointerId = null;
     adjustablePointerId = null;
+    doubleTapCommit.reset();
     target = config.createTarget();
     ghostLayer.replaceChildren();
     correctionLayer.replaceChildren();

@@ -18,6 +18,10 @@ import { startActivePracticeTimer } from "../storage/activePracticeTimer";
 import { recordCurriculumCompletion } from "../storage/curriculumStats";
 import { getSettings } from "../storage/settings";
 import {
+  createDoubleTapCommitDetector,
+  installSpaceCommitShortcut,
+} from "../input/commitGestures";
+import {
   DIVISION_DIRECTION_BUCKETS,
   divisionDirectionTrackerModel,
   divisionLengthTrackerModel,
@@ -98,8 +102,24 @@ export function mountSingleMarkScreen(
     commitCandidate();
   });
   const isUnlimitedAdjustment = exercise.inputMode === "unlimited-adjustment";
+  let svg: SVGSVGElement;
   commitBtn.hidden = !isUnlimitedAdjustment;
   commitBtn.disabled = true;
+  const canCommitCandidate = (): boolean =>
+    isUnlimitedAdjustment &&
+    result === null &&
+    (candidateScalar !== null || candidatePoint !== null);
+  const removeSpaceCommitShortcut = isUnlimitedAdjustment
+    ? installSpaceCommitShortcut({
+        canCommit: canCommitCandidate,
+        onCommit: commitCandidate,
+      })
+    : null;
+  const doubleTapCommit = createDoubleTapCommitDetector({
+    canCommit: canCommitCandidate,
+    isSafeCommitPoint: (event) => isSafeSingleMarkCommitTap(svg, trial, event),
+    onCommit: commitCandidate,
+  });
 
   const fullBtn = fullscreenButton(stage);
 
@@ -201,13 +221,14 @@ export function mountSingleMarkScreen(
   summary.hidden = !showScoreBoxes;
   summary.replaceChildren(...pendingResultSummary());
 
-  let svg = renderTrialSvg(
+  svg = renderTrialSvg(
     trial,
     () => result,
     () => candidateScalar,
     () => candidatePoint,
     onSelect,
     onPointSelect,
+    isUnlimitedAdjustment ? doubleTapCommit : null,
   );
 
   stage.append(toolbar, svg, feedback, summary);
@@ -217,6 +238,7 @@ export function mountSingleMarkScreen(
     cancelled = true;
     clearAutoResetTimer();
     stopActiveTimer();
+    removeSpaceCommitShortcut?.();
   };
 
   function onSelect(scalar: number): void {
@@ -266,6 +288,7 @@ export function mountSingleMarkScreen(
       () => candidatePoint,
       onSelect,
       onPointSelect,
+      isUnlimitedAdjustment ? doubleTapCommit : null,
     );
     svg.replaceWith(next);
     svg = next;
@@ -274,12 +297,16 @@ export function mountSingleMarkScreen(
   function commitCandidate(): void {
     if (result) return;
     if (candidateScalar !== null) {
+      doubleTapCommit.reset();
       revealResult(trial.scoreSelection(candidateScalar));
       return;
     }
     if (candidatePoint && trial.scorePoint) {
       const next = trial.scorePoint(candidatePoint);
-      if (next) revealResult(next);
+      if (next) {
+        doubleTapCommit.reset();
+        revealResult(next);
+      }
     }
   }
 
@@ -402,6 +429,7 @@ export function mountSingleMarkScreen(
     result = null;
     candidateScalar = null;
     candidatePoint = null;
+    doubleTapCommit.reset();
     prompt.textContent = trial.prompt;
     feedback.removeAttribute("data-tone");
     summary.removeAttribute("data-tone");
@@ -979,6 +1007,11 @@ function renderTrialSvg(
   getCandidatePoint: () => { x: number; y: number } | null,
   onSelect: (scalar: number) => void,
   onPointSelect: (point: { x: number; y: number }) => void,
+  doubleTapCommit: {
+    onPointerDown: (event: PointerEvent) => void;
+    onPointerUp: (event: PointerEvent) => void;
+    reset: () => void;
+  } | null,
 ): SVGSVGElement {
   const frame = s("rect", {
     x: 1,
@@ -1076,6 +1109,7 @@ function renderTrialSvg(
   svg.dataset.axis = trial.line.axis;
 
   svg.addEventListener("pointerdown", (event) => {
+    doubleTapCommit?.onPointerDown(event);
     const local = localSvgPoint(svg, event.clientX, event.clientY);
     if (!local) return;
 
@@ -1097,6 +1131,10 @@ function renderTrialSvg(
       Math.max(trial.line.startScalar, Math.min(scalar, trial.line.endScalar)),
     );
   });
+  if (doubleTapCommit) {
+    svg.addEventListener("pointerup", doubleTapCommit.onPointerUp);
+    svg.addEventListener("pointercancel", doubleTapCommit.reset);
+  }
 
   const res = getResult();
   const candidateScalar = getCandidateScalar();
@@ -1188,6 +1226,33 @@ function renderTrialSvg(
   }
 
   return svg;
+}
+
+function isSafeSingleMarkCommitTap(
+  svg: SVGSVGElement,
+  trial: SingleMarkTrial,
+  event: PointerEvent,
+): boolean {
+  const local = localSvgPoint(svg, event.clientX, event.clientY);
+  if (!local) return false;
+
+  if (trial.scorePoint) {
+    const edgeMargin = 48;
+    return (
+      local.x < edgeMargin ||
+      local.x > trial.viewport.width - edgeMargin ||
+      local.y < edgeMargin ||
+      local.y > trial.viewport.height - edgeMargin
+    );
+  }
+
+  const scalar = scalarFromPoint(trial.line, local);
+  const crossDist = crossAxisDistance(trial.line.axis, trial.line, local);
+  return (
+    crossDist > 72 ||
+    scalar < trial.line.startScalar - 48 ||
+    scalar > trial.line.endScalar + 48
+  );
 }
 
 function formatPoint(point: { x: number; y: number } | undefined): string {

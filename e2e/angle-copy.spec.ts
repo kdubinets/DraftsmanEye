@@ -152,7 +152,7 @@ test("angle copy default adjustable line commits after revisions", async ({
   await page.mouse.up();
   await expect(page.getByText(/Score \d+\.\d/)).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Commit" }).click();
+  await page.keyboard.press("Space");
 
   await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await expect(

@@ -55,7 +55,56 @@ test("division default adjustment commits only after revisions", async ({
   await expect(page.getByText(/Score \d+\.\d/)).toHaveCount(0);
   await expect(page.locator(".candidate-tick")).toHaveCount(1);
 
-  await page.getByRole("button", { name: "Commit" }).click();
+  await page.keyboard.press("Space");
+
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Again" })).toBeVisible();
+});
+
+test("division default adjustment commits from a safe double click on the canvas", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "draftsman-eye.settings.v1",
+      JSON.stringify({ autoRepeatDelayMs: null }),
+    );
+  });
+  await page.goto("/");
+
+  await page
+    .getByRole("article")
+    .filter({
+      has: page.getByRole("heading", {
+        level: 3,
+        name: "Horizontal Halves",
+        exact: true,
+      }),
+    })
+    .getByRole("button", { name: "Practice" })
+    .click();
+
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Horizontal Halves",
+      exact: true,
+    }),
+  ).toBeVisible();
+
+  const midpoint = await svgLineMidpoint(page.locator(".exercise-line"));
+  const [midpointClient] = await exerciseSvgPointsToClient(page, [midpoint]);
+  await page.mouse.click(midpointClient.x, midpointClient.y);
+  await expect(page.locator(".candidate-tick")).toHaveCount(1);
+  await expect(page.getByText(/Score \d+\.\d/)).toHaveCount(0);
+
+  const canvasBox = await page.getByTestId("exercise-canvas").boundingBox();
+  if (!canvasBox) throw new Error("Expected exercise canvas bounding box");
+  const safeX = canvasBox.x + 24;
+  const safeY = canvasBox.y + 24;
+
+  await page.mouse.click(safeX, safeY);
+  await page.mouse.click(safeX + 4, safeY + 2);
 
   await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Again" })).toBeVisible();
