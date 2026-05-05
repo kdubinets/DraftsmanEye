@@ -1,6 +1,10 @@
 /** Trial target geometry generation for target and trace exercise variants. */
 import { randomRange, pointOnCircle } from "../../geometry/primitives";
 import { clampAngleOpeningDegrees } from "../../practice/angleOpenings";
+import {
+  angleEstimateRangeForBucket,
+  bucketAngleEstimateDegrees,
+} from "../../practice/angleEstimation";
 import type { FreehandExerciseDefinition } from "../../practice/catalog";
 import type {
   FreehandTarget,
@@ -20,6 +24,7 @@ export function createFreehandTarget(
     lineAngleBucket?: number;
     showDirectionCue?: boolean;
     angleOpeningBucket?: number;
+    angleEstimateBucket?: number;
   } = {},
 ): FreehandTarget | null {
   switch (kind) {
@@ -50,6 +55,12 @@ export function createFreehandTarget(
       return createTargetAngle("arbitrary", "aligned", options.angleOpeningBucket);
     case "angle-copy-arbitrary-rotated":
       return createTargetAngle("arbitrary", "rotated", options.angleOpeningBucket);
+    case "angle-construct-horizontal":
+      return createConstructAngle("horizontal", options.angleEstimateBucket);
+    case "angle-construct-vertical":
+      return createConstructAngle("vertical", options.angleEstimateBucket);
+    case "angle-construct-arbitrary":
+      return createConstructAngle("arbitrary", options.angleEstimateBucket);
     case "loop-chain-linear":
     case "loop-chain-linear-scored":
       return createLoopChainLinearTarget();
@@ -324,6 +335,91 @@ function createTargetAngle(
     openingRadians,
     openingSign,
   };
+}
+
+function createConstructAngle(
+  baseMode: AngleBaseMode,
+  estimateBucket?: number,
+): TargetAngle {
+  const targetLength = 230;
+  const bounds = { minX: 78, maxX: 922, minY: 70, maxY: 550 };
+
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    const targetBase = baseAngle(baseMode);
+    const openingSign = Math.random() < 0.5 ? 1 : -1;
+    const requestedDegrees = targetEstimateDegrees(estimateBucket);
+    const openingRadians = (requestedDegrees * Math.PI) / 180;
+    const targetVertex = {
+      x: randomRange(250, 750),
+      y: randomRange(170, 450),
+    };
+    const target = constructAngleTarget(
+      targetVertex,
+      targetLength,
+      targetBase,
+      openingSign,
+      openingRadians,
+      requestedDegrees,
+    );
+
+    if (angleTargetWithinBounds(target, bounds)) {
+      return target;
+    }
+  }
+
+  const targetBase = baseAngle(baseMode);
+  const openingSign = 1;
+  const requestedDegrees = targetEstimateDegrees(estimateBucket);
+  return constructAngleTarget(
+    { x: 500, y: 310 },
+    targetLength,
+    targetBase,
+    openingSign,
+    (requestedDegrees * Math.PI) / 180,
+    requestedDegrees,
+  );
+}
+
+function constructAngleTarget(
+  vertex: { x: number; y: number },
+  length: number,
+  baseRadians: number,
+  openingSign: 1 | -1,
+  openingRadians: number,
+  requestedDegrees: number,
+): TargetAngle {
+  const baseEnd = pointAtAngle(vertex, length, baseRadians);
+  const correctEnd = pointAtAngle(
+    vertex,
+    length,
+    baseRadians + openingSign * openingRadians,
+  );
+  return {
+    kind: "angle",
+    reference: {
+      vertex,
+      baseEnd,
+      angleEnd: correctEnd,
+    },
+    showReference: false,
+    target: {
+      vertex,
+      baseEnd,
+      correctEnd,
+    },
+    openingRadians,
+    openingSign,
+    requestedDegrees,
+  };
+}
+
+function targetEstimateDegrees(estimateBucket: number | undefined): number {
+  const bucket =
+    estimateBucket === undefined
+      ? bucketAngleEstimateDegrees(randomRange(2, 178))
+      : bucketAngleEstimateDegrees(estimateBucket);
+  const range = angleEstimateRangeForBucket(bucket);
+  return Math.round(randomRange(range.min, range.max));
 }
 
 function targetOpeningRadians(openingBucket: number | undefined): number {

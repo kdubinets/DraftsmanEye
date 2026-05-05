@@ -403,6 +403,7 @@ const FILTER_FACETS: Record<string, FilterFacet[]> = {
       options: [
         { id: "copy", label: "Copy" },
         { id: "estimate", label: "Estimate" },
+        { id: "construct", label: "Construct" },
       ],
     },
     {
@@ -421,6 +422,7 @@ const FILTER_FACETS: Record<string, FilterFacet[]> = {
         { id: "horizontal", label: "Horizontal" },
         { id: "vertical", label: "Vertical" },
         { id: "random", label: "Random" },
+        { id: "arbitrary", label: "Arbitrary" },
       ],
     },
     {
@@ -537,12 +539,19 @@ function subfilterValue(
     if (facetId === "task") {
       if (exercise.id.startsWith("angle-copy-")) return "copy";
       if (exercise.id.startsWith("angle-estimate-")) return "estimate";
+      if (exercise.id.startsWith("angle-construct-")) return "construct";
     }
-    if (exercise.id.startsWith("angle-estimate-")) {
+    if (
+      exercise.id.startsWith("angle-estimate-") ||
+      exercise.id.startsWith("angle-construct-")
+    ) {
       if (facetId === "estimate-base") {
         if (exercise.id === "angle-estimate-horizontal") return "horizontal";
         if (exercise.id === "angle-estimate-vertical") return "vertical";
         if (exercise.id === "angle-estimate-random") return "random";
+        if (exercise.id === "angle-construct-horizontal") return "horizontal";
+        if (exercise.id === "angle-construct-vertical") return "vertical";
+        if (exercise.id === "angle-construct-arbitrary") return "arbitrary";
       }
       return null;
     }

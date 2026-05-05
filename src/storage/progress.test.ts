@@ -516,6 +516,24 @@ describe("updateStoredProgress", () => {
     expect(result.attempts[0].metadata?.angleEstimateBucket).toBe(5);
   });
 
+  it("tracks angle construction attempts in angle estimate buckets", () => {
+    const result = updateStoredProgress("angle-construct-horizontal", 75, 0, {
+      angleEstimateDegrees: 72,
+      angleEstimateBucket: 70,
+    });
+
+    expect(
+      result.dimensions.angleEstimateBuckets?.["angle-construct-horizontal"]?.[
+        "70"
+      ]?.attempts,
+    ).toBe(1);
+    expect(
+      result.dimensions.angleOpeningBuckets["angle-construct-horizontal"],
+    ).toBeUndefined();
+    expect(result.attempts[0].metadata?.angleEstimateBucket).toBe(70);
+    expect(result.attempts[0].metadata?.angleOpeningBucket).toBeUndefined();
+  });
+
   it("updates circle radius bucket aggregates when metadata is provided", () => {
     const result = updateStoredProgress("freehand-circle", 85, 0, {
       circleRadiusRatio: 0.25,

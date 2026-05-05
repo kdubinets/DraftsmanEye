@@ -1,4 +1,10 @@
 import { expect, test } from "@playwright/test";
+import {
+  expectPointInsideLocator,
+  locatorCenter,
+  svgLineEnd,
+  svgPointsToClient,
+} from "./support/helpers";
 
 test("angle estimation drill commits numeric estimate and updates progress", async ({
   page,
@@ -164,4 +170,106 @@ test("angle estimation spacebar works from focused controls", async ({
   await page.getByRole("button", { name: "Commit" }).focus();
   await page.keyboard.press("Space");
   await expect(page.locator(".angle-estimate-user-ray")).toHaveCount(1);
+});
+
+test("angle construction adjustable line reveals the correct directed angle", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await page
+    .getByRole("article")
+    .filter({
+      has: page.getByRole("heading", {
+        level: 3,
+        name: "Construct - Horizontal Base",
+        exact: true,
+      }),
+    })
+    .getByRole("button", { name: "Practice" })
+    .click();
+
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Construct - Horizontal Base",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/Construct \d+° (clockwise|counterclockwise)/),
+  ).toBeVisible();
+
+  const canvas = page.getByTestId("freehand-canvas");
+  await expect(canvas.locator(".freehand-angle-reference-ray")).toHaveCount(0);
+  await expect(canvas.locator(".freehand-angle-target-base")).toHaveCount(1);
+  await expect(canvas.locator(".freehand-angle-direction-cue")).toHaveCount(1);
+  await expect(canvas.locator(".freehand-target-correction-line")).toBeHidden();
+
+  const handle = canvas.locator(".freehand-adjustable-handle");
+  const initial = await locatorCenter(handle);
+  await expectPointInsideLocator(canvas, initial);
+  const baseEnd = await svgLineEnd(
+    canvas.locator(".freehand-angle-target-base"),
+  );
+  const [baseEndClient] = await svgPointsToClient(page, [baseEnd]);
+
+  await page.mouse.move(initial.x, initial.y);
+  await page.mouse.down();
+  await page.mouse.move(baseEndClient.x, baseEndClient.y - 100);
+  await page.mouse.up();
+
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
+  await expect(page.getByText("Angle miss", { exact: true })).toBeVisible();
+  await expect(page.getByText("Opening", { exact: true })).toBeVisible();
+  await expect(
+    canvas.locator(".freehand-target-correction-line"),
+  ).toBeVisible();
+  await expect(canvas.locator(".freehand-angle-user-fit")).toBeVisible();
+  await expect(canvas.locator(".freehand-adjustable-line")).toBeHidden();
+
+  const progress = await page.evaluate(() => {
+    const raw = window.localStorage.getItem("draftsman-eye.progress.v9");
+    if (!raw) return null;
+    return JSON.parse(raw) as {
+      dimensions?: {
+        angleEstimateBuckets?: Record<string, Record<string, unknown>>;
+        angleOpeningBuckets?: Record<string, Record<string, unknown>>;
+      };
+      attempts?: Array<{ metadata?: Record<string, unknown> }>;
+    };
+  });
+  expect(
+    progress?.dimensions?.angleEstimateBuckets?.["angle-construct-horizontal"],
+  ).toBeTruthy();
+  expect(
+    progress?.dimensions?.angleOpeningBuckets?.["angle-construct-horizontal"],
+  ).toBeUndefined();
+  expect(progress?.attempts?.[0]?.metadata?.angleEstimateBucket).toBeTruthy();
+  expect(progress?.attempts?.[0]?.metadata?.angleOpeningBucket).toBeUndefined();
+});
+
+test("angle construction varieties appear in angle estimation filters", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Angle" }).click();
+  await page.getByRole("button", { name: "Construct" }).click();
+
+  for (const label of [
+    "Construct - Horizontal Base",
+    "Construct - Vertical Base",
+    "Construct - Arbitrary Base",
+  ]) {
+    await expect(
+      page.getByRole("article").filter({
+        has: page.getByRole("heading", {
+          level: 3,
+          name: label,
+          exact: true,
+        }),
+      }),
+    ).toBeVisible();
+  }
 });

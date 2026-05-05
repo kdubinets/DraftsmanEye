@@ -33,6 +33,7 @@ import { getStoredProgress } from "../storage/progress";
 import { getSettings } from "../storage/settings";
 import { selectLineAngleBucket } from "../practice/lineAngles";
 import { selectAngleOpeningBucket } from "../practice/angleOpenings";
+import { selectAngleEstimateBucket } from "../practice/angleEstimation";
 import {
   createFreehandTarget,
   createLoopChainLinearTarget,
@@ -76,6 +77,17 @@ function freehandConfig(
               ),
             }),
         }
+      : exercise.kind.startsWith("angle-construct-")
+        ? {
+            ...config,
+            createTarget: () =>
+              createFreehandTarget(exercise.kind, {
+                angleEstimateBucket: selectAngleEstimateBucket(
+                  getStoredProgress(),
+                  exercise.id,
+                ),
+              }),
+          }
       : config;
   if (exercise.inputMode === "unlimited-strokes") {
     return {
@@ -90,12 +102,18 @@ function freehandConfig(
   ) {
     return {
       ...configWithTarget,
-      readyText: "Drag the free end of the vertical segment.",
+      readyText: exercise.kind.startsWith("angle-construct-")
+        ? "Drag the free end to construct the requested angle."
+        : "Drag the free end of the vertical segment.",
       promptText:
-        exercise.inputMode === "adjustable-line-1-shot"
-          ? "Drag the free end of the segment once."
-          : "Drag the free end of the segment; commit when it looks right.",
-      canvasLabel: "Angle copy adjustable line field",
+        exercise.kind.startsWith("angle-construct-")
+          ? "Construct the requested angle."
+          : exercise.inputMode === "adjustable-line-1-shot"
+            ? "Drag the free end of the segment once."
+            : "Drag the free end of the segment; commit when it looks right.",
+      canvasLabel: exercise.kind.startsWith("angle-construct-")
+        ? "Angle construction adjustable line field"
+        : "Angle copy adjustable line field",
     };
   }
   return configWithTarget;
@@ -226,6 +244,13 @@ const FREEHAND_CONFIGS = {
   ),
   "angle-copy-arbitrary-rotated": angleCopyConfig(
     "angle-copy-arbitrary-rotated",
+  ),
+  "angle-construct-horizontal": angleConstructConfig(
+    "angle-construct-horizontal",
+  ),
+  "angle-construct-vertical": angleConstructConfig("angle-construct-vertical"),
+  "angle-construct-arbitrary": angleConstructConfig(
+    "angle-construct-arbitrary",
   ),
   "loop-chain-freehand": {
     isClosedShape: false,
@@ -399,6 +424,30 @@ function angleCopyConfig(
     retryText: "Start closer to the target vertex and draw a longer ray.",
     canvasLabel: "Angle copy drawing field",
   };
+}
+
+function angleConstructConfig(
+  kind: Extract<FreehandKind, `angle-construct-${string}`>,
+): FreehandExerciseConfig {
+  return {
+    isClosedShape: false,
+    createTarget: () => createFreehandTarget(kind),
+    scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) =>
+      target?.kind === "angle" ? scoreTargetAngle(points, target) : null,
+    promptText: "Construct the requested angle.",
+    promptTextForTarget: angleConstructionPrompt,
+    readyText: "Drag the free end to construct the requested angle.",
+    retryText: "Start closer to the target vertex and draw a longer ray.",
+    canvasLabel: "Angle construction drawing field",
+  };
+}
+
+function angleConstructionPrompt(target: FreehandTarget | null): string {
+  if (target?.kind !== "angle" || target.requestedDegrees === undefined) {
+    return "Construct the requested angle.";
+  }
+  const direction = target.openingSign > 0 ? "clockwise" : "counterclockwise";
+  return `Construct ${target.requestedDegrees}° ${direction}.`;
 }
 
 function toMountable(exercise: ExerciseDefinition): MountableExercise {

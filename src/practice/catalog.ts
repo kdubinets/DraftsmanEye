@@ -59,6 +59,9 @@ export type ExerciseId =
   | "angle-estimate-horizontal"
   | "angle-estimate-vertical"
   | "angle-estimate-random"
+  | "angle-construct-horizontal"
+  | "angle-construct-vertical"
+  | "angle-construct-arbitrary"
   | "division-horizontal-halves"
   | "division-horizontal-thirds"
   | "division-horizontal-quarters"
@@ -213,6 +216,9 @@ export type FreehandExerciseDefinition = ExerciseBase & {
     | "angle-copy-vertical-rotated"
     | "angle-copy-arbitrary-aligned"
     | "angle-copy-arbitrary-rotated"
+    | "angle-construct-horizontal"
+    | "angle-construct-vertical"
+    | "angle-construct-arbitrary"
     | "loop-chain-freehand"
     | "loop-chain-linear"
     | "loop-chain-linear-scored"
@@ -557,6 +563,24 @@ export const EXERCISES: ExerciseDefinition[] = [
     "Estimate an angle opening from a randomly oriented base ray.",
     "random",
   ),
+  angleConstructExercise(
+    "angle-construct-horizontal",
+    "Construct - Horizontal Base",
+    "Construct a shown angle from a horizontal base ray.",
+    "angle-construct-horizontal",
+  ),
+  angleConstructExercise(
+    "angle-construct-vertical",
+    "Construct - Vertical Base",
+    "Construct a shown angle from a vertical base ray.",
+    "angle-construct-vertical",
+  ),
+  angleConstructExercise(
+    "angle-construct-arbitrary",
+    "Construct - Arbitrary Base",
+    "Construct a shown angle from a randomly oriented base ray.",
+    "angle-construct-arbitrary",
+  ),
   ...divisionExercises("division-horizontal-halves", "horizontal", 2),
   ...divisionExercises("division-horizontal-thirds", "horizontal", 3),
   ...divisionExercises("division-horizontal-quarters", "horizontal", 4),
@@ -753,6 +777,23 @@ function angleEstimateExercise(
     implemented: true,
     kind: "angle-estimate",
     base,
+  };
+}
+
+function angleConstructExercise(
+  id: Extract<ExerciseId, `angle-construct-${string}`>,
+  label: string,
+  description: string,
+  kind: Extract<FreehandExerciseDefinition["kind"], `angle-construct-${string}`>,
+): FreehandExerciseDefinition {
+  return {
+    id,
+    family: "Angle Estimation",
+    label,
+    description,
+    implemented: true,
+    kind,
+    inputMode: "adjustable-line-1-shot",
   };
 }
 

@@ -182,6 +182,7 @@ export type TargetAngle = {
     baseEnd: { x: number; y: number };
     angleEnd: { x: number; y: number };
   };
+  showReference?: boolean;
   target: {
     vertex: { x: number; y: number };
     baseEnd: { x: number; y: number };
@@ -189,6 +190,7 @@ export type TargetAngle = {
   };
   openingRadians: number;
   openingSign: 1 | -1;
+  requestedDegrees?: number;
 };
 
 export type TargetLoopChainLinear = {
@@ -250,6 +252,7 @@ export type FreehandExerciseConfig = {
     target: FreehandTarget | null,
   ) => FreehandResult | null;
   promptText: string;
+  promptTextForTarget?: (target: FreehandTarget | null) => string;
   readyText: string;
   retryText: string;
   canvasLabel: string;

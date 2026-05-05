@@ -363,22 +363,26 @@ function appendAngleTargetMarks(
   parent: SVGGElement,
   target: TargetAngle,
 ): void {
+  if (target.showReference !== false) {
+    parent.append(
+      s("line", {
+        class: "freehand-angle-reference-ray",
+        x1: target.reference.vertex.x,
+        y1: target.reference.vertex.y,
+        x2: target.reference.baseEnd.x,
+        y2: target.reference.baseEnd.y,
+      }),
+      s("line", {
+        class: "freehand-angle-reference-ray",
+        x1: target.reference.vertex.x,
+        y1: target.reference.vertex.y,
+        x2: target.reference.angleEnd.x,
+        y2: target.reference.angleEnd.y,
+      }),
+      createDotMark(target.reference.vertex, "freehand-angle-reference-vertex"),
+    );
+  }
   parent.append(
-    s("line", {
-      class: "freehand-angle-reference-ray",
-      x1: target.reference.vertex.x,
-      y1: target.reference.vertex.y,
-      x2: target.reference.baseEnd.x,
-      y2: target.reference.baseEnd.y,
-    }),
-    s("line", {
-      class: "freehand-angle-reference-ray",
-      x1: target.reference.vertex.x,
-      y1: target.reference.vertex.y,
-      x2: target.reference.angleEnd.x,
-      y2: target.reference.angleEnd.y,
-    }),
-    createDotMark(target.reference.vertex, "freehand-angle-reference-vertex"),
     s("line", {
       class: "freehand-angle-target-base",
       x1: target.target.vertex.x,

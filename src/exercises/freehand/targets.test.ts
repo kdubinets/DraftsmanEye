@@ -13,6 +13,12 @@ const ANGLE_COPY_KINDS: FreehandExerciseDefinition["kind"][] = [
   "angle-copy-arbitrary-rotated",
 ];
 
+const ANGLE_CONSTRUCT_KINDS: FreehandExerciseDefinition["kind"][] = [
+  "angle-construct-horizontal",
+  "angle-construct-vertical",
+  "angle-construct-arbitrary",
+];
+
 describe("createFreehandTarget angle copy", () => {
   it("keeps all angle-copy rays inside a padded drawing field", () => {
     for (const kind of ANGLE_COPY_KINDS) {
@@ -31,6 +37,55 @@ describe("createFreehandTarget angle copy", () => {
         expect(
           distanceBetween(angle.target.vertex, angle.target.correctEnd),
         ).toBeGreaterThanOrEqual(220);
+      }
+    }
+  });
+});
+
+describe("createFreehandTarget angle construction", () => {
+  it("keeps construction rays inside a padded drawing field", () => {
+    for (const kind of ANGLE_CONSTRUCT_KINDS) {
+      for (let attempt = 0; attempt < 120; attempt += 1) {
+        const target = createFreehandTarget(kind);
+        expect(target?.kind).toBe("angle");
+        const angle = target as TargetAngle;
+
+        expect(angle.showReference).toBe(false);
+        expect(angle.requestedDegrees).toBeGreaterThanOrEqual(2);
+        expect(angle.requestedDegrees).toBeLessThanOrEqual(178);
+        for (const point of [
+          angle.target.vertex,
+          angle.target.baseEnd,
+          angle.target.correctEnd,
+        ]) {
+          expect(point.x).toBeGreaterThanOrEqual(70);
+          expect(point.x).toBeLessThanOrEqual(930);
+          expect(point.y).toBeGreaterThanOrEqual(62);
+          expect(point.y).toBeLessThanOrEqual(558);
+        }
+      }
+    }
+  });
+
+  it("uses angle-estimation bucket ranges", () => {
+    for (const bucket of [5, 45, 90, 135, 175]) {
+      for (let attempt = 0; attempt < 50; attempt += 1) {
+        const target = createFreehandTarget("angle-construct-horizontal", {
+          angleEstimateBucket: bucket,
+        });
+        expect(target?.kind).toBe("angle");
+        const degrees = (target as TargetAngle).requestedDegrees;
+        expect(degrees).toBeDefined();
+        if (bucket === 5) {
+          expect(degrees).toBeGreaterThanOrEqual(2);
+          expect(degrees).toBeLessThanOrEqual(7);
+        } else if (bucket === 175) {
+          expect(degrees).toBeGreaterThanOrEqual(173);
+          expect(degrees).toBeLessThanOrEqual(178);
+        } else {
+          expect(degrees).toBeGreaterThanOrEqual(bucket - 2);
+          expect(degrees).toBeLessThanOrEqual(bucket + 2);
+        }
       }
     }
   });

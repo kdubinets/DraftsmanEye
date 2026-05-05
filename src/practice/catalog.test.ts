@@ -74,7 +74,7 @@ describe("EXERCISES registry", () => {
       "Target Drawing": "target-",
       "Trace Control": "trace-",
       "Angle Copy": "angle-copy-",
-      "Angle Estimation": "angle-estimate-",
+      "Angle Estimation": "angle-(estimate|construct)-",
       Intersection: "intersection-",
     };
     for (const ex of EXERCISES) {
