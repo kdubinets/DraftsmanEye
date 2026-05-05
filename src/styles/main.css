@@ -695,6 +695,32 @@ button {
   cursor: pointer;
 }
 
+.angle-semicircle-widget {
+  display: inline-grid;
+  grid-template-rows: 30px 4px;
+  gap: 3px;
+  width: 88px;
+  height: 42px;
+  flex: 0 0 auto;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.angle-semicircle-chart {
+  width: 100%;
+  height: 30px;
+  min-width: 0;
+}
+
+.angle-semicircle-chart-large {
+  width: min(260px, 100%);
+  height: auto;
+  justify-self: center;
+}
+
 .angle-opening-today-bars,
 .angle-opening-cells {
   display: grid;
@@ -743,12 +769,29 @@ button {
   grid-template-columns: repeat(12, minmax(0, 1fr));
 }
 
+.angle-estimate-widget {
+  width: 118px;
+}
+
+.angle-estimate-widget .angle-opening-today-bars,
+.angle-estimate-widget .angle-opening-cells,
+.angle-estimate-detail-strip .angle-opening-today-bars,
+.angle-estimate-detail-strip .angle-opening-cells {
+  grid-template-columns: repeat(35, minmax(0, 1fr));
+}
+
 .angle-opening-detail-strip {
   display: grid;
-  grid-template-rows: 18px 34px 8px;
+  grid-template-rows: 72px 8px;
+  justify-items: center;
   gap: 5px;
   width: min(420px, 100%);
   margin: 0 auto 14px;
+}
+
+.shape-dimension-detail-strip {
+  grid-template-rows: 18px 34px 8px;
+  justify-items: stretch;
 }
 
 .shape-dimension-detail-strip .angle-opening-today-bars,
@@ -1583,6 +1626,111 @@ button {
   stroke-width: 3;
 }
 
+.angle-estimate-stage {
+  gap: 1rem;
+}
+
+.angle-estimate-canvas {
+  width: min(100%, 820px);
+  height: auto;
+  max-height: 58vh;
+  aspect-ratio: 1000 / 620;
+  touch-action: none;
+}
+
+.angle-estimate-base-ray {
+  stroke: rgba(52, 38, 27, 0.78);
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+.angle-estimate-target-ray {
+  stroke: rgba(47, 85, 125, 0.88);
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+.angle-estimate-user-ray {
+  stroke: #c26134;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-dasharray: 12 9;
+}
+
+.angle-estimate-vertex {
+  fill: #fffaf2;
+  stroke: rgba(52, 38, 27, 0.78);
+  stroke-width: 3;
+}
+
+.angle-estimate-arc,
+.angle-estimate-user-arc {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.angle-estimate-arc {
+  stroke: rgba(47, 85, 125, 0.28);
+  stroke-width: 8;
+}
+
+.angle-estimate-user-arc {
+  stroke: rgba(194, 97, 52, 0.42);
+  stroke-width: 5;
+  stroke-dasharray: 8 7;
+}
+
+.angle-estimate-controls {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr) auto auto;
+  align-items: end;
+  gap: 0.75rem;
+  width: min(100%, 820px);
+}
+
+.angle-step-button {
+  min-width: 54px;
+  min-height: 46px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-strong);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+}
+
+.angle-estimate-slider-wrap,
+.angle-estimate-number-wrap {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.angle-estimate-control-label {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.angle-estimate-slider {
+  width: 100%;
+  min-height: 46px;
+  accent-color: #2f557d;
+}
+
+.angle-estimate-number {
+  width: 6.5rem;
+  min-height: 46px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fffaf2;
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.1rem;
+  text-align: center;
+}
+
 .error-gap {
   stroke: #c26134;
   stroke-width: 3;
@@ -2064,6 +2212,24 @@ button {
   .exercise-toolbar {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .angle-estimate-controls {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .angle-estimate-slider-wrap {
+    grid-column: 1 / -1;
+    order: -1;
+  }
+
+  .angle-estimate-number-wrap {
+    grid-column: 1 / -1;
+  }
+
+  .angle-step-button,
+  .angle-estimate-number {
+    width: 100%;
   }
 
   .freehand-canvas {

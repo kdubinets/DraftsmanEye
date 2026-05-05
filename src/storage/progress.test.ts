@@ -23,7 +23,8 @@ import {
   _resetProgressCache,
 } from "./progress";
 
-const STORAGE_KEY = "draftsman-eye.progress.v8";
+const STORAGE_KEY = "draftsman-eye.progress.v9";
+const LEGACY_V8_STORAGE_KEY = "draftsman-eye.progress.v8";
 const LEGACY_V7_STORAGE_KEY = "draftsman-eye.progress.v7";
 const LEGACY_V6_STORAGE_KEY = "draftsman-eye.progress.v6";
 const LEGACY_V5_STORAGE_KEY = "draftsman-eye.progress.v5";
@@ -40,11 +41,12 @@ beforeEach(() => {
 describe("getStoredProgress", () => {
   it("returns empty store when localStorage has no entry", () => {
     const p = getStoredProgress();
-    expect(p.version).toBe(8);
+    expect(p.version).toBe(9);
     expect(p.attempts).toEqual([]);
     expect(p.aggregates).toEqual({});
     expect(p.dimensions.lineAngleBuckets).toEqual({});
     expect(p.dimensions.angleOpeningBuckets).toEqual({});
+    expect(p.dimensions.angleEstimateBuckets).toEqual({});
     expect(p.dimensions.divisionLengthBuckets).toEqual({});
     expect(p.dimensions.divisionDirectionBuckets).toEqual({});
     expect(p.dimensions.transferLengthBuckets).toEqual({});
@@ -91,7 +93,37 @@ describe("getStoredProgress", () => {
     consoleSpy.mockRestore();
   });
 
-  it("migrates v7 progress into v8 with empty transfer angle dimensions", () => {
+  it("migrates v8 progress into v9 with empty angle estimate dimensions", () => {
+    store[LEGACY_V8_STORAGE_KEY] = JSON.stringify({
+      version: 8,
+      attempts: [
+        {
+          exerciseId: "copy-random-random",
+          score: 80,
+          signedError: 2,
+          timestamp: 12345,
+        },
+      ],
+      aggregates: {
+        "copy-random-random": { ema: 80, attempts: 1, lastPracticedAt: 12345 },
+      },
+      dimensions: {
+        lineAngleBuckets: {},
+        lineAngleDegreeBuckets: {},
+        angleOpeningBuckets: {},
+        divisionLengthBuckets: {},
+        divisionDirectionBuckets: {},
+        transferLengthBuckets: {},
+        transferAngleBuckets: {},
+      },
+    });
+    const p = getStoredProgress();
+    expect(p.version).toBe(9);
+    expect(p.aggregates["copy-random-random"]!.ema).toBe(80);
+    expect(p.dimensions.angleEstimateBuckets).toEqual({});
+  });
+
+  it("migrates v7 progress into v9 with empty transfer angle and angle estimate dimensions", () => {
     store[LEGACY_V7_STORAGE_KEY] = JSON.stringify({
       version: 7,
       attempts: [
@@ -119,11 +151,12 @@ describe("getStoredProgress", () => {
       },
     });
     const p = getStoredProgress();
-    expect(p.version).toBe(8);
+    expect(p.version).toBe(9);
     expect(
       p.dimensions.transferLengthBuckets["copy-random-random"]!["2"]!.ema,
     ).toBe(80);
     expect(p.dimensions.transferAngleBuckets).toEqual({});
+    expect(p.dimensions.angleEstimateBuckets).toEqual({});
   });
 
   it("migrates v6 progress into v8 with empty transfer dimensions", () => {
@@ -157,7 +190,7 @@ describe("getStoredProgress", () => {
       },
     });
     const p = getStoredProgress();
-    expect(p.version).toBe(8);
+    expect(p.version).toBe(9);
     expect(p.aggregates["division-random-thirds"]!.ema).toBe(80);
     expect(
       p.dimensions.divisionLengthBuckets["division-random-thirds"]!["2"]!.ema,
@@ -195,7 +228,7 @@ describe("getStoredProgress", () => {
       },
     });
     const p = getStoredProgress();
-    expect(p.version).toBe(8);
+    expect(p.version).toBe(9);
     expect(p.aggregates["angle-copy-horizontal-aligned"]!.ema).toBe(80);
     expect(
       p.dimensions.angleOpeningBuckets["angle-copy-horizontal-aligned"]!["90"]!
@@ -235,7 +268,7 @@ describe("getStoredProgress", () => {
       },
     });
     const p = getStoredProgress();
-    expect(p.version).toBe(8);
+    expect(p.version).toBe(9);
     expect(p.aggregates["trace-line"]!.ema).toBe(80);
     expect(p.dimensions.lineAngleBuckets["trace-line"]!["90"]!.ema).toBe(80);
     expect(p.dimensions.lineAngleDegreeBuckets!["trace-line"]!["87"]!.ema).toBe(
@@ -271,7 +304,7 @@ describe("getStoredProgress", () => {
       },
     });
     const p = getStoredProgress();
-    expect(p.version).toBe(8);
+    expect(p.version).toBe(9);
     expect(p.aggregates["trace-line"]!.ema).toBe(80);
     expect(p.dimensions.lineAngleBuckets).toEqual({});
     expect(p.dimensions.angleOpeningBuckets).toEqual({});
@@ -301,7 +334,7 @@ describe("getStoredProgress", () => {
       },
     });
     const p = getStoredProgress();
-    expect(p.version).toBe(8);
+    expect(p.version).toBe(9);
     expect(p.aggregates["freehand-straight-line"]!.ema).toBe(80);
     expect(p.dimensions.lineAngleBuckets).toEqual({});
     expect(p.dimensions.angleOpeningBuckets).toEqual({});
@@ -313,7 +346,7 @@ describe("getStoredProgress", () => {
 
   it("returns stored data for a valid payload", () => {
     const payload = {
-      version: 8,
+      version: 9,
       attempts: [
         {
           exerciseId: "freehand-straight-line",
@@ -332,6 +365,7 @@ describe("getStoredProgress", () => {
       dimensions: {
         lineAngleBuckets: {},
         angleOpeningBuckets: {},
+        angleEstimateBuckets: {},
         divisionLengthBuckets: {},
         divisionDirectionBuckets: {},
         transferLengthBuckets: {},
@@ -340,7 +374,7 @@ describe("getStoredProgress", () => {
     };
     store[STORAGE_KEY] = JSON.stringify(payload);
     const p = getStoredProgress();
-    expect(p.version).toBe(8);
+    expect(p.version).toBe(9);
     expect(p.attempts).toHaveLength(1);
     expect(p.aggregates["freehand-straight-line"]!.ema).toBe(80);
   });
@@ -465,6 +499,21 @@ describe("updateStoredProgress", () => {
     expect(
       result.dimensions.lineAngleDegreeBuckets?.["trace-line"],
     ).toBeUndefined();
+  });
+
+  it("updates angle estimate buckets even for low scores", () => {
+    const result = updateStoredProgress("angle-estimate-horizontal", 0, -12, {
+      angleEstimateDegrees: 2,
+      angleEstimateBucket: 5,
+    });
+
+    const bucket =
+      result.dimensions.angleEstimateBuckets?.["angle-estimate-horizontal"]?.[
+        "5"
+      ];
+    expect(bucket?.ema).toBe(0);
+    expect(bucket?.attempts).toBe(1);
+    expect(result.attempts[0].metadata?.angleEstimateBucket).toBe(5);
   });
 
   it("updates circle radius bucket aggregates when metadata is provided", () => {

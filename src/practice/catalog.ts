@@ -56,6 +56,9 @@ export type ExerciseId =
   | "angle-copy-vertical-rotated-free-draw-1-shot"
   | "angle-copy-arbitrary-aligned-free-draw-1-shot"
   | "angle-copy-arbitrary-rotated-free-draw-1-shot"
+  | "angle-estimate-horizontal"
+  | "angle-estimate-vertical"
+  | "angle-estimate-random"
   | "division-horizontal-halves"
   | "division-horizontal-thirds"
   | "division-horizontal-quarters"
@@ -228,6 +231,12 @@ export type FreehandExerciseDefinition = ExerciseBase & {
     | "adjustable-line-1-shot";
 };
 
+export type AngleEstimateExerciseDefinition = ExerciseBase & {
+  implemented: true;
+  kind: "angle-estimate";
+  base: "horizontal" | "vertical" | "random";
+};
+
 export const SOLID_EXERCISE_KINDS = [
   "solid-cube-2pt",
   "solid-box-2pt",
@@ -264,6 +273,7 @@ export type UnimplementedExerciseDefinition = ExerciseBase & {
 export type ExerciseDefinition =
   | SingleMarkExerciseDefinition
   | FreehandExerciseDefinition
+  | AngleEstimateExerciseDefinition
   | SolidExerciseDefinition
   | UnimplementedExerciseDefinition;
 
@@ -529,6 +539,24 @@ export const EXERCISES: ExerciseDefinition[] = [
     "Arbitrary Reference, Rotated Base",
     "Copy an angle from one random base orientation onto another.",
   ),
+  angleEstimateExercise(
+    "angle-estimate-horizontal",
+    "Horizontal Base",
+    "Estimate an angle opening from a horizontal base ray.",
+    "horizontal",
+  ),
+  angleEstimateExercise(
+    "angle-estimate-vertical",
+    "Vertical Base",
+    "Estimate an angle opening from a vertical base ray.",
+    "vertical",
+  ),
+  angleEstimateExercise(
+    "angle-estimate-random",
+    "Random Base",
+    "Estimate an angle opening from a randomly oriented base ray.",
+    "random",
+  ),
   ...divisionExercises("division-horizontal-halves", "horizontal", 2),
   ...divisionExercises("division-horizontal-thirds", "horizontal", 3),
   ...divisionExercises("division-horizontal-quarters", "horizontal", 4),
@@ -709,6 +737,23 @@ function angleCopyExercises(
       inputMode: "single-stroke",
     },
   ];
+}
+
+function angleEstimateExercise(
+  id: Extract<ExerciseId, `angle-estimate-${string}`>,
+  label: string,
+  description: string,
+  base: "horizontal" | "vertical" | "random",
+): AngleEstimateExerciseDefinition {
+  return {
+    id,
+    family: "Angle Estimation",
+    label,
+    description,
+    implemented: true,
+    kind: "angle-estimate",
+    base,
+  };
 }
 
 export const AUTO_EXERCISE_ID: ExerciseId = "division-horizontal-halves";

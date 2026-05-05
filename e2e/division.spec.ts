@@ -147,7 +147,7 @@ test("quick repeated single-mark clicks do not duplicate score updates", async (
   await expect(page.getByRole("button", { name: "Again" })).toHaveCount(0);
 
   const attempts = await page.evaluate(() => {
-    const raw = window.localStorage.getItem("draftsman-eye.progress.v8");
+    const raw = window.localStorage.getItem("draftsman-eye.progress.v9");
     if (!raw) return 0;
     const parsed = JSON.parse(raw) as { attempts?: unknown[] };
     return Array.isArray(parsed.attempts) ? parsed.attempts.length : 0;

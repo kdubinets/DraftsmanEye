@@ -320,7 +320,7 @@ export async function storedLineAngleBuckets(
   exerciseId: string,
 ): Promise<string[]> {
   return page.evaluate((id) => {
-    const raw = window.localStorage.getItem("draftsman-eye.progress.v8");
+    const raw = window.localStorage.getItem("draftsman-eye.progress.v9");
     if (!raw) return [];
     const parsed = JSON.parse(raw) as {
       dimensions?: {
@@ -336,7 +336,7 @@ export async function storedCircleRadiusBuckets(
   exerciseId: string,
 ): Promise<string[]> {
   return page.evaluate((id) => {
-    const raw = window.localStorage.getItem("draftsman-eye.progress.v8");
+    const raw = window.localStorage.getItem("draftsman-eye.progress.v9");
     if (!raw) return [];
     const parsed = JSON.parse(raw) as {
       dimensions?: {
@@ -352,7 +352,7 @@ export async function storedEllipseAngleBuckets(
   exerciseId: string,
 ): Promise<string[]> {
   return page.evaluate((id) => {
-    const raw = window.localStorage.getItem("draftsman-eye.progress.v8");
+    const raw = window.localStorage.getItem("draftsman-eye.progress.v9");
     if (!raw) return [];
     const parsed = JSON.parse(raw) as {
       dimensions?: {
@@ -368,7 +368,7 @@ export async function storedEllipseMajorRadiusBuckets(
   exerciseId: string,
 ): Promise<string[]> {
   return page.evaluate((id) => {
-    const raw = window.localStorage.getItem("draftsman-eye.progress.v8");
+    const raw = window.localStorage.getItem("draftsman-eye.progress.v9");
     if (!raw) return [];
     const parsed = JSON.parse(raw) as {
       dimensions?: {
@@ -386,7 +386,7 @@ export async function storedEllipseAxisRatioBuckets(
   exerciseId: string,
 ): Promise<string[]> {
   return page.evaluate((id) => {
-    const raw = window.localStorage.getItem("draftsman-eye.progress.v8");
+    const raw = window.localStorage.getItem("draftsman-eye.progress.v9");
     if (!raw) return [];
     const parsed = JSON.parse(raw) as {
       dimensions?: {

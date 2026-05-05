@@ -14,7 +14,7 @@ const NOW = new Date(2026, 4, 1, 12, 0, 0).getTime();
 
 function store(progress: Partial<ProgressStore>): ProgressStore {
   return {
-    version: 8,
+    version: 9,
     attempts: [],
     aggregates: {},
     dimensions: {

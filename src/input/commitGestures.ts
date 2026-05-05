@@ -5,6 +5,7 @@ import { distanceBetween } from "../geometry/primitives";
 type CommitShortcutOptions = {
   canCommit: () => boolean;
   onCommit: () => void;
+  allowInteractiveTargets?: boolean;
 };
 
 type DoubleTapCommitOptions = CommitShortcutOptions & {
@@ -32,7 +33,11 @@ export function installSpaceCommitShortcut(
   const onKeyDown = (event: KeyboardEvent): void => {
     if (!isSpaceKey(event) || event.repeat || event.defaultPrevented) return;
     if (event.altKey || event.ctrlKey || event.metaKey) return;
-    if (isInteractiveKeyTarget(event.target)) return;
+    if (
+      !options.allowInteractiveTargets &&
+      isInteractiveKeyTarget(event.target)
+    )
+      return;
     if (!options.canCommit()) return;
 
     event.preventDefault();

@@ -13,7 +13,7 @@ function progressWithBuckets(
   buckets: Record<string, { ema: number; attempts: number }>,
 ): ProgressStore {
   return {
-    version: 8,
+    version: 9,
     attempts: [],
     aggregates: {},
     dimensions: {

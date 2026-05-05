@@ -210,11 +210,11 @@ test("home page lists drills and switches to curriculum presentation", async ({
       exact: true,
     }),
   ).toBeVisible();
-  await expect(page.getByText("New")).toHaveCount(97);
+  await expect(page.getByText("New")).toHaveCount(100);
   await expect(page.getByRole("button", { name: "Coming soon" })).toHaveCount(
     0,
   );
-  await expect(page.getByRole("button", { name: "Practice" })).toHaveCount(97);
+  await expect(page.getByRole("button", { name: "Practice" })).toHaveCount(100);
   await expect(
     page
       .getByRole("article")
@@ -250,7 +250,7 @@ test("home page groups drills and filters by family", async ({ page }) => {
   await expect(familyHeadings).toHaveText([
     "Division",
     "Length Transfer",
-    "Angle Copy",
+    "Angle",
     "Intersection",
     "Flat Shapes",
     "Solids",
@@ -269,7 +269,7 @@ test("home page groups drills and filters by family", async ({ page }) => {
     page.getByRole("heading", { level: 3, name: "Line Through Two Points" }),
   ).toBeHidden();
 
-  await page.getByRole("button", { name: "All 97" }).click();
+  await page.getByRole("button", { name: "All 100" }).click();
   await expect(familyHeadings).toHaveCount(10);
 });
 
@@ -321,7 +321,7 @@ test("large family subfilters combine and persist after returning to list", asyn
   ).toHaveAttribute("aria-pressed", "true");
 });
 
-test("length transfer and angle copy expose family-specific subfilters", async ({
+test("length transfer and angle drills expose family-specific subfilters", async ({
   page,
 }) => {
   await page.goto("/");
@@ -346,16 +346,16 @@ test("length transfer and angle copy expose family-specific subfilters", async (
     }),
   ).toBeVisible();
 
-  await page.getByRole("button", { name: "Angle Copy 18" }).click();
+  await page.getByRole("button", { name: "Angle 21" }).click();
   const angleCopy = page.locator(".exercise-family-section").filter({
-    has: page.getByRole("heading", { level: 3, name: "Angle Copy" }),
+    has: page.getByRole("heading", { level: 3, name: "Angle" }),
   });
   await angleCopy.getByRole("button", { name: "Free Draw" }).click();
   await angleCopy.getByRole("button", { name: "Arbitrary" }).click();
   await angleCopy.getByRole("button", { name: "Rotated" }).click();
 
   await expect(angleCopy.locator(".exercise-family-count")).toHaveText(
-    "1 of 18 drills",
+    "1 of 21 drills",
   );
   await expect(angleCopy.locator(".exercise-card")).toHaveCount(1);
   await expect(

@@ -225,7 +225,7 @@ export function mountFreehandScreen(
   const angleOpeningWidget = isAngleOpeningTrackedExercise(exercise.id)
     ? h("button", {
         type: "button",
-        class: "angle-opening-widget",
+        class: "angle-semicircle-widget",
         title: "Review angle opening practice",
         on: {
           click: () => {
@@ -1254,23 +1254,17 @@ function renderAngleOpeningWidget(
   exerciseId: ExerciseId,
 ): void {
   const model = angleOpeningTrackerModel(progress, exerciseId);
-  const todayBars = h(
-    "div",
-    { class: "angle-opening-today-bars" },
-    model.buckets.map(angleOpeningTodayBar),
-  );
-  const cells = h(
-    "div",
-    { class: "angle-opening-cells" },
-    model.buckets.map((bucket) =>
-      h("span", {
-        class: "angle-opening-cell",
-        style: { background: bucket.cellFill },
-      }),
+  container.replaceChildren(
+    angleSemicircleChart(
+      model.buckets,
+      "Angle opening proficiency",
+      (bucket) => bucket.bucket,
+      (bucket) => bucket.cellFill,
+      angleOpeningBucketSummary,
+      "angle-semicircle-chart",
     ),
+    angleOpeningTotalBar(model.todayTotal, model.todayProgress),
   );
-  const total = angleOpeningTotalBar(model.todayTotal, model.todayProgress);
-  container.replaceChildren(todayBars, cells, total);
 }
 
 function renderEllipseAngleWidget(
@@ -1506,21 +1500,13 @@ function renderAngleOpeningTrackerModal(
   let overlay: HTMLElement;
   const close = (): void => overlay.remove();
   const strip = h("div", { class: "angle-opening-detail-strip" }, [
-    h(
-      "div",
-      { class: "angle-opening-today-bars" },
-      model.buckets.map(angleOpeningTodayBar),
-    ),
-    h(
-      "div",
-      { class: "angle-opening-cells" },
-      model.buckets.map((bucket) =>
-        h("span", {
-          class: "angle-opening-cell",
-          style: { background: bucket.cellFill },
-          title: angleOpeningBucketSummary(bucket),
-        }),
-      ),
+    angleSemicircleChart(
+      model.buckets,
+      "Angle opening proficiency",
+      (bucket) => bucket.bucket,
+      (bucket) => bucket.cellFill,
+      angleOpeningBucketSummary,
+      "angle-semicircle-chart-large",
     ),
     angleOpeningTotalBar(model.todayTotal, model.todayProgress),
   ]);
@@ -1572,15 +1558,6 @@ function renderAngleOpeningTrackerModal(
   return overlay;
 }
 
-function angleOpeningTodayBar(
-  bucket: AngleOpeningTrackerBucket,
-): HTMLSpanElement {
-  const bar = h("span", { class: "angle-opening-today-bar" });
-  bar.style.setProperty("--today-height", `${bucket.todayHeightPercent}%`);
-  bar.style.setProperty("--today-opacity", bucket.todayOpacity.toFixed(2));
-  return bar;
-}
-
 function closedShapeTodayBar(
   bucket: ClosedShapeTrackerBucket,
 ): HTMLSpanElement {
@@ -1603,6 +1580,60 @@ function angleOpeningTotalBar(
     `${(todayProgress * 100).toFixed(1)}%`,
   );
   return total;
+}
+
+function angleSemicircleChart<T>(
+  buckets: T[],
+  ariaLabel: string,
+  bucketCenter: (bucket: T) => number,
+  bucketFill: (bucket: T) => string,
+  bucketTitle: (bucket: T) => string,
+  className: string,
+): SVGSVGElement {
+  const chart = s("svg", {
+    class: `angle-semicircle-chart ${className}`,
+    viewBox: "0 0 54 30",
+    role: "img",
+    "aria-label": ariaLabel,
+  });
+  const centers = buckets.map(bucketCenter).sort((a, b) => a - b);
+  const half =
+    centers.length > 1 ? Math.abs(centers[1] - centers[0]) / 2 : 5;
+  for (const bucket of buckets) {
+    const sector = angleSemicircleSector(
+      bucketCenter(bucket),
+      half,
+      bucketFill(bucket),
+    );
+    appendSvgTitle(sector, bucketTitle(bucket));
+    chart.append(sector);
+  }
+  chart.append(
+    s("circle", {
+      class: "division-direction-chart-core",
+      cx: 27,
+      cy: 27,
+      r: 5,
+    }),
+  );
+  return chart;
+}
+
+function angleSemicircleSector(
+  centerDegrees: number,
+  halfDegrees: number,
+  fill: string,
+): SVGPathElement {
+  const startDegrees = 180 + centerDegrees - halfDegrees;
+  const endDegrees = 180 + centerDegrees + halfDegrees;
+  const start = polarPoint(27, 27, 24, startDegrees);
+  const end = polarPoint(27, 27, 24, endDegrees);
+  const path = s("path", {
+    class: "division-direction-sector",
+    d: `M 27 27 L ${start.x.toFixed(2)} ${start.y.toFixed(2)} A 24 24 0 0 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)} Z`,
+  });
+  path.style.fill = fill;
+  return path;
 }
 
 function angleSector(centerDegrees: number, fill: string): SVGPathElement {

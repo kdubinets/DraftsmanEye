@@ -14,7 +14,7 @@ import { curriculumView } from "./curriculum";
 const FAMILY_ORDER = [
   "Division",
   "Length Transfer",
-  "Angle Copy",
+  "Angle",
   "Intersection",
   "Flat Shapes",
   "Solids",
@@ -224,6 +224,12 @@ function displayFamily(exercise: ExerciseDefinition): string {
   ) {
     return "Length Transfer";
   }
+  if (
+    exercise.family === "Angle Copy" ||
+    exercise.family === "Angle Estimation"
+  ) {
+    return "Angle";
+  }
   return exercise.family;
 }
 
@@ -390,7 +396,15 @@ const FILTER_FACETS: Record<string, FilterFacet[]> = {
       ],
     },
   ],
-  "Angle Copy": [
+  Angle: [
+    {
+      id: "task",
+      label: "Task",
+      options: [
+        { id: "copy", label: "Copy" },
+        { id: "estimate", label: "Estimate" },
+      ],
+    },
     {
       id: "input",
       label: "Input",
@@ -398,6 +412,15 @@ const FILTER_FACETS: Record<string, FilterFacet[]> = {
         { id: "adjust", label: "Adjust" },
         { id: "adjust-1-shot", label: "Adjust 1-Shot" },
         { id: "free-draw-1-shot", label: "Free Draw" },
+      ],
+    },
+    {
+      id: "estimate-base",
+      label: "Estimate Base",
+      options: [
+        { id: "horizontal", label: "Horizontal" },
+        { id: "vertical", label: "Vertical" },
+        { id: "random", label: "Random" },
       ],
     },
     {
@@ -510,7 +533,19 @@ function subfilterValue(
     }
   }
 
-  if (family === "Angle Copy") {
+  if (family === "Angle") {
+    if (facetId === "task") {
+      if (exercise.id.startsWith("angle-copy-")) return "copy";
+      if (exercise.id.startsWith("angle-estimate-")) return "estimate";
+    }
+    if (exercise.id.startsWith("angle-estimate-")) {
+      if (facetId === "estimate-base") {
+        if (exercise.id === "angle-estimate-horizontal") return "horizontal";
+        if (exercise.id === "angle-estimate-vertical") return "vertical";
+        if (exercise.id === "angle-estimate-random") return "random";
+      }
+      return null;
+    }
     if (facetId === "input") {
       if (exercise.id.endsWith("-free-draw-1-shot")) return "free-draw-1-shot";
       if (exercise.id.endsWith("-adjustable-1-shot")) return "adjust-1-shot";

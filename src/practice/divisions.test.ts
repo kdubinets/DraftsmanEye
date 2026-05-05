@@ -21,7 +21,7 @@ const YESTERDAY = new Date(2026, 3, 30, 23, 59, 0).getTime();
 
 function store(progress: Partial<ProgressStore>): ProgressStore {
   return {
-    version: 8,
+    version: 9,
     attempts: [],
     aggregates: {},
     dimensions: {

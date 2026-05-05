@@ -9,6 +9,7 @@ import {
   isSolidExercise,
 } from "../practice/catalog";
 import type {
+  AngleEstimateExerciseDefinition,
   ExerciseDefinition,
   ExerciseId,
   FreehandExerciseDefinition,
@@ -16,6 +17,7 @@ import type {
 import { mountSingleMarkScreen } from "../screens/singleMark";
 import { mountFreehandScreen } from "../screens/freehand";
 import { mountSolidsScreen } from "../screens/solids";
+import { mountAngleEstimateScreen } from "../screens/angleEstimate";
 import { scoreFreehandLine, scoreTargetLine } from "../scoring/line";
 import { scoreFreehandCircle, scoreTargetCircle } from "../scoring/circle";
 import { scoreFreehandEllipse, scoreTargetEllipse } from "../scoring/ellipse";
@@ -433,6 +435,21 @@ function toMountable(exercise: ExerciseDefinition): MountableExercise {
       ...exercise,
       mount(root, source, onNavigate, listState) {
         return mountSolidsScreen(root, exercise, source, onNavigate, listState);
+      },
+    };
+  }
+
+  if (exercise.kind === "angle-estimate") {
+    return {
+      ...exercise,
+      mount(root, source, onNavigate, listState) {
+        return mountAngleEstimateScreen(
+          root,
+          exercise as AngleEstimateExerciseDefinition,
+          source,
+          onNavigate,
+          listState,
+        );
       },
     };
   }
