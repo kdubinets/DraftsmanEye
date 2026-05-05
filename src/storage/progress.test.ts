@@ -1,24 +1,35 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // Mock window.localStorage before importing the module
 const store: Record<string, string> = {};
 const localStorageMock = {
   getItem: vi.fn((key: string) => store[key] ?? null),
-  setItem: vi.fn((key: string, value: string) => { store[key] = value; }),
-  removeItem: vi.fn((key: string) => { delete store[key]; }),
-  clear: vi.fn(() => { for (const k in store) delete store[k]; }),
+  setItem: vi.fn((key: string, value: string) => {
+    store[key] = value;
+  }),
+  removeItem: vi.fn((key: string) => {
+    delete store[key];
+  }),
+  clear: vi.fn(() => {
+    for (const k in store) delete store[k];
+  }),
 };
-vi.stubGlobal('window', { localStorage: localStorageMock });
+vi.stubGlobal("window", { localStorage: localStorageMock });
 
-import { getStoredProgress, updateStoredProgress, filterStaleAggregates, _resetProgressCache } from './progress';
+import {
+  getStoredProgress,
+  updateStoredProgress,
+  filterStaleAggregates,
+  _resetProgressCache,
+} from "./progress";
 
-const STORAGE_KEY = 'draftsman-eye.progress.v8';
-const LEGACY_V7_STORAGE_KEY = 'draftsman-eye.progress.v7';
-const LEGACY_V6_STORAGE_KEY = 'draftsman-eye.progress.v6';
-const LEGACY_V5_STORAGE_KEY = 'draftsman-eye.progress.v5';
-const LEGACY_V4_STORAGE_KEY = 'draftsman-eye.progress.v4';
-const LEGACY_V3_STORAGE_KEY = 'draftsman-eye.progress.v3';
-const LEGACY_V2_STORAGE_KEY = 'draftsman-eye.progress.v2';
+const STORAGE_KEY = "draftsman-eye.progress.v8";
+const LEGACY_V7_STORAGE_KEY = "draftsman-eye.progress.v7";
+const LEGACY_V6_STORAGE_KEY = "draftsman-eye.progress.v6";
+const LEGACY_V5_STORAGE_KEY = "draftsman-eye.progress.v5";
+const LEGACY_V4_STORAGE_KEY = "draftsman-eye.progress.v4";
+const LEGACY_V3_STORAGE_KEY = "draftsman-eye.progress.v3";
+const LEGACY_V2_STORAGE_KEY = "draftsman-eye.progress.v2";
 
 beforeEach(() => {
   localStorageMock.clear();
@@ -26,8 +37,8 @@ beforeEach(() => {
   _resetProgressCache();
 });
 
-describe('getStoredProgress', () => {
-  it('returns empty store when localStorage has no entry', () => {
+describe("getStoredProgress", () => {
+  it("returns empty store when localStorage has no entry", () => {
     const p = getStoredProgress();
     expect(p.version).toBe(8);
     expect(p.attempts).toEqual([]);
@@ -40,47 +51,60 @@ describe('getStoredProgress', () => {
     expect(p.dimensions.transferAngleBuckets).toEqual({});
   });
 
-  it('returns empty store and logs error for non-JSON payload', () => {
-    store[STORAGE_KEY] = 'not-json{{{';
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  it("returns empty store and logs error for non-JSON payload", () => {
+    store[STORAGE_KEY] = "not-json{{{";
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const p = getStoredProgress();
     expect(p.attempts).toEqual([]);
     expect(consoleSpy).toHaveBeenCalledOnce();
     consoleSpy.mockRestore();
   });
 
-  it('returns empty store and logs error for wrong shape (null)', () => {
-    store[STORAGE_KEY] = 'null';
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  it("returns empty store and logs error for wrong shape (null)", () => {
+    store[STORAGE_KEY] = "null";
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const p = getStoredProgress();
     expect(p.attempts).toEqual([]);
     expect(consoleSpy).toHaveBeenCalledOnce();
     consoleSpy.mockRestore();
   });
 
-  it('returns empty store and logs error for array at root', () => {
-    store[STORAGE_KEY] = '[]';
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  it("returns empty store and logs error for array at root", () => {
+    store[STORAGE_KEY] = "[]";
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const p = getStoredProgress();
     expect(p.attempts).toEqual([]);
     expect(consoleSpy).toHaveBeenCalledOnce();
     consoleSpy.mockRestore();
   });
 
-  it('returns empty store and logs error for wrong version', () => {
-    store[STORAGE_KEY] = JSON.stringify({ version: 1, attempts: [], aggregates: {} });
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  it("returns empty store and logs error for wrong version", () => {
+    store[STORAGE_KEY] = JSON.stringify({
+      version: 1,
+      attempts: [],
+      aggregates: {},
+    });
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const p = getStoredProgress();
     expect(p.attempts).toEqual([]);
     expect(consoleSpy).toHaveBeenCalledOnce();
     consoleSpy.mockRestore();
   });
 
-  it('migrates v7 progress into v8 with empty transfer angle dimensions', () => {
+  it("migrates v7 progress into v8 with empty transfer angle dimensions", () => {
     store[LEGACY_V7_STORAGE_KEY] = JSON.stringify({
       version: 7,
-      attempts: [{ exerciseId: 'copy-random-random', score: 80, signedError: 2, timestamp: 12345 }],
-      aggregates: { 'copy-random-random': { ema: 80, attempts: 1, lastPracticedAt: 12345 } },
+      attempts: [
+        {
+          exerciseId: "copy-random-random",
+          score: 80,
+          signedError: 2,
+          timestamp: 12345,
+        },
+      ],
+      aggregates: {
+        "copy-random-random": { ema: 80, attempts: 1, lastPracticedAt: 12345 },
+      },
       dimensions: {
         lineAngleBuckets: {},
         lineAngleDegreeBuckets: {},
@@ -88,30 +112,45 @@ describe('getStoredProgress', () => {
         divisionLengthBuckets: {},
         divisionDirectionBuckets: {},
         transferLengthBuckets: {
-          'copy-random-random': {
-            '2': { ema: 80, attempts: 1, lastPracticedAt: 12345 },
+          "copy-random-random": {
+            "2": { ema: 80, attempts: 1, lastPracticedAt: 12345 },
           },
         },
       },
     });
     const p = getStoredProgress();
     expect(p.version).toBe(8);
-    expect(p.dimensions.transferLengthBuckets['copy-random-random']!['2']!.ema).toBe(80);
+    expect(
+      p.dimensions.transferLengthBuckets["copy-random-random"]!["2"]!.ema,
+    ).toBe(80);
     expect(p.dimensions.transferAngleBuckets).toEqual({});
   });
 
-  it('migrates v6 progress into v8 with empty transfer dimensions', () => {
+  it("migrates v6 progress into v8 with empty transfer dimensions", () => {
     store[LEGACY_V6_STORAGE_KEY] = JSON.stringify({
       version: 6,
-      attempts: [{ exerciseId: 'division-random-thirds', score: 80, signedError: 2, timestamp: 12345 }],
-      aggregates: { 'division-random-thirds': { ema: 80, attempts: 1, lastPracticedAt: 12345 } },
+      attempts: [
+        {
+          exerciseId: "division-random-thirds",
+          score: 80,
+          signedError: 2,
+          timestamp: 12345,
+        },
+      ],
+      aggregates: {
+        "division-random-thirds": {
+          ema: 80,
+          attempts: 1,
+          lastPracticedAt: 12345,
+        },
+      },
       dimensions: {
         lineAngleBuckets: {},
         lineAngleDegreeBuckets: {},
         angleOpeningBuckets: {},
         divisionLengthBuckets: {
-          'division-random-thirds': {
-            '2': { ema: 80, attempts: 1, lastPracticedAt: 12345 },
+          "division-random-thirds": {
+            "2": { ema: 80, attempts: 1, lastPracticedAt: 12345 },
           },
         },
         divisionDirectionBuckets: {},
@@ -119,32 +158,47 @@ describe('getStoredProgress', () => {
     });
     const p = getStoredProgress();
     expect(p.version).toBe(8);
-    expect(p.aggregates['division-random-thirds']!.ema).toBe(80);
-    expect(p.dimensions.divisionLengthBuckets['division-random-thirds']!['2']!.ema).toBe(80);
+    expect(p.aggregates["division-random-thirds"]!.ema).toBe(80);
+    expect(
+      p.dimensions.divisionLengthBuckets["division-random-thirds"]!["2"]!.ema,
+    ).toBe(80);
     expect(p.dimensions.transferLengthBuckets).toEqual({});
     expect(p.dimensions.transferAngleBuckets).toEqual({});
   });
 
-  it('migrates v5 progress into v8 with empty division and transfer dimensions', () => {
+  it("migrates v5 progress into v8 with empty division and transfer dimensions", () => {
     store[LEGACY_V5_STORAGE_KEY] = JSON.stringify({
       version: 5,
-      attempts: [{ exerciseId: 'angle-copy-horizontal-aligned', score: 80, signedError: 2, timestamp: 12345 }],
-      aggregates: { 'angle-copy-horizontal-aligned': { ema: 80, attempts: 1, lastPracticedAt: 12345 } },
+      attempts: [
+        {
+          exerciseId: "angle-copy-horizontal-aligned",
+          score: 80,
+          signedError: 2,
+          timestamp: 12345,
+        },
+      ],
+      aggregates: {
+        "angle-copy-horizontal-aligned": {
+          ema: 80,
+          attempts: 1,
+          lastPracticedAt: 12345,
+        },
+      },
       dimensions: {
         lineAngleBuckets: {},
         lineAngleDegreeBuckets: {},
         angleOpeningBuckets: {
-          'angle-copy-horizontal-aligned': {
-            '90': { ema: 80, attempts: 1, lastPracticedAt: 12345 },
+          "angle-copy-horizontal-aligned": {
+            "90": { ema: 80, attempts: 1, lastPracticedAt: 12345 },
           },
         },
       },
     });
     const p = getStoredProgress();
     expect(p.version).toBe(8);
-    expect(p.aggregates['angle-copy-horizontal-aligned']!.ema).toBe(80);
+    expect(p.aggregates["angle-copy-horizontal-aligned"]!.ema).toBe(80);
     expect(
-      p.dimensions.angleOpeningBuckets['angle-copy-horizontal-aligned']!['90']!
+      p.dimensions.angleOpeningBuckets["angle-copy-horizontal-aligned"]!["90"]!
         .ema,
     ).toBe(80);
     expect(p.dimensions.divisionLengthBuckets).toEqual({});
@@ -153,29 +207,40 @@ describe('getStoredProgress', () => {
     expect(p.dimensions.transferAngleBuckets).toEqual({});
   });
 
-  it('migrates v4 progress into v8 with empty newer dimensions', () => {
+  it("migrates v4 progress into v8 with empty newer dimensions", () => {
     store[LEGACY_V4_STORAGE_KEY] = JSON.stringify({
       version: 4,
-      attempts: [{ exerciseId: 'trace-line', score: 80, signedError: 2, timestamp: 12345 }],
-      aggregates: { 'trace-line': { ema: 80, attempts: 1, lastPracticedAt: 12345 } },
+      attempts: [
+        {
+          exerciseId: "trace-line",
+          score: 80,
+          signedError: 2,
+          timestamp: 12345,
+        },
+      ],
+      aggregates: {
+        "trace-line": { ema: 80, attempts: 1, lastPracticedAt: 12345 },
+      },
       dimensions: {
         lineAngleBuckets: {
-          'trace-line': {
-            '90': { ema: 80, attempts: 1, lastPracticedAt: 12345 },
+          "trace-line": {
+            "90": { ema: 80, attempts: 1, lastPracticedAt: 12345 },
           },
         },
         lineAngleDegreeBuckets: {
-          'trace-line': {
-            '87': { ema: 80, attempts: 1, lastPracticedAt: 12345 },
+          "trace-line": {
+            "87": { ema: 80, attempts: 1, lastPracticedAt: 12345 },
           },
         },
       },
     });
     const p = getStoredProgress();
     expect(p.version).toBe(8);
-    expect(p.aggregates['trace-line']!.ema).toBe(80);
-    expect(p.dimensions.lineAngleBuckets['trace-line']!['90']!.ema).toBe(80);
-    expect(p.dimensions.lineAngleDegreeBuckets!['trace-line']!['87']!.ema).toBe(80);
+    expect(p.aggregates["trace-line"]!.ema).toBe(80);
+    expect(p.dimensions.lineAngleBuckets["trace-line"]!["90"]!.ema).toBe(80);
+    expect(p.dimensions.lineAngleDegreeBuckets!["trace-line"]!["87"]!.ema).toBe(
+      80,
+    );
     expect(p.dimensions.angleOpeningBuckets).toEqual({});
     expect(p.dimensions.divisionLengthBuckets).toEqual({});
     expect(p.dimensions.divisionDirectionBuckets).toEqual({});
@@ -183,22 +248,31 @@ describe('getStoredProgress', () => {
     expect(p.dimensions.transferAngleBuckets).toEqual({});
   });
 
-  it('migrates v3 progress into v8 with empty directional dimensions', () => {
+  it("migrates v3 progress into v8 with empty directional dimensions", () => {
     store[LEGACY_V3_STORAGE_KEY] = JSON.stringify({
       version: 3,
-      attempts: [{ exerciseId: 'trace-line', score: 80, signedError: 2, timestamp: 12345 }],
-      aggregates: { 'trace-line': { ema: 80, attempts: 1, lastPracticedAt: 12345 } },
+      attempts: [
+        {
+          exerciseId: "trace-line",
+          score: 80,
+          signedError: 2,
+          timestamp: 12345,
+        },
+      ],
+      aggregates: {
+        "trace-line": { ema: 80, attempts: 1, lastPracticedAt: 12345 },
+      },
       dimensions: {
         lineAngleBuckets: {
-          'trace-line': {
-            '90': { ema: 80, attempts: 1, lastPracticedAt: 12345 },
+          "trace-line": {
+            "90": { ema: 80, attempts: 1, lastPracticedAt: 12345 },
           },
         },
       },
     });
     const p = getStoredProgress();
     expect(p.version).toBe(8);
-    expect(p.aggregates['trace-line']!.ema).toBe(80);
+    expect(p.aggregates["trace-line"]!.ema).toBe(80);
     expect(p.dimensions.lineAngleBuckets).toEqual({});
     expect(p.dimensions.angleOpeningBuckets).toEqual({});
     expect(p.dimensions.divisionLengthBuckets).toEqual({});
@@ -207,15 +281,28 @@ describe('getStoredProgress', () => {
     expect(p.dimensions.transferAngleBuckets).toEqual({});
   });
 
-  it('migrates v2 progress into v8 with empty dimensions', () => {
+  it("migrates v2 progress into v8 with empty dimensions", () => {
     store[LEGACY_V2_STORAGE_KEY] = JSON.stringify({
       version: 2,
-      attempts: [{ exerciseId: 'freehand-straight-line', score: 80, signedError: 2, timestamp: 12345 }],
-      aggregates: { 'freehand-straight-line': { ema: 80, attempts: 1, lastPracticedAt: 12345 } },
+      attempts: [
+        {
+          exerciseId: "freehand-straight-line",
+          score: 80,
+          signedError: 2,
+          timestamp: 12345,
+        },
+      ],
+      aggregates: {
+        "freehand-straight-line": {
+          ema: 80,
+          attempts: 1,
+          lastPracticedAt: 12345,
+        },
+      },
     });
     const p = getStoredProgress();
     expect(p.version).toBe(8);
-    expect(p.aggregates['freehand-straight-line']!.ema).toBe(80);
+    expect(p.aggregates["freehand-straight-line"]!.ema).toBe(80);
     expect(p.dimensions.lineAngleBuckets).toEqual({});
     expect(p.dimensions.angleOpeningBuckets).toEqual({});
     expect(p.dimensions.divisionLengthBuckets).toEqual({});
@@ -224,85 +311,104 @@ describe('getStoredProgress', () => {
     expect(p.dimensions.transferAngleBuckets).toEqual({});
   });
 
-  it('returns stored data for a valid payload', () => {
+  it("returns stored data for a valid payload", () => {
     const payload = {
       version: 8,
-      attempts: [{ exerciseId: 'freehand-straight-line', score: 80, signedError: 2, timestamp: 12345 }],
-      aggregates: { 'freehand-straight-line': { ema: 80, attempts: 1, lastPracticedAt: 12345 } },
+      attempts: [
+        {
+          exerciseId: "freehand-straight-line",
+          score: 80,
+          signedError: 2,
+          timestamp: 12345,
+        },
+      ],
+      aggregates: {
+        "freehand-straight-line": {
+          ema: 80,
+          attempts: 1,
+          lastPracticedAt: 12345,
+        },
+      },
       dimensions: {
         lineAngleBuckets: {},
         angleOpeningBuckets: {},
         divisionLengthBuckets: {},
         divisionDirectionBuckets: {},
         transferLengthBuckets: {},
-      transferAngleBuckets: {},
+        transferAngleBuckets: {},
       },
     };
     store[STORAGE_KEY] = JSON.stringify(payload);
     const p = getStoredProgress();
     expect(p.version).toBe(8);
     expect(p.attempts).toHaveLength(1);
-    expect(p.aggregates['freehand-straight-line']!.ema).toBe(80);
+    expect(p.aggregates["freehand-straight-line"]!.ema).toBe(80);
   });
 });
 
-describe('updateStoredProgress', () => {
-  it('first attempt sets ema equal to the score', () => {
-    const result = updateStoredProgress('freehand-straight-line', 80, 0);
-    expect(result.aggregates['freehand-straight-line']!.ema).toBe(80);
+describe("updateStoredProgress", () => {
+  it("first attempt sets ema equal to the score", () => {
+    const result = updateStoredProgress("freehand-straight-line", 80, 0);
+    expect(result.aggregates["freehand-straight-line"]!.ema).toBe(80);
   });
 
-  it('second attempt applies EMA: ema = prev + 0.35*(next - prev)', () => {
-    updateStoredProgress('freehand-straight-line', 80, 0);
-    const result = updateStoredProgress('freehand-straight-line', 60, 0);
+  it("second attempt applies EMA: ema = prev + 0.35*(next - prev)", () => {
+    updateStoredProgress("freehand-straight-line", 80, 0);
+    const result = updateStoredProgress("freehand-straight-line", 60, 0);
     const expected = 80 + 0.35 * (60 - 80);
-    expect(result.aggregates['freehand-straight-line']!.ema).toBeCloseTo(expected, 10);
+    expect(result.aggregates["freehand-straight-line"]!.ema).toBeCloseTo(
+      expected,
+      10,
+    );
   });
 
-  it('attempts count is monotonically incremented', () => {
-    const r1 = updateStoredProgress('freehand-straight-line', 70, 0);
-    expect(r1.aggregates['freehand-straight-line']!.attempts).toBe(1);
-    const r2 = updateStoredProgress('freehand-straight-line', 80, 0);
-    expect(r2.aggregates['freehand-straight-line']!.attempts).toBe(2);
+  it("attempts count is monotonically incremented", () => {
+    const r1 = updateStoredProgress("freehand-straight-line", 70, 0);
+    expect(r1.aggregates["freehand-straight-line"]!.attempts).toBe(1);
+    const r2 = updateStoredProgress("freehand-straight-line", 80, 0);
+    expect(r2.aggregates["freehand-straight-line"]!.attempts).toBe(2);
   });
 
-  it('records are stored independently per exercise id', () => {
-    updateStoredProgress('freehand-straight-line', 70, 0);
-    const result = updateStoredProgress('freehand-circle', 90, 0);
-    expect(result.aggregates['freehand-straight-line']!.attempts).toBe(1);
-    expect(result.aggregates['freehand-circle']!.attempts).toBe(1);
+  it("records are stored independently per exercise id", () => {
+    updateStoredProgress("freehand-straight-line", 70, 0);
+    const result = updateStoredProgress("freehand-circle", 90, 0);
+    expect(result.aggregates["freehand-straight-line"]!.attempts).toBe(1);
+    expect(result.aggregates["freehand-circle"]!.attempts).toBe(1);
   });
 
-  it('logs error but still returns in-memory result when localStorage.setItem fails', () => {
-    localStorageMock.setItem.mockImplementationOnce(() => { throw new Error('QuotaExceededError'); });
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const result = updateStoredProgress('freehand-straight-line', 75, 0);
-    expect(result.aggregates['freehand-straight-line']!.ema).toBe(75);
+  it("logs error but still returns in-memory result when localStorage.setItem fails", () => {
+    localStorageMock.setItem.mockImplementationOnce(() => {
+      throw new Error("QuotaExceededError");
+    });
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const result = updateStoredProgress("freehand-straight-line", 75, 0);
+    expect(result.aggregates["freehand-straight-line"]!.ema).toBe(75);
     expect(consoleSpy).toHaveBeenCalledOnce();
     consoleSpy.mockRestore();
   });
 
-  it('appends an AttemptRecord with correct fields', () => {
+  it("appends an AttemptRecord with correct fields", () => {
     const before = Date.now();
-    const result = updateStoredProgress('freehand-circle', 85, -3);
+    const result = updateStoredProgress("freehand-circle", 85, -3);
     const after = Date.now();
     expect(result.attempts).toHaveLength(1);
     const rec = result.attempts[0];
-    expect(rec.exerciseId).toBe('freehand-circle');
+    expect(rec.exerciseId).toBe("freehand-circle");
     expect(rec.score).toBe(85);
     expect(rec.signedError).toBe(-3);
     expect(rec.timestamp).toBeGreaterThanOrEqual(before);
     expect(rec.timestamp).toBeLessThanOrEqual(after);
   });
 
-  it('updates line angle bucket aggregates when metadata is provided', () => {
-    const result = updateStoredProgress('trace-line', 70, 0, {
+  it("updates line angle bucket aggregates when metadata is provided", () => {
+    const result = updateStoredProgress("trace-line", 70, 0, {
       lineAngleDegrees: 87,
       lineAngleBucket: 90,
     });
 
-    const bucket = result.dimensions.lineAngleBuckets['trace-line']!['90']!;
-    const fineBucket = result.dimensions.lineAngleDegreeBuckets!['trace-line']!['87']!;
+    const bucket = result.dimensions.lineAngleBuckets["trace-line"]!["90"]!;
+    const fineBucket =
+      result.dimensions.lineAngleDegreeBuckets!["trace-line"]!["87"]!;
     expect(bucket.ema).toBe(70);
     expect(bucket.attempts).toBe(1);
     expect(fineBucket.ema).toBe(70);
@@ -310,78 +416,154 @@ describe('updateStoredProgress', () => {
     expect(result.attempts[0].metadata?.lineAngleBucket).toBe(90);
   });
 
-  it('applies EMA independently per line angle bucket', () => {
-    updateStoredProgress('trace-line', 80, 0, {
+  it("applies EMA independently per line angle bucket", () => {
+    updateStoredProgress("trace-line", 80, 0, {
       lineAngleDegrees: 87,
       lineAngleBucket: 90,
     });
-    const result = updateStoredProgress('trace-line', 60, 0, {
+    const result = updateStoredProgress("trace-line", 60, 0, {
       lineAngleDegrees: 91,
       lineAngleBucket: 90,
     });
     const expected = 80 + 0.35 * (60 - 80);
-    expect(result.dimensions.lineAngleBuckets['trace-line']!['90']!.ema).toBeCloseTo(expected, 10);
+    expect(
+      result.dimensions.lineAngleBuckets["trace-line"]!["90"]!.ema,
+    ).toBeCloseTo(expected, 10);
   });
 
-  it('keeps durable one-degree line angle aggregates for future re-bucketing', () => {
-    updateStoredProgress('trace-line', 80, 0, {
+  it("keeps durable one-degree line angle aggregates for future re-bucketing", () => {
+    updateStoredProgress("trace-line", 80, 0, {
       lineAngleDegrees: 87.4,
       lineAngleBucket: 90,
     });
-    const result = updateStoredProgress('trace-line', 60, 0, {
+    const result = updateStoredProgress("trace-line", 60, 0, {
       lineAngleDegrees: 87.6,
       lineAngleBucket: 90,
     });
 
-    expect(result.dimensions.lineAngleBuckets['trace-line']!['90']!.attempts).toBe(2);
-    expect(result.dimensions.lineAngleDegreeBuckets!['trace-line']!['87']!.attempts).toBe(1);
-    expect(result.dimensions.lineAngleDegreeBuckets!['trace-line']!['88']!.attempts).toBe(1);
+    expect(
+      result.dimensions.lineAngleBuckets["trace-line"]!["90"]!.attempts,
+    ).toBe(2);
+    expect(
+      result.dimensions.lineAngleDegreeBuckets!["trace-line"]!["87"]!.attempts,
+    ).toBe(1);
+    expect(
+      result.dimensions.lineAngleDegreeBuckets!["trace-line"]!["88"]!.attempts,
+    ).toBe(1);
   });
 
-  it('keeps low-score line attempts out of proficiency aggregates', () => {
-    const result = updateStoredProgress('trace-line', 19, 0, {
+  it("keeps low-score line attempts out of proficiency aggregates", () => {
+    const result = updateStoredProgress("trace-line", 19, 0, {
       lineAngleDegrees: 87,
       lineAngleBucket: 90,
     });
 
     expect(result.attempts).toHaveLength(1);
     expect(result.attempts[0].metadata?.lineAngleBucket).toBe(90);
-    expect(result.aggregates['trace-line']!.attempts).toBe(1);
-    expect(result.dimensions.lineAngleBuckets['trace-line']).toBeUndefined();
-    expect(result.dimensions.lineAngleDegreeBuckets?.['trace-line']).toBeUndefined();
+    expect(result.aggregates["trace-line"]!.attempts).toBe(1);
+    expect(result.dimensions.lineAngleBuckets["trace-line"]).toBeUndefined();
+    expect(
+      result.dimensions.lineAngleDegreeBuckets?.["trace-line"],
+    ).toBeUndefined();
   });
 
-  it('updates angle opening bucket aggregates when metadata is provided', () => {
-    const result = updateStoredProgress('angle-copy-horizontal-aligned', 70, 0, {
-      angleOpeningDegrees: 87,
-      angleOpeningBucket: 90,
+  it("updates circle radius bucket aggregates when metadata is provided", () => {
+    const result = updateStoredProgress("freehand-circle", 85, 0, {
+      circleRadiusRatio: 0.25,
+      circleRadiusBucket: 1,
     });
 
     const bucket =
-      result.dimensions.angleOpeningBuckets['angle-copy-horizontal-aligned']![
-        '90'
+      result.dimensions.circleRadiusBuckets?.["freehand-circle"]?.["1"];
+    expect(bucket?.ema).toBe(85);
+    expect(bucket?.attempts).toBe(1);
+    expect(result.attempts[0].metadata?.circleRadiusBucket).toBe(1);
+  });
+
+  it("updates ellipse angle bucket aggregates when metadata is provided", () => {
+    const result = updateStoredProgress("freehand-ellipse", 88, 0, {
+      ellipseAngleDegrees: 30,
+      ellipseAngleBucket: 30,
+      ellipseMajorRadiusRatio: 0.35,
+      ellipseMajorRadiusBucket: 2,
+      ellipseAxisRatio: 0.5,
+      ellipseAxisRatioBucket: 1,
+    });
+
+    const angleBucket =
+      result.dimensions.ellipseAngleBuckets?.["freehand-ellipse"]?.["30"];
+    const sizeBucket =
+      result.dimensions.ellipseMajorRadiusBuckets?.["freehand-ellipse"]?.["2"];
+    const ratioBucket =
+      result.dimensions.ellipseAxisRatioBuckets?.["freehand-ellipse"]?.["1"];
+    expect(angleBucket?.ema).toBe(88);
+    expect(angleBucket?.attempts).toBe(1);
+    expect(sizeBucket?.ema).toBe(88);
+    expect(sizeBucket?.attempts).toBe(1);
+    expect(ratioBucket?.ema).toBe(88);
+    expect(ratioBucket?.attempts).toBe(1);
+    expect(result.attempts[0].metadata?.ellipseAngleBucket).toBe(30);
+    expect(result.attempts[0].metadata?.ellipseMajorRadiusBucket).toBe(2);
+    expect(result.attempts[0].metadata?.ellipseAxisRatioBucket).toBe(1);
+  });
+
+  it("keeps low-score closed shape attempts out of proficiency aggregates", () => {
+    const result = updateStoredProgress("freehand-circle", 19, 0, {
+      circleRadiusRatio: 0.25,
+      circleRadiusBucket: 1,
+    });
+
+    expect(result.attempts).toHaveLength(1);
+    expect(result.attempts[0].metadata?.circleRadiusBucket).toBe(1);
+    expect(result.aggregates["freehand-circle"]!.attempts).toBe(1);
+    expect(
+      result.dimensions.circleRadiusBuckets?.["freehand-circle"],
+    ).toBeUndefined();
+  });
+
+  it("updates angle opening bucket aggregates when metadata is provided", () => {
+    const result = updateStoredProgress(
+      "angle-copy-horizontal-aligned",
+      70,
+      0,
+      {
+        angleOpeningDegrees: 87,
+        angleOpeningBucket: 90,
+      },
+    );
+
+    const bucket =
+      result.dimensions.angleOpeningBuckets["angle-copy-horizontal-aligned"]![
+        "90"
       ]!;
     expect(bucket.ema).toBe(70);
     expect(bucket.attempts).toBe(1);
     expect(result.attempts[0].metadata?.angleOpeningBucket).toBe(90);
   });
 
-  it('keeps low-score angle attempts out of proficiency aggregates', () => {
-    const result = updateStoredProgress('angle-copy-horizontal-aligned', 19, 0, {
-      angleOpeningDegrees: 87,
-      angleOpeningBucket: 90,
-    });
+  it("keeps low-score angle attempts out of proficiency aggregates", () => {
+    const result = updateStoredProgress(
+      "angle-copy-horizontal-aligned",
+      19,
+      0,
+      {
+        angleOpeningDegrees: 87,
+        angleOpeningBucket: 90,
+      },
+    );
 
     expect(result.attempts).toHaveLength(1);
     expect(result.attempts[0].metadata?.angleOpeningBucket).toBe(90);
-    expect(result.aggregates['angle-copy-horizontal-aligned']!.attempts).toBe(1);
+    expect(result.aggregates["angle-copy-horizontal-aligned"]!.attempts).toBe(
+      1,
+    );
     expect(
-      result.dimensions.angleOpeningBuckets['angle-copy-horizontal-aligned'],
+      result.dimensions.angleOpeningBuckets["angle-copy-horizontal-aligned"],
     ).toBeUndefined();
   });
 
-  it('updates division length and direction bucket aggregates when metadata is provided', () => {
-    const result = updateStoredProgress('division-random-thirds', 70, 0, {
+  it("updates division length and direction bucket aggregates when metadata is provided", () => {
+    const result = updateStoredProgress("division-random-thirds", 70, 0, {
       divisionLengthPixels: 390,
       divisionLengthBucket: 2,
       divisionDirectionDegrees: 92,
@@ -389,10 +571,10 @@ describe('updateStoredProgress', () => {
     });
 
     const lengthBucket =
-      result.dimensions.divisionLengthBuckets['division-random-thirds']!['2']!;
+      result.dimensions.divisionLengthBuckets["division-random-thirds"]!["2"]!;
     const directionBucket =
-      result.dimensions.divisionDirectionBuckets['division-random-thirds']![
-        '90'
+      result.dimensions.divisionDirectionBuckets["division-random-thirds"]![
+        "90"
       ]!;
     expect(lengthBucket.ema).toBe(70);
     expect(lengthBucket.attempts).toBe(1);
@@ -402,8 +584,8 @@ describe('updateStoredProgress', () => {
     expect(result.attempts[0].metadata?.divisionDirectionBucket).toBe(90);
   });
 
-  it('keeps low-score division attempts out of proficiency aggregates', () => {
-    const result = updateStoredProgress('division-random-thirds', 19, 0, {
+  it("keeps low-score division attempts out of proficiency aggregates", () => {
+    const result = updateStoredProgress("division-random-thirds", 19, 0, {
       divisionLengthPixels: 390,
       divisionLengthBucket: 2,
       divisionDirectionDegrees: 92,
@@ -412,17 +594,17 @@ describe('updateStoredProgress', () => {
 
     expect(result.attempts).toHaveLength(1);
     expect(result.attempts[0].metadata?.divisionLengthBucket).toBe(2);
-    expect(result.aggregates['division-random-thirds']!.attempts).toBe(1);
+    expect(result.aggregates["division-random-thirds"]!.attempts).toBe(1);
     expect(
-      result.dimensions.divisionLengthBuckets['division-random-thirds'],
+      result.dimensions.divisionLengthBuckets["division-random-thirds"],
     ).toBeUndefined();
     expect(
-      result.dimensions.divisionDirectionBuckets['division-random-thirds'],
+      result.dimensions.divisionDirectionBuckets["division-random-thirds"],
     ).toBeUndefined();
   });
 
-  it('updates transfer length bucket aggregates when metadata is provided', () => {
-    const result = updateStoredProgress('copy-random-random', 70, 0, {
+  it("updates transfer length bucket aggregates when metadata is provided", () => {
+    const result = updateStoredProgress("copy-random-random", 70, 0, {
       transferLengthPixels: 170,
       transferLengthBucket: 2,
       transferAngleDegrees: 92,
@@ -430,13 +612,9 @@ describe('updateStoredProgress', () => {
     });
 
     const bucket =
-      result.dimensions.transferLengthBuckets['copy-random-random']![
-        '2'
-      ]!;
+      result.dimensions.transferLengthBuckets["copy-random-random"]!["2"]!;
     const angleBucket =
-      result.dimensions.transferAngleBuckets['copy-random-random']![
-        '90'
-      ]!;
+      result.dimensions.transferAngleBuckets["copy-random-random"]!["90"]!;
     expect(bucket.ema).toBe(70);
     expect(bucket.attempts).toBe(1);
     expect(angleBucket.ema).toBe(70);
@@ -445,8 +623,8 @@ describe('updateStoredProgress', () => {
     expect(result.attempts[0].metadata?.transferAngleBucket).toBe(90);
   });
 
-  it('keeps low-score transfer attempts out of proficiency aggregates', () => {
-    const result = updateStoredProgress('copy-random-random', 19, 0, {
+  it("keeps low-score transfer attempts out of proficiency aggregates", () => {
+    const result = updateStoredProgress("copy-random-random", 19, 0, {
       transferLengthPixels: 170,
       transferLengthBucket: 2,
       transferAngleDegrees: 92,
@@ -455,90 +633,98 @@ describe('updateStoredProgress', () => {
 
     expect(result.attempts).toHaveLength(1);
     expect(result.attempts[0].metadata?.transferLengthBucket).toBe(2);
-    expect(result.aggregates['copy-random-random']!.attempts).toBe(1);
+    expect(result.aggregates["copy-random-random"]!.attempts).toBe(1);
     expect(
-      result.dimensions.transferLengthBuckets['copy-random-random'],
+      result.dimensions.transferLengthBuckets["copy-random-random"],
     ).toBeUndefined();
     expect(
-      result.dimensions.transferAngleBuckets['copy-random-random'],
+      result.dimensions.transferAngleBuckets["copy-random-random"],
     ).toBeUndefined();
   });
 });
 
-describe('filterStaleAggregates', () => {
-  it('retains entries whose ids are in the known set', () => {
-    const store = updateStoredProgress('freehand-straight-line', 80, 0);
-    const result = filterStaleAggregates(store, new Set(['freehand-straight-line']));
-    expect(result.aggregates['freehand-straight-line']).toBeDefined();
+describe("filterStaleAggregates", () => {
+  it("retains entries whose ids are in the known set", () => {
+    const store = updateStoredProgress("freehand-straight-line", 80, 0);
+    const result = filterStaleAggregates(
+      store,
+      new Set(["freehand-straight-line"]),
+    );
+    expect(result.aggregates["freehand-straight-line"]).toBeDefined();
   });
 
-  it('drops entries whose ids are not in the known set', () => {
-    const store = updateStoredProgress('freehand-straight-line', 80, 0);
-    const result = filterStaleAggregates(store, new Set(['freehand-circle']));
-    expect(result.aggregates['freehand-straight-line']).toBeUndefined();
+  it("drops entries whose ids are not in the known set", () => {
+    const store = updateStoredProgress("freehand-straight-line", 80, 0);
+    const result = filterStaleAggregates(store, new Set(["freehand-circle"]));
+    expect(result.aggregates["freehand-straight-line"]).toBeUndefined();
   });
 
-  it('does not modify the attempts ring buffer', () => {
-    const store = updateStoredProgress('freehand-straight-line', 80, 0);
+  it("does not modify the attempts ring buffer", () => {
+    const store = updateStoredProgress("freehand-straight-line", 80, 0);
     const result = filterStaleAggregates(store, new Set());
     expect(result.attempts).toHaveLength(1);
   });
 
-  it('drops line angle bucket entries whose exercise ids are not known', () => {
-    const store = updateStoredProgress('trace-line', 80, 0, {
+  it("drops line angle bucket entries whose exercise ids are not known", () => {
+    const store = updateStoredProgress("trace-line", 80, 0, {
       lineAngleDegrees: 87,
       lineAngleBucket: 90,
     });
-    const result = filterStaleAggregates(store, new Set(['freehand-straight-line']));
-    expect(result.dimensions.lineAngleBuckets['trace-line']).toBeUndefined();
-    expect(result.dimensions.lineAngleDegreeBuckets!['trace-line']).toBeUndefined();
-  });
-
-  it('drops angle opening bucket entries whose exercise ids are not known', () => {
-    const store = updateStoredProgress('angle-copy-horizontal-aligned', 80, 0, {
-      angleOpeningDegrees: 87,
-      angleOpeningBucket: 90,
-    });
-    const result = filterStaleAggregates(store, new Set(['trace-line']));
+    const result = filterStaleAggregates(
+      store,
+      new Set(["freehand-straight-line"]),
+    );
+    expect(result.dimensions.lineAngleBuckets["trace-line"]).toBeUndefined();
     expect(
-      result.dimensions.angleOpeningBuckets['angle-copy-horizontal-aligned'],
+      result.dimensions.lineAngleDegreeBuckets!["trace-line"],
     ).toBeUndefined();
   });
 
-  it('drops division bucket entries whose exercise ids are not known', () => {
-    const store = updateStoredProgress('division-random-thirds', 80, 0, {
+  it("drops angle opening bucket entries whose exercise ids are not known", () => {
+    const store = updateStoredProgress("angle-copy-horizontal-aligned", 80, 0, {
+      angleOpeningDegrees: 87,
+      angleOpeningBucket: 90,
+    });
+    const result = filterStaleAggregates(store, new Set(["trace-line"]));
+    expect(
+      result.dimensions.angleOpeningBuckets["angle-copy-horizontal-aligned"],
+    ).toBeUndefined();
+  });
+
+  it("drops division bucket entries whose exercise ids are not known", () => {
+    const store = updateStoredProgress("division-random-thirds", 80, 0, {
       divisionLengthPixels: 390,
       divisionLengthBucket: 2,
       divisionDirectionDegrees: 92,
       divisionDirectionBucket: 90,
     });
-    const result = filterStaleAggregates(store, new Set(['trace-line']));
+    const result = filterStaleAggregates(store, new Set(["trace-line"]));
     expect(
-      result.dimensions.divisionLengthBuckets['division-random-thirds'],
+      result.dimensions.divisionLengthBuckets["division-random-thirds"],
     ).toBeUndefined();
     expect(
-      result.dimensions.divisionDirectionBuckets['division-random-thirds'],
+      result.dimensions.divisionDirectionBuckets["division-random-thirds"],
     ).toBeUndefined();
   });
 
-  it('drops transfer bucket entries whose exercise ids are not known', () => {
-    const store = updateStoredProgress('copy-random-random', 80, 0, {
+  it("drops transfer bucket entries whose exercise ids are not known", () => {
+    const store = updateStoredProgress("copy-random-random", 80, 0, {
       transferLengthPixels: 170,
       transferLengthBucket: 2,
       transferAngleDegrees: 92,
       transferAngleBucket: 90,
     });
-    const result = filterStaleAggregates(store, new Set(['trace-line']));
+    const result = filterStaleAggregates(store, new Set(["trace-line"]));
     expect(
-      result.dimensions.transferLengthBuckets['copy-random-random'],
+      result.dimensions.transferLengthBuckets["copy-random-random"],
     ).toBeUndefined();
     expect(
-      result.dimensions.transferAngleBuckets['copy-random-random'],
+      result.dimensions.transferAngleBuckets["copy-random-random"],
     ).toBeUndefined();
   });
 
-  it('returns empty aggregates when known set is empty', () => {
-    const store = updateStoredProgress('freehand-straight-line', 80, 0);
+  it("returns empty aggregates when known set is empty", () => {
+    const store = updateStoredProgress("freehand-straight-line", 80, 0);
     const result = filterStaleAggregates(store, new Set());
     expect(Object.keys(result.aggregates)).toHaveLength(0);
   });

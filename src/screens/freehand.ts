@@ -49,6 +49,20 @@ import {
   type AngleOpeningTrackerBucket,
 } from "../practice/angleOpeningTracker";
 import {
+  closedShapeCanvasMetrics,
+  circleRadiusMetadata,
+  ellipseAngleMetadata,
+  ellipseRatioMetadata,
+  ellipseSizeMetadata,
+  ellipseAngleTrackerModel,
+  type CircleRadiusMetadata,
+  type ClosedShapeCanvasMetrics,
+  type ClosedShapeTrackerBucket,
+  type EllipseAngleMetadata,
+  type EllipseRatioMetadata,
+  type EllipseSizeMetadata,
+} from "../practice/closedShapeDimensions";
+import {
   canStartFreehandStroke,
   freehandPointFromEvent,
   freehandPointsFromPointerEvent,
@@ -222,6 +236,21 @@ export function mountFreehandScreen(
         },
       })
     : null;
+  const ellipseAngleWidget = isEllipseAngleTrackedExercise(exercise.id)
+    ? h("button", {
+        type: "button",
+        class:
+          "angle-opening-widget shape-dimension-widget ellipse-angle-widget",
+        title: "Review ellipse orientation practice",
+        on: {
+          click: () => {
+            document.body.append(
+              renderEllipseAngleTrackerModal(getStoredProgress(), exercise.id),
+            );
+          },
+        },
+      })
+    : null;
   if (lineAngleWidget) {
     lineAngleWidget.setAttribute(
       "aria-label",
@@ -241,6 +270,18 @@ export function mountFreehandScreen(
       exercise.id,
     );
     toolbar.append(angleOpeningWidget);
+  }
+  if (ellipseAngleWidget) {
+    ellipseAngleWidget.setAttribute(
+      "aria-label",
+      "Review ellipse orientation practice",
+    );
+    renderEllipseAngleWidget(
+      ellipseAngleWidget,
+      getStoredProgress(),
+      exercise.id,
+    );
+    toolbar.append(ellipseAngleWidget);
   }
 
   const historySection = h("section", {
@@ -519,8 +560,7 @@ export function mountFreehandScreen(
       0,
       Math.min(
         1,
-        ((point.x - start.x) * dx + (point.y - start.y) * dy) /
-          lengthSquared,
+        ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared,
       ),
     );
     return distanceBetween(point, {
@@ -612,6 +652,9 @@ export function mountFreehandScreen(
     }
     if (angleOpeningWidget) {
       renderAngleOpeningWidget(angleOpeningWidget, nextProgress, exercise.id);
+    }
+    if (ellipseAngleWidget) {
+      renderEllipseAngleWidget(ellipseAngleWidget, nextProgress, exercise.id);
     }
     attempts.unshift({
       id: nextAttemptId,
@@ -1041,14 +1084,31 @@ function isAngleOpeningTrackedExercise(id: ExerciseId): boolean {
   return id.startsWith("angle-copy-");
 }
 
+function isCircleRadiusTrackedExercise(id: ExerciseId): boolean {
+  return (
+    id === "freehand-circle" ||
+    id.startsWith("target-circle-") ||
+    id === "trace-circle"
+  );
+}
+
+function isEllipseAngleTrackedExercise(id: ExerciseId): boolean {
+  return id === "freehand-ellipse" || id === "trace-ellipse";
+}
+
 function progressMetadataForResult(
   exerciseId: ExerciseId,
   result: FreehandResult,
   points: FreehandPoint[],
 ): ProgressAttemptMetadata | undefined {
+  const canvas = closedShapeCanvasMetrics(CANVAS_WIDTH, CANVAS_HEIGHT);
   const metadata = {
     ...lineAngleMetadataForResult(exerciseId, result, points),
     ...angleOpeningMetadataForResult(exerciseId, result),
+    ...circleRadiusMetadataForResult(exerciseId, result, canvas),
+    ...ellipseAngleMetadataForResult(exerciseId, result),
+    ...ellipseSizeMetadataForResult(exerciseId, result, canvas),
+    ...ellipseRatioMetadataForResult(exerciseId, result),
   };
   return Object.keys(metadata).length === 0 ? undefined : metadata;
 }
@@ -1085,6 +1145,69 @@ function angleOpeningMetadataForResult(
   if (!isAngleOpeningTrackedExercise(exerciseId)) return undefined;
   if (result.kind !== "target-angle") return undefined;
   return angleOpeningMetadataFromRadians(result.target.openingRadians);
+}
+
+function circleRadiusMetadataForResult(
+  exerciseId: ExerciseId,
+  result: FreehandResult,
+  canvas: ClosedShapeCanvasMetrics | null,
+): CircleRadiusMetadata | undefined {
+  if (!canvas) return undefined;
+  if (!isCircleRadiusTrackedExercise(exerciseId)) return undefined;
+  if (result.kind === "circle") {
+    return circleRadiusMetadata(result.radius, canvas);
+  }
+  if (result.kind === "target-circle") {
+    return circleRadiusMetadata(result.target.radius, canvas);
+  }
+  return undefined;
+}
+
+function ellipseAngleMetadataForResult(
+  exerciseId: ExerciseId,
+  result: FreehandResult,
+): EllipseAngleMetadata | undefined {
+  if (!isEllipseAngleTrackedExercise(exerciseId)) return undefined;
+  if (result.kind === "ellipse") {
+    return ellipseAngleMetadata(result.rotationRadians);
+  }
+  if (result.kind === "target-ellipse") {
+    return ellipseAngleMetadata(result.target.rotationRadians);
+  }
+  return undefined;
+}
+
+function ellipseSizeMetadataForResult(
+  exerciseId: ExerciseId,
+  result: FreehandResult,
+  canvas: ClosedShapeCanvasMetrics | null,
+): EllipseSizeMetadata | undefined {
+  if (!canvas) return undefined;
+  if (!isEllipseAngleTrackedExercise(exerciseId)) return undefined;
+  if (result.kind === "ellipse") {
+    return ellipseSizeMetadata(result.majorRadius, canvas);
+  }
+  if (result.kind === "target-ellipse") {
+    return ellipseSizeMetadata(result.target.majorRadius, canvas);
+  }
+  return undefined;
+}
+
+function ellipseRatioMetadataForResult(
+  exerciseId: ExerciseId,
+  result: FreehandResult,
+): EllipseRatioMetadata | undefined {
+  if (!isEllipseAngleTrackedExercise(exerciseId)) return undefined;
+  if (result.kind === "ellipse") {
+    return ellipseRatioMetadata(result.majorRadius, result.minorRadius);
+  }
+  if (result.kind === "target-ellipse") {
+    return ellipseRatioMetadata(
+      result.target.majorRadius,
+      result.target.minorRadius,
+    );
+  }
+  return undefined;
 }
 
 function renderLineAngleWidget(
@@ -1147,6 +1270,45 @@ function renderAngleOpeningWidget(
     ),
   );
   const total = angleOpeningTotalBar(model.todayTotal, model.todayProgress);
+  container.replaceChildren(todayBars, cells, total);
+}
+
+function renderEllipseAngleWidget(
+  container: HTMLElement,
+  progress: ProgressStore,
+  exerciseId: ExerciseId,
+): void {
+  const model = ellipseAngleTrackerModel(progress, exerciseId);
+  renderClosedShapeStrip(
+    container,
+    model.buckets,
+    model.todayTotal,
+    model.todayProgress,
+  );
+}
+
+function renderClosedShapeStrip(
+  container: HTMLElement,
+  buckets: ClosedShapeTrackerBucket[],
+  todayTotal: number,
+  todayProgress: number,
+): void {
+  const todayBars = h(
+    "div",
+    { class: "angle-opening-today-bars" },
+    buckets.map(closedShapeTodayBar),
+  );
+  const cells = h(
+    "div",
+    { class: "angle-opening-cells" },
+    buckets.map((bucket) =>
+      h("span", {
+        class: "angle-opening-cell",
+        style: { background: bucket.cellFill },
+      }),
+    ),
+  );
+  const total = angleOpeningTotalBar(todayTotal, todayProgress);
   container.replaceChildren(todayBars, cells, total);
 }
 
@@ -1234,6 +1396,108 @@ function renderLineAngleTrackerModal(
   return overlay;
 }
 
+function renderEllipseAngleTrackerModal(
+  progress: ProgressStore,
+  exerciseId: ExerciseId,
+): HTMLElement {
+  const model = ellipseAngleTrackerModel(progress, exerciseId);
+  return renderClosedShapeTrackerModal({
+    title: "Ellipse Orientation Tracker",
+    ariaLabel: "Ellipse orientation tracker detail",
+    todayLabel: "ellipse attempts",
+    explanation:
+      "Cell color ranks long-term proficiency for this drill. Top bars show attempts today.",
+    buckets: model.buckets,
+    todayTotal: model.todayTotal,
+    todayProgress: model.todayProgress,
+    summary: ellipseAngleBucketSummary,
+  });
+}
+
+function renderClosedShapeTrackerModal(options: {
+  title: string;
+  ariaLabel: string;
+  todayLabel: string;
+  explanation: string;
+  buckets: ClosedShapeTrackerBucket[];
+  todayTotal: number;
+  todayProgress: number;
+  summary: (bucket: ClosedShapeTrackerBucket) => string;
+}): HTMLElement {
+  let overlay: HTMLElement;
+  const close = (): void => overlay.remove();
+  const strip = h(
+    "div",
+    {
+      class: "angle-opening-detail-strip shape-dimension-detail-strip",
+      style: {
+        "--shape-bucket-count": String(options.buckets.length),
+      } as unknown as Partial<CSSStyleDeclaration>,
+    },
+    [
+      h(
+        "div",
+        { class: "angle-opening-today-bars" },
+        options.buckets.map(closedShapeTodayBar),
+      ),
+      h(
+        "div",
+        { class: "angle-opening-cells" },
+        options.buckets.map((bucket) =>
+          h("span", {
+            class: "angle-opening-cell",
+            style: { background: bucket.cellFill },
+            title: options.summary(bucket),
+          }),
+        ),
+      ),
+      angleOpeningTotalBar(options.todayTotal, options.todayProgress),
+    ],
+  );
+
+  const populatedBuckets = options.buckets.filter(
+    (bucket) => bucket.aggregate !== undefined || bucket.todayAttempts > 0,
+  );
+  const details = h("div", { class: "line-angle-modal-details" }, [
+    h("p", {}, [`Today: ${options.todayTotal} ${options.todayLabel}`]),
+    h("p", {}, [options.explanation]),
+    h(
+      "ol",
+      {},
+      populatedBuckets.map((bucket) => h("li", {}, [options.summary(bucket)])),
+    ),
+  ]);
+
+  const closeBtn = actionButton("Close", close);
+  const panel = h(
+    "div",
+    {
+      class: "line-angle-modal-panel",
+      on: { click: (event) => event.stopPropagation() },
+    },
+    [
+      h("div", { class: "line-angle-modal-header" }, [
+        h("h2", {}, [options.title]),
+        closeBtn,
+      ]),
+      strip,
+      details,
+    ],
+  );
+  overlay = h(
+    "div",
+    {
+      class: "line-angle-modal",
+      on: { click: close },
+    },
+    [panel],
+  );
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-label", options.ariaLabel);
+  return overlay;
+}
+
 function renderAngleOpeningTrackerModal(
   progress: ProgressStore,
   exerciseId: ExerciseId,
@@ -1317,6 +1581,15 @@ function angleOpeningTodayBar(
   return bar;
 }
 
+function closedShapeTodayBar(
+  bucket: ClosedShapeTrackerBucket,
+): HTMLSpanElement {
+  const bar = h("span", { class: "angle-opening-today-bar" });
+  bar.style.setProperty("--today-height", `${bucket.todayHeightPercent}%`);
+  bar.style.setProperty("--today-opacity", bucket.todayOpacity.toFixed(2));
+  return bar;
+}
+
 function angleOpeningTotalBar(
   todayTotal: number,
   todayProgress: number,
@@ -1379,6 +1652,14 @@ function lineAngleBucketSummary(bucket: LineAngleTrackerBucket): string {
 }
 
 function angleOpeningBucketSummary(bucket: AngleOpeningTrackerBucket): string {
+  const score =
+    bucket.aggregate === undefined
+      ? "no proficiency score"
+      : `EMA ${bucket.aggregate.ema.toFixed(1)}, ${bucket.aggregate.attempts} counted`;
+  return `${bucket.bucket}deg: ${score}, ${bucket.todayAttempts} today`;
+}
+
+function ellipseAngleBucketSummary(bucket: ClosedShapeTrackerBucket): string {
   const score =
     bucket.aggregate === undefined
       ? "no proficiency score"

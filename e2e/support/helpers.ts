@@ -331,6 +331,72 @@ export async function storedLineAngleBuckets(
   }, exerciseId);
 }
 
+export async function storedCircleRadiusBuckets(
+  page: Page,
+  exerciseId: string,
+): Promise<string[]> {
+  return page.evaluate((id) => {
+    const raw = window.localStorage.getItem("draftsman-eye.progress.v8");
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as {
+      dimensions?: {
+        circleRadiusBuckets?: Record<string, Record<string, unknown>>;
+      };
+    };
+    return Object.keys(parsed.dimensions?.circleRadiusBuckets?.[id] ?? {});
+  }, exerciseId);
+}
+
+export async function storedEllipseAngleBuckets(
+  page: Page,
+  exerciseId: string,
+): Promise<string[]> {
+  return page.evaluate((id) => {
+    const raw = window.localStorage.getItem("draftsman-eye.progress.v8");
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as {
+      dimensions?: {
+        ellipseAngleBuckets?: Record<string, Record<string, unknown>>;
+      };
+    };
+    return Object.keys(parsed.dimensions?.ellipseAngleBuckets?.[id] ?? {});
+  }, exerciseId);
+}
+
+export async function storedEllipseMajorRadiusBuckets(
+  page: Page,
+  exerciseId: string,
+): Promise<string[]> {
+  return page.evaluate((id) => {
+    const raw = window.localStorage.getItem("draftsman-eye.progress.v8");
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as {
+      dimensions?: {
+        ellipseMajorRadiusBuckets?: Record<string, Record<string, unknown>>;
+      };
+    };
+    return Object.keys(
+      parsed.dimensions?.ellipseMajorRadiusBuckets?.[id] ?? {},
+    );
+  }, exerciseId);
+}
+
+export async function storedEllipseAxisRatioBuckets(
+  page: Page,
+  exerciseId: string,
+): Promise<string[]> {
+  return page.evaluate((id) => {
+    const raw = window.localStorage.getItem("draftsman-eye.progress.v8");
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as {
+      dimensions?: {
+        ellipseAxisRatioBuckets?: Record<string, Record<string, unknown>>;
+      };
+    };
+    return Object.keys(parsed.dimensions?.ellipseAxisRatioBuckets?.[id] ?? {});
+  }, exerciseId);
+}
+
 export async function openTraceCircle(page: Page): Promise<void> {
   await page
     .getByRole("article")

@@ -3,6 +3,10 @@ import {
   drawFreehandStraightLineAttempt,
   freehandCanvasBox,
   openStraightLine,
+  storedCircleRadiusBuckets,
+  storedEllipseAxisRatioBuckets,
+  storedEllipseAngleBuckets,
+  storedEllipseMajorRadiusBuckets,
   storedLineAngleBuckets,
 } from "./support/helpers";
 
@@ -59,6 +63,16 @@ test("ellipse drill scores a drawn stroke and auto-clears", async ({
   await page.mouse.up();
 
   await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
+  await expect(page.locator(".ellipse-angle-widget")).toBeVisible();
+  await expect(
+    await storedEllipseAngleBuckets(page, "freehand-ellipse"),
+  ).toHaveLength(1);
+  await expect(
+    await storedEllipseMajorRadiusBuckets(page, "freehand-ellipse"),
+  ).toHaveLength(1);
+  await expect(
+    await storedEllipseAxisRatioBuckets(page, "freehand-ellipse"),
+  ).toHaveLength(1);
   await expect(
     page.getByTestId("freehand-canvas").locator(".freehand-fit-ellipse"),
   ).toBeVisible();
@@ -148,6 +162,10 @@ test("circle drill scores a drawn stroke and auto-clears", async ({ page }) => {
   await page.mouse.up();
 
   await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
+  await expect(page.locator(".circle-radius-widget")).toHaveCount(0);
+  await expect(
+    await storedCircleRadiusBuckets(page, "freehand-circle"),
+  ).toHaveLength(1);
   await expect(
     page.getByTestId("freehand-canvas").locator(".freehand-fit-circle"),
   ).toBeVisible();

@@ -738,12 +738,22 @@ button {
   background: rgba(47, 85, 125, 0.7);
 }
 
+.shape-dimension-widget.ellipse-angle-widget .angle-opening-today-bars,
+.shape-dimension-widget.ellipse-angle-widget .angle-opening-cells {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
 .angle-opening-detail-strip {
   display: grid;
   grid-template-rows: 18px 34px 8px;
   gap: 5px;
   width: min(420px, 100%);
   margin: 0 auto 14px;
+}
+
+.shape-dimension-detail-strip .angle-opening-today-bars,
+.shape-dimension-detail-strip .angle-opening-cells {
+  grid-template-columns: repeat(var(--shape-bucket-count, 18), minmax(0, 1fr));
 }
 
 .division-tracker-widget {
@@ -814,7 +824,10 @@ button {
 .division-tracker-today-bars,
 .division-tracker-cells {
   display: grid;
-  grid-template-columns: repeat(var(--division-bucket-count, 5), minmax(0, 1fr));
+  grid-template-columns: repeat(
+    var(--division-bucket-count, 5),
+    minmax(0, 1fr)
+  );
   gap: 1px;
   width: 100%;
 }
@@ -1875,7 +1888,8 @@ button {
 .curriculum-table {
   display: grid;
   gap: 0.35rem;
-  --curriculum-table-columns: minmax(16rem, 1fr) repeat(7, minmax(4.5rem, 5.75rem));
+  --curriculum-table-columns: minmax(16rem, 1fr)
+    repeat(7, minmax(4.5rem, 5.75rem));
 }
 
 .curriculum-row {
