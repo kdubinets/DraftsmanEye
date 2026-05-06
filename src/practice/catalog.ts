@@ -793,7 +793,7 @@ function angleConstructExercise(
     description,
     implemented: true,
     kind,
-    inputMode: "adjustable-line-1-shot",
+    inputMode: "adjustable-line",
   };
 }
 

@@ -147,9 +147,16 @@ export function freehandResultStats(result: FreehandResult): HTMLElement[] {
   }
 
   if (result.kind === "target-angle") {
+    const targetAngleDegrees =
+      result.target.requestedDegrees ??
+      (Math.abs(result.target.openingRadians) * 180) / Math.PI;
+    const actualAngleDegrees =
+      targetAngleDegrees + result.signedOpenErrorDegrees;
     return [
       stat("Score", result.score.toFixed(1)),
       stat("Angle miss", `${result.angleErrorDegrees.toFixed(1)} deg`),
+      stat("Target angle", `${targetAngleDegrees.toFixed(1)} deg`),
+      stat("Actual angle", `${actualAngleDegrees.toFixed(1)} deg`),
       stat(
         "Opening",
         result.signedOpenErrorDegrees > 0
@@ -190,13 +197,18 @@ function primaryResultDetail(result: FreehandResult): string {
       : "No loops detected";
   }
   if (result.kind === "target-angle") {
+    const targetAngleDegrees =
+      result.target.requestedDegrees ??
+      (Math.abs(result.target.openingRadians) * 180) / Math.PI;
+    const actualAngleDegrees =
+      targetAngleDegrees + result.signedOpenErrorDegrees;
     const opening =
       result.signedOpenErrorDegrees > 0
         ? "too open"
         : result.signedOpenErrorDegrees < 0
           ? "too narrow"
           : "exact";
-    return `Angle miss ${result.angleErrorDegrees.toFixed(1)} deg · ${opening}`;
+    return `Target ${targetAngleDegrees.toFixed(1)} deg · Actual ${actualAngleDegrees.toFixed(1)} deg · Angle miss ${result.angleErrorDegrees.toFixed(1)} deg · ${opening}`;
   }
 
   if (result.kind === "target-line") {

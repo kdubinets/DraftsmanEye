@@ -541,6 +541,12 @@ function subfilterValue(
       if (exercise.id.startsWith("angle-estimate-")) return "estimate";
       if (exercise.id.startsWith("angle-construct-")) return "construct";
     }
+    if (facetId === "input") {
+      if (exercise.id.startsWith("angle-construct-")) return "adjust";
+      if (exercise.id.endsWith("-free-draw-1-shot")) return "free-draw-1-shot";
+      if (exercise.id.endsWith("-adjustable-1-shot")) return "adjust-1-shot";
+      return "adjust";
+    }
     if (
       exercise.id.startsWith("angle-estimate-") ||
       exercise.id.startsWith("angle-construct-")
@@ -554,11 +560,6 @@ function subfilterValue(
         if (exercise.id === "angle-construct-arbitrary") return "arbitrary";
       }
       return null;
-    }
-    if (facetId === "input") {
-      if (exercise.id.endsWith("-free-draw-1-shot")) return "free-draw-1-shot";
-      if (exercise.id.endsWith("-adjustable-1-shot")) return "adjust-1-shot";
-      return "adjust";
     }
     if (facetId === "reference") {
       if (exercise.id.startsWith("angle-copy-horizontal-")) return "horizontal";

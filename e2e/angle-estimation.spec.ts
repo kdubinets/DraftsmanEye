@@ -201,6 +201,10 @@ test("angle construction adjustable line reveals the correct directed angle", as
   ).toBeVisible();
 
   const canvas = page.getByTestId("freehand-canvas");
+  const commit = page.getByRole("button", { name: "Commit", exact: true });
+  const reset = page.getByRole("button", { name: "Reset", exact: true });
+  await expect(commit).toBeVisible();
+  await expect(reset).toBeVisible();
   await expect(canvas.locator(".freehand-angle-reference-ray")).toHaveCount(0);
   await expect(canvas.locator(".freehand-angle-target-base")).toHaveCount(1);
   await expect(canvas.locator(".freehand-angle-direction-cue")).toHaveCount(1);
@@ -218,6 +222,14 @@ test("angle construction adjustable line reveals the correct directed angle", as
   await page.mouse.down();
   await page.mouse.move(baseEndClient.x, baseEndClient.y - 100);
   await page.mouse.up();
+
+  await expect(page.getByText(/Score \d+\.\d/)).toBeHidden();
+  await expect(
+    canvas.locator(".freehand-target-correction-line"),
+  ).toBeHidden();
+  await expect(canvas.locator(".freehand-adjustable-line")).toBeVisible();
+
+  await commit.click();
 
   await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
   await expect(page.getByText("Angle miss", { exact: true })).toBeVisible();
@@ -247,6 +259,14 @@ test("angle construction adjustable line reveals the correct directed angle", as
   ).toBeUndefined();
   expect(progress?.attempts?.[0]?.metadata?.angleEstimateBucket).toBeTruthy();
   expect(progress?.attempts?.[0]?.metadata?.angleOpeningBucket).toBeUndefined();
+
+  await page.locator(".freehand-history-item").click();
+  const modal = page.getByTestId("freehand-history-modal");
+  await expect(modal).toBeVisible();
+  await expect(modal.getByText(/Target \d+\.\d deg/)).toBeVisible();
+  await expect(modal.getByText(/Actual -?\d+\.\d deg/)).toBeVisible();
+  await expect(modal.getByText("Target angle", { exact: true })).toBeVisible();
+  await expect(modal.getByText("Actual angle", { exact: true })).toBeVisible();
 });
 
 test("angle construction varieties appear in angle estimation filters", async ({
@@ -255,7 +275,11 @@ test("angle construction varieties appear in angle estimation filters", async ({
   await page.goto("/");
 
   await page.getByRole("button", { name: "Angle" }).click();
-  await page.getByRole("button", { name: "Construct" }).click();
+  const angle = page.locator(".exercise-family-section").filter({
+    has: page.getByRole("heading", { level: 3, name: "Angle" }),
+  });
+  await angle.getByRole("button", { name: "Construct" }).click();
+  await angle.getByRole("button", { name: "Adjust", exact: true }).click();
 
   for (const label of [
     "Construct - Horizontal Base",
@@ -271,5 +295,24 @@ test("angle construction varieties appear in angle estimation filters", async ({
         }),
       }),
     ).toBeVisible();
+  }
+
+  await angle.getByRole("button", { name: "Adjust", exact: true }).click();
+  await angle.getByRole("button", { name: "Adjust 1-Shot" }).click();
+
+  for (const label of [
+    "Construct - Horizontal Base",
+    "Construct - Vertical Base",
+    "Construct - Arbitrary Base",
+  ]) {
+    await expect(
+      angle.getByRole("article").filter({
+        has: page.getByRole("heading", {
+          level: 3,
+          name: label,
+          exact: true,
+        }),
+      }),
+    ).toBeHidden();
   }
 });
