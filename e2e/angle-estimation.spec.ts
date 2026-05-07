@@ -44,7 +44,7 @@ test("angle estimation drill commits numeric estimate and updates progress", asy
   await expect(page.getByRole("button", { name: "Again" })).toBeVisible();
 
   const progress = await page.evaluate(() => {
-    const raw = window.localStorage.getItem("draftsman-eye.progress.v9");
+    const raw = window.localStorage.getItem("draftsman-eye.progress.v10");
     if (!raw) return null;
     return JSON.parse(raw) as {
       aggregates?: Record<string, unknown>;
@@ -241,7 +241,7 @@ test("angle construction adjustable line reveals the correct directed angle", as
   await expect(canvas.locator(".freehand-adjustable-line")).toBeHidden();
 
   const progress = await page.evaluate(() => {
-    const raw = window.localStorage.getItem("draftsman-eye.progress.v9");
+    const raw = window.localStorage.getItem("draftsman-eye.progress.v10");
     if (!raw) return null;
     return JSON.parse(raw) as {
       dimensions?: {

@@ -13,11 +13,13 @@ import type {
   ExerciseDefinition,
   ExerciseId,
   FreehandExerciseDefinition,
+  LengthRatioEstimateExerciseDefinition,
 } from "../practice/catalog";
 import { mountSingleMarkScreen } from "../screens/singleMark";
 import { mountFreehandScreen } from "../screens/freehand";
 import { mountSolidsScreen } from "../screens/solids";
 import { mountAngleEstimateScreen } from "../screens/angleEstimate";
+import { mountLengthRatioEstimateScreen } from "../screens/lengthRatioEstimate";
 import { scoreFreehandLine, scoreTargetLine } from "../scoring/line";
 import { scoreFreehandCircle, scoreTargetCircle } from "../scoring/circle";
 import { scoreFreehandEllipse, scoreTargetEllipse } from "../scoring/ellipse";
@@ -495,6 +497,21 @@ function toMountable(exercise: ExerciseDefinition): MountableExercise {
         return mountAngleEstimateScreen(
           root,
           exercise as AngleEstimateExerciseDefinition,
+          source,
+          onNavigate,
+          listState,
+        );
+      },
+    };
+  }
+
+  if (exercise.kind === "length-ratio-estimate") {
+    return {
+      ...exercise,
+      mount(root, source, onNavigate, listState) {
+        return mountLengthRatioEstimateScreen(
+          root,
+          exercise as LengthRatioEstimateExerciseDefinition,
           source,
           onNavigate,
           listState,

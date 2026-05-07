@@ -1731,6 +1731,96 @@ button {
   text-align: center;
 }
 
+.length-ratio-estimate-stage {
+  gap: 1rem;
+}
+
+.length-ratio-estimate-canvas {
+  width: min(100%, 820px);
+  height: auto;
+  max-height: 58vh;
+  aspect-ratio: 1000 / 620;
+  touch-action: none;
+}
+
+.length-ratio-source-segment,
+.length-ratio-target-segment {
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+
+.length-ratio-source-segment {
+  stroke: rgba(52, 38, 27, 0.82);
+}
+
+.length-ratio-target-segment {
+  stroke: rgba(47, 85, 125, 0.9);
+}
+
+.length-ratio-source-endpoint,
+.length-ratio-target-endpoint {
+  fill: #fffaf2;
+  stroke-width: 3;
+}
+
+.length-ratio-source-endpoint {
+  stroke: rgba(52, 38, 27, 0.82);
+}
+
+.length-ratio-target-endpoint {
+  stroke: rgba(47, 85, 125, 0.9);
+}
+
+.length-ratio-source-label,
+.length-ratio-target-label,
+.length-ratio-result-badge {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.length-ratio-source-label {
+  fill: rgba(52, 38, 27, 0.82);
+}
+
+.length-ratio-target-label {
+  fill: rgba(47, 85, 125, 0.92);
+}
+
+.length-ratio-result-badge {
+  fill: #4d3a25;
+}
+
+.length-ratio-controls {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr) auto auto;
+  align-items: end;
+  gap: 0.75rem;
+  width: min(100%, 820px);
+}
+
+.length-ratio-slider {
+  width: 100%;
+  min-height: 46px;
+  accent-color: #2f557d;
+}
+
+.length-ratio-number {
+  width: 7.5rem;
+  min-height: 46px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fffaf2;
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.1rem;
+  text-align: center;
+}
+
+.length-ratio-widget {
+  min-width: 96px;
+}
+
 .error-gap {
   stroke: #c26134;
   stroke-width: 3;
@@ -2214,7 +2304,8 @@ button {
     flex-direction: column;
   }
 
-  .angle-estimate-controls {
+  .angle-estimate-controls,
+  .length-ratio-controls {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -2228,7 +2319,8 @@ button {
   }
 
   .angle-step-button,
-  .angle-estimate-number {
+  .angle-estimate-number,
+  .length-ratio-number {
     width: 100%;
   }
 

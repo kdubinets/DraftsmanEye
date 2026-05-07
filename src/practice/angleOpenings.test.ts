@@ -11,7 +11,7 @@ function progressWithBuckets(
   buckets: Record<string, { ema: number; attempts: number; lastPracticedAt: number }>,
 ): ProgressStore {
   return {
-    version: 9,
+    version: 10,
     attempts: [],
     aggregates: {},
     dimensions: {

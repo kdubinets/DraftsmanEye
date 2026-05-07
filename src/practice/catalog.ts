@@ -59,6 +59,15 @@ export type ExerciseId =
   | "angle-estimate-horizontal"
   | "angle-estimate-vertical"
   | "angle-estimate-random"
+  | "length-ratio-estimate-horizontal-aligned"
+  | "length-ratio-estimate-horizontal-cross"
+  | "length-ratio-estimate-horizontal-random"
+  | "length-ratio-estimate-vertical-aligned"
+  | "length-ratio-estimate-vertical-cross"
+  | "length-ratio-estimate-vertical-random"
+  | "length-ratio-estimate-random-aligned"
+  | "length-ratio-estimate-random-cross"
+  | "length-ratio-estimate-random-random"
   | "angle-construct-horizontal"
   | "angle-construct-vertical"
   | "angle-construct-arbitrary"
@@ -243,6 +252,13 @@ export type AngleEstimateExerciseDefinition = ExerciseBase & {
   base: "horizontal" | "vertical" | "random";
 };
 
+export type LengthRatioEstimateExerciseDefinition = ExerciseBase & {
+  implemented: true;
+  kind: "length-ratio-estimate";
+  sourceOrientation: "horizontal" | "vertical" | "random";
+  targetRelation: "aligned" | "cross" | "random";
+};
+
 export const SOLID_EXERCISE_KINDS = [
   "solid-cube-2pt",
   "solid-box-2pt",
@@ -280,6 +296,7 @@ export type ExerciseDefinition =
   | SingleMarkExerciseDefinition
   | FreehandExerciseDefinition
   | AngleEstimateExerciseDefinition
+  | LengthRatioEstimateExerciseDefinition
   | SolidExerciseDefinition
   | UnimplementedExerciseDefinition;
 
@@ -563,6 +580,7 @@ export const EXERCISES: ExerciseDefinition[] = [
     "Estimate an angle opening from a randomly oriented base ray.",
     "random",
   ),
+  ...lengthRatioEstimateExercises(),
   angleConstructExercise(
     "angle-construct-horizontal",
     "Construct - Horizontal Base",
@@ -778,6 +796,51 @@ function angleEstimateExercise(
     kind: "angle-estimate",
     base,
   };
+}
+
+function lengthRatioEstimateExercises(): LengthRatioEstimateExerciseDefinition[] {
+  const orientations: Array<{
+    id: "horizontal" | "vertical" | "random";
+    label: string;
+  }> = [
+    { id: "horizontal", label: "Horizontal Source" },
+    { id: "vertical", label: "Vertical Source" },
+    { id: "random", label: "Random Source" },
+  ];
+  const relations: Array<{
+    id: "aligned" | "cross" | "random";
+    label: string;
+    description: string;
+  }> = [
+    {
+      id: "aligned",
+      label: "Aligned Target",
+      description: "parallel target segment",
+    },
+    {
+      id: "cross",
+      label: "Cross Target",
+      description: "perpendicular target segment",
+    },
+    {
+      id: "random",
+      label: "Random Target",
+      description: "oblique target segment",
+    },
+  ];
+
+  return orientations.flatMap((orientation) =>
+    relations.map((relation) => ({
+      id: `length-ratio-estimate-${orientation.id}-${relation.id}` as ExerciseId,
+      family: "Length Ratio Estimation",
+      label: `${orientation.label}, ${relation.label}`,
+      description: `Estimate target/source length ratio with a ${orientation.id} source and ${relation.description}.`,
+      implemented: true,
+      kind: "length-ratio-estimate",
+      sourceOrientation: orientation.id,
+      targetRelation: relation.id,
+    })),
+  );
 }
 
 function angleConstructExercise(

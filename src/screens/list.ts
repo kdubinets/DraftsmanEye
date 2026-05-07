@@ -14,6 +14,7 @@ import { curriculumView } from "./curriculum";
 const FAMILY_ORDER = [
   "Division",
   "Length Transfer",
+  "Length Ratio Estimation",
   "Angle",
   "Intersection",
   "Flat Shapes",
@@ -396,6 +397,26 @@ const FILTER_FACETS: Record<string, FilterFacet[]> = {
       ],
     },
   ],
+  "Length Ratio Estimation": [
+    {
+      id: "source",
+      label: "Source",
+      options: [
+        { id: "horizontal", label: "Horizontal" },
+        { id: "vertical", label: "Vertical" },
+        { id: "random", label: "Random" },
+      ],
+    },
+    {
+      id: "target",
+      label: "Target",
+      options: [
+        { id: "aligned", label: "Aligned" },
+        { id: "cross", label: "Cross" },
+        { id: "random", label: "Random" },
+      ],
+    },
+  ],
   Angle: [
     {
       id: "task",
@@ -532,6 +553,20 @@ function subfilterValue(
       if (exercise.family === "Same-Axis Transfer") return "same";
       if (exercise.family === "Cross-Axis Transfer") return "cross";
       if (exercise.family === "Random-Line Transfer") return "random";
+    }
+  }
+
+  if (family === "Length Ratio Estimation") {
+    if (!exercise.id.startsWith("length-ratio-estimate-")) return null;
+    if (facetId === "source") {
+      if (exercise.id.includes("-horizontal-")) return "horizontal";
+      if (exercise.id.includes("-vertical-")) return "vertical";
+      if (exercise.id.includes("-random-")) return "random";
+    }
+    if (facetId === "target") {
+      if (exercise.id.endsWith("-aligned")) return "aligned";
+      if (exercise.id.endsWith("-cross")) return "cross";
+      if (exercise.id.endsWith("-random")) return "random";
     }
   }
 

@@ -210,11 +210,11 @@ test("home page lists drills and switches to curriculum presentation", async ({
       exact: true,
     }),
   ).toBeVisible();
-  await expect(page.getByText("New")).toHaveCount(103);
+  await expect(page.getByText("New")).toHaveCount(112);
   await expect(page.getByRole("button", { name: "Coming soon" })).toHaveCount(
     0,
   );
-  await expect(page.getByRole("button", { name: "Practice" })).toHaveCount(103);
+  await expect(page.getByRole("button", { name: "Practice" })).toHaveCount(112);
   await expect(
     page
       .getByRole("article")
@@ -250,6 +250,7 @@ test("home page groups drills and filters by family", async ({ page }) => {
   await expect(familyHeadings).toHaveText([
     "Division",
     "Length Transfer",
+    "Length Ratio Estimation",
     "Angle",
     "Intersection",
     "Flat Shapes",
@@ -269,8 +270,8 @@ test("home page groups drills and filters by family", async ({ page }) => {
     page.getByRole("heading", { level: 3, name: "Line Through Two Points" }),
   ).toBeHidden();
 
-  await page.getByRole("button", { name: "All 103" }).click();
-  await expect(familyHeadings).toHaveCount(10);
+  await page.getByRole("button", { name: "All 112" }).click();
+  await expect(familyHeadings).toHaveCount(11);
 });
 
 test("large family subfilters combine and persist after returning to list", async ({

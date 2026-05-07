@@ -23,7 +23,8 @@ import {
   _resetProgressCache,
 } from "./progress";
 
-const STORAGE_KEY = "draftsman-eye.progress.v9";
+const STORAGE_KEY = "draftsman-eye.progress.v10";
+const LEGACY_V9_STORAGE_KEY = "draftsman-eye.progress.v9";
 const LEGACY_V8_STORAGE_KEY = "draftsman-eye.progress.v8";
 const LEGACY_V7_STORAGE_KEY = "draftsman-eye.progress.v7";
 const LEGACY_V6_STORAGE_KEY = "draftsman-eye.progress.v6";
@@ -41,12 +42,13 @@ beforeEach(() => {
 describe("getStoredProgress", () => {
   it("returns empty store when localStorage has no entry", () => {
     const p = getStoredProgress();
-    expect(p.version).toBe(9);
+    expect(p.version).toBe(10);
     expect(p.attempts).toEqual([]);
     expect(p.aggregates).toEqual({});
     expect(p.dimensions.lineAngleBuckets).toEqual({});
     expect(p.dimensions.angleOpeningBuckets).toEqual({});
     expect(p.dimensions.angleEstimateBuckets).toEqual({});
+    expect(p.dimensions.lengthRatioBuckets).toEqual({});
     expect(p.dimensions.divisionLengthBuckets).toEqual({});
     expect(p.dimensions.divisionDirectionBuckets).toEqual({});
     expect(p.dimensions.transferLengthBuckets).toEqual({});
@@ -93,7 +95,50 @@ describe("getStoredProgress", () => {
     consoleSpy.mockRestore();
   });
 
-  it("migrates v8 progress into v9 with empty angle estimate dimensions", () => {
+  it("migrates v9 progress into v10 with empty length ratio dimensions", () => {
+    store[LEGACY_V9_STORAGE_KEY] = JSON.stringify({
+      version: 9,
+      attempts: [
+        {
+          exerciseId: "angle-estimate-horizontal",
+          score: 80,
+          signedError: 2,
+          timestamp: 12345,
+        },
+      ],
+      aggregates: {
+        "angle-estimate-horizontal": {
+          ema: 80,
+          attempts: 1,
+          lastPracticedAt: 12345,
+        },
+      },
+      dimensions: {
+        lineAngleBuckets: {},
+        lineAngleDegreeBuckets: {},
+        angleOpeningBuckets: {},
+        angleEstimateBuckets: {
+          "angle-estimate-horizontal": {
+            "90": { ema: 80, attempts: 1, lastPracticedAt: 12345 },
+          },
+        },
+        divisionLengthBuckets: {},
+        divisionDirectionBuckets: {},
+        transferLengthBuckets: {},
+        transferAngleBuckets: {},
+      },
+    });
+    const p = getStoredProgress();
+    expect(p.version).toBe(10);
+    expect(p.aggregates["angle-estimate-horizontal"]!.ema).toBe(80);
+    expect(p.dimensions.lengthRatioBuckets).toEqual({});
+    expect(
+      p.dimensions.angleEstimateBuckets?.["angle-estimate-horizontal"]?.["90"]
+        ?.ema,
+    ).toBe(80);
+  });
+
+  it("migrates v8 progress into v10 with empty angle estimate dimensions", () => {
     store[LEGACY_V8_STORAGE_KEY] = JSON.stringify({
       version: 8,
       attempts: [
@@ -118,12 +163,12 @@ describe("getStoredProgress", () => {
       },
     });
     const p = getStoredProgress();
-    expect(p.version).toBe(9);
+    expect(p.version).toBe(10);
     expect(p.aggregates["copy-random-random"]!.ema).toBe(80);
     expect(p.dimensions.angleEstimateBuckets).toEqual({});
   });
 
-  it("migrates v7 progress into v9 with empty transfer angle and angle estimate dimensions", () => {
+  it("migrates v7 progress into v10 with empty transfer angle and angle estimate dimensions", () => {
     store[LEGACY_V7_STORAGE_KEY] = JSON.stringify({
       version: 7,
       attempts: [
@@ -151,7 +196,7 @@ describe("getStoredProgress", () => {
       },
     });
     const p = getStoredProgress();
-    expect(p.version).toBe(9);
+    expect(p.version).toBe(10);
     expect(
       p.dimensions.transferLengthBuckets["copy-random-random"]!["2"]!.ema,
     ).toBe(80);
@@ -159,7 +204,7 @@ describe("getStoredProgress", () => {
     expect(p.dimensions.angleEstimateBuckets).toEqual({});
   });
 
-  it("migrates v6 progress into v8 with empty transfer dimensions", () => {
+  it("migrates v6 progress into v10 with empty transfer dimensions", () => {
     store[LEGACY_V6_STORAGE_KEY] = JSON.stringify({
       version: 6,
       attempts: [
@@ -190,7 +235,7 @@ describe("getStoredProgress", () => {
       },
     });
     const p = getStoredProgress();
-    expect(p.version).toBe(9);
+    expect(p.version).toBe(10);
     expect(p.aggregates["division-random-thirds"]!.ema).toBe(80);
     expect(
       p.dimensions.divisionLengthBuckets["division-random-thirds"]!["2"]!.ema,
@@ -199,7 +244,7 @@ describe("getStoredProgress", () => {
     expect(p.dimensions.transferAngleBuckets).toEqual({});
   });
 
-  it("migrates v5 progress into v8 with empty division and transfer dimensions", () => {
+  it("migrates v5 progress into v10 with empty division and transfer dimensions", () => {
     store[LEGACY_V5_STORAGE_KEY] = JSON.stringify({
       version: 5,
       attempts: [
@@ -228,7 +273,7 @@ describe("getStoredProgress", () => {
       },
     });
     const p = getStoredProgress();
-    expect(p.version).toBe(9);
+    expect(p.version).toBe(10);
     expect(p.aggregates["angle-copy-horizontal-aligned"]!.ema).toBe(80);
     expect(
       p.dimensions.angleOpeningBuckets["angle-copy-horizontal-aligned"]!["90"]!
@@ -240,7 +285,7 @@ describe("getStoredProgress", () => {
     expect(p.dimensions.transferAngleBuckets).toEqual({});
   });
 
-  it("migrates v4 progress into v8 with empty newer dimensions", () => {
+  it("migrates v4 progress into v10 with empty newer dimensions", () => {
     store[LEGACY_V4_STORAGE_KEY] = JSON.stringify({
       version: 4,
       attempts: [
@@ -268,7 +313,7 @@ describe("getStoredProgress", () => {
       },
     });
     const p = getStoredProgress();
-    expect(p.version).toBe(9);
+    expect(p.version).toBe(10);
     expect(p.aggregates["trace-line"]!.ema).toBe(80);
     expect(p.dimensions.lineAngleBuckets["trace-line"]!["90"]!.ema).toBe(80);
     expect(p.dimensions.lineAngleDegreeBuckets!["trace-line"]!["87"]!.ema).toBe(
@@ -281,7 +326,7 @@ describe("getStoredProgress", () => {
     expect(p.dimensions.transferAngleBuckets).toEqual({});
   });
 
-  it("migrates v3 progress into v8 with empty directional dimensions", () => {
+  it("migrates v3 progress into v10 with empty directional dimensions", () => {
     store[LEGACY_V3_STORAGE_KEY] = JSON.stringify({
       version: 3,
       attempts: [
@@ -304,7 +349,7 @@ describe("getStoredProgress", () => {
       },
     });
     const p = getStoredProgress();
-    expect(p.version).toBe(9);
+    expect(p.version).toBe(10);
     expect(p.aggregates["trace-line"]!.ema).toBe(80);
     expect(p.dimensions.lineAngleBuckets).toEqual({});
     expect(p.dimensions.angleOpeningBuckets).toEqual({});
@@ -314,7 +359,7 @@ describe("getStoredProgress", () => {
     expect(p.dimensions.transferAngleBuckets).toEqual({});
   });
 
-  it("migrates v2 progress into v8 with empty dimensions", () => {
+  it("migrates v2 progress into v10 with empty dimensions", () => {
     store[LEGACY_V2_STORAGE_KEY] = JSON.stringify({
       version: 2,
       attempts: [
@@ -334,7 +379,7 @@ describe("getStoredProgress", () => {
       },
     });
     const p = getStoredProgress();
-    expect(p.version).toBe(9);
+    expect(p.version).toBe(10);
     expect(p.aggregates["freehand-straight-line"]!.ema).toBe(80);
     expect(p.dimensions.lineAngleBuckets).toEqual({});
     expect(p.dimensions.angleOpeningBuckets).toEqual({});
@@ -346,7 +391,7 @@ describe("getStoredProgress", () => {
 
   it("returns stored data for a valid payload", () => {
     const payload = {
-      version: 9,
+      version: 10,
       attempts: [
         {
           exerciseId: "freehand-straight-line",
@@ -366,6 +411,7 @@ describe("getStoredProgress", () => {
         lineAngleBuckets: {},
         angleOpeningBuckets: {},
         angleEstimateBuckets: {},
+        lengthRatioBuckets: {},
         divisionLengthBuckets: {},
         divisionDirectionBuckets: {},
         transferLengthBuckets: {},
@@ -374,7 +420,7 @@ describe("getStoredProgress", () => {
     };
     store[STORAGE_KEY] = JSON.stringify(payload);
     const p = getStoredProgress();
-    expect(p.version).toBe(9);
+    expect(p.version).toBe(10);
     expect(p.attempts).toHaveLength(1);
     expect(p.aggregates["freehand-straight-line"]!.ema).toBe(80);
   });
@@ -532,6 +578,28 @@ describe("updateStoredProgress", () => {
     ).toBeUndefined();
     expect(result.attempts[0].metadata?.angleEstimateBucket).toBe(70);
     expect(result.attempts[0].metadata?.angleOpeningBucket).toBeUndefined();
+  });
+
+  it("updates length ratio buckets even for low scores", () => {
+    const result = updateStoredProgress(
+      "length-ratio-estimate-horizontal-aligned",
+      0,
+      -1,
+      {
+        lengthRatio: 0.5,
+        lengthRatioBucket: 4,
+        sourceLengthPixels: 200,
+        targetLengthPixels: 100,
+      },
+    );
+
+    const bucket =
+      result.dimensions.lengthRatioBuckets?.[
+        "length-ratio-estimate-horizontal-aligned"
+      ]?.["4"];
+    expect(bucket?.ema).toBe(0);
+    expect(bucket?.attempts).toBe(1);
+    expect(result.attempts[0].metadata?.lengthRatioBucket).toBe(4);
   });
 
   it("updates circle radius bucket aggregates when metadata is provided", () => {

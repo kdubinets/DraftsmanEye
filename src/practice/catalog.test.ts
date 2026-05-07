@@ -11,7 +11,7 @@ import type { ProgressStore } from "../storage/progress";
 
 function emptyProgress(): ProgressStore {
   return {
-    version: 9,
+    version: 10,
     attempts: [],
     aggregates: {},
     dimensions: {
@@ -103,7 +103,7 @@ describe("getAutoExercise", () => {
     if (!notImplemented) return; // all implemented — skip
 
     const progress: ProgressStore = {
-      version: 9,
+      version: 10,
       attempts: [],
       aggregates: {
         [notImplemented.id]: { ema: 0, attempts: 0, lastPracticedAt: 0 },
@@ -133,7 +133,7 @@ describe("getAutoExercise", () => {
     // Last drill has never been played — no entry
     const neverPlayed = implemented[implemented.length - 1];
     const progress: ProgressStore = {
-      version: 9,
+      version: 10,
       attempts: [],
       aggregates,
       dimensions: {
@@ -161,7 +161,7 @@ describe("getAutoExercise", () => {
     aggregates[weakDrill.id] = { ema: 10, attempts: 5, lastPracticedAt: oldMs };
 
     const progress: ProgressStore = {
-      version: 9,
+      version: 10,
       attempts: [],
       aggregates,
       dimensions: {
@@ -192,7 +192,7 @@ describe("getAutoExercise", () => {
       aggregates[ex.id] = { ema: 75, attempts: 3, lastPracticedAt: oldMs };
     }
     const progress: ProgressStore = {
-      version: 9,
+      version: 10,
       attempts: [],
       aggregates,
       dimensions: {

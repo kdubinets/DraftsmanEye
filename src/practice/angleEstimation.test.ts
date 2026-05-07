@@ -11,7 +11,7 @@ import {
 
 function progress(partial: Partial<ProgressStore> = {}): ProgressStore {
   return {
-    version: 9,
+    version: 10,
     attempts: [],
     aggregates: {},
     dimensions: {
@@ -19,6 +19,7 @@ function progress(partial: Partial<ProgressStore> = {}): ProgressStore {
       lineAngleDegreeBuckets: {},
       angleOpeningBuckets: {},
       angleEstimateBuckets: {},
+      lengthRatioBuckets: {},
       divisionLengthBuckets: {},
       divisionDirectionBuckets: {},
       transferLengthBuckets: {},
@@ -84,6 +85,7 @@ describe("angle estimation target selection", () => {
           lineAngleDegreeBuckets: {},
           angleOpeningBuckets: {},
           angleEstimateBuckets: { "angle-estimate-random": aggregates },
+          lengthRatioBuckets: {},
           divisionLengthBuckets: {},
           divisionDirectionBuckets: {},
           transferLengthBuckets: {},
