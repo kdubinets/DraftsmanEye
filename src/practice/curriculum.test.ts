@@ -33,12 +33,7 @@ describe("curriculum config", () => {
       "Solids — 3-Point Perspective",
     ]);
     expect(group?.stages?.map((stage) => stage.exerciseIds)).toEqual([
-      [
-        "flat-triangle",
-        "flat-quadrilateral",
-        "flat-pentagon",
-        "flat-hexagon",
-      ],
+      ["flat-triangle", "flat-quadrilateral", "flat-pentagon", "flat-hexagon"],
       [
         "solids-cube-2pt",
         "solids-box-2pt",
@@ -89,6 +84,7 @@ describe("curriculum config", () => {
         "trace-spiral-logarithmic-right",
         "trace-spiral-logarithmic-left",
         "trace-s-curve",
+        "trace-compound-curve",
       ],
     ]);
   });

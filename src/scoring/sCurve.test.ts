@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { sCurveSamplePoints } from "../geometry/sCurve";
+import {
+  compoundCurveSamplePoints,
+  sCurveSamplePoints,
+} from "../geometry/sCurve";
 import { createFreehandTarget } from "../exercises/freehand/targets";
-import { scoreTraceSCurve } from "./sCurve";
+import { scoreTraceCompoundCurve, scoreTraceSCurve } from "./sCurve";
 import type { FreehandPoint } from "../exercises/freehand/types";
 
 describe("scoreTraceSCurve", () => {
@@ -19,6 +22,28 @@ describe("scoreTraceSCurve", () => {
       }),
     );
     const result = scoreTraceSCurve(points, target);
+
+    expect(result).not.toBeNull();
+    expect(result?.score).toBeGreaterThan(99);
+    expect(result?.meanErrorPixels).toBeLessThan(0.5);
+  });
+});
+
+describe("scoreTraceCompoundCurve", () => {
+  it("scores points sampled from the target compound curve as accurate", () => {
+    const target = createFreehandTarget("trace-compound-curve");
+    expect(target?.kind).toBe("compound-curve");
+    if (target?.kind !== "compound-curve") return;
+
+    const points: FreehandPoint[] = compoundCurveSamplePoints(target, 24).map(
+      (point, index) => ({
+        ...point,
+        time: index * 16,
+        pressure: 0.5,
+        pointerType: "pen",
+      }),
+    );
+    const result = scoreTraceCompoundCurve(points, target);
 
     expect(result).not.toBeNull();
     expect(result?.score).toBeGreaterThan(99);

@@ -241,6 +241,7 @@ export const CURRICULUM_GROUPS: CurriculumGroup[] = [
           "trace-spiral-logarithmic-right",
           "trace-spiral-logarithmic-left",
           "trace-s-curve",
+          "trace-compound-curve",
         ],
       },
     ],

@@ -29,11 +29,17 @@ export function freehandScoreLabel(kind: FreehandResult["kind"]): string {
       return "Trace spiral";
     case "trace-s-curve":
       return "Trace S-curve";
+    case "trace-compound-curve":
+      return "Trace compound curve";
   }
 }
 
 export function freehandResultStats(result: FreehandResult): HTMLElement[] {
-  if (result.kind === "trace-spiral" || result.kind === "trace-s-curve") {
+  if (
+    result.kind === "trace-spiral" ||
+    result.kind === "trace-s-curve" ||
+    result.kind === "trace-compound-curve"
+  ) {
     return [
       stat("Score", result.score.toFixed(1)),
       stat("Drift", formatDrift(result)),
@@ -137,9 +143,7 @@ export function freehandResultStats(result: FreehandResult): HTMLElement[] {
   if (result.kind === "target-line") {
     return [
       ...stats,
-      ...(result.directionMatched
-        ? []
-        : [stat("Direction", "Opposite")]),
+      ...(result.directionMatched ? [] : [stat("Direction", "Opposite")]),
       stat(
         "Endpoint miss",
         `${Math.round(result.startErrorPixels)} / ${Math.round(result.endErrorPixels)} px`,
@@ -185,7 +189,11 @@ export function freehandResultLine(
 }
 
 function primaryResultDetail(result: FreehandResult): string {
-  if (result.kind === "trace-spiral" || result.kind === "trace-s-curve") {
+  if (
+    result.kind === "trace-spiral" ||
+    result.kind === "trace-s-curve" ||
+    result.kind === "trace-compound-curve"
+  ) {
     return `Mean drift ${result.meanErrorPixels.toFixed(1)} px`;
   }
   if (result.kind === "loop-chain-band") {

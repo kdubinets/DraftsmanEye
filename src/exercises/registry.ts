@@ -31,7 +31,7 @@ import {
   scoreLoopChainWedge,
 } from "../scoring/loopChain";
 import { scoreTraceSpiral } from "../scoring/spiral";
-import { scoreTraceSCurve } from "../scoring/sCurve";
+import { scoreTraceCompoundCurve, scoreTraceSCurve } from "../scoring/sCurve";
 import { getStoredProgress } from "../storage/progress";
 import { getSettings } from "../storage/settings";
 import { selectLineAngleBucket } from "../practice/lineAngles";
@@ -71,29 +71,28 @@ function freehandConfig(
   exercise: FreehandExerciseDefinition,
 ): FreehandExerciseConfig {
   const config = FREEHAND_CONFIGS[exercise.kind];
-  const configWithTarget =
-    exercise.kind.startsWith("angle-copy-")
+  const configWithTarget = exercise.kind.startsWith("angle-copy-")
+    ? {
+        ...config,
+        createTarget: () =>
+          createFreehandTarget(exercise.kind, {
+            angleOpeningBucket: selectAngleOpeningBucket(
+              getStoredProgress(),
+              exercise.id,
+            ),
+          }),
+      }
+    : exercise.kind.startsWith("angle-construct-")
       ? {
           ...config,
           createTarget: () =>
             createFreehandTarget(exercise.kind, {
-              angleOpeningBucket: selectAngleOpeningBucket(
+              angleEstimateBucket: selectAngleEstimateBucket(
                 getStoredProgress(),
                 exercise.id,
               ),
             }),
         }
-      : exercise.kind.startsWith("angle-construct-")
-        ? {
-            ...config,
-            createTarget: () =>
-              createFreehandTarget(exercise.kind, {
-                angleEstimateBucket: selectAngleEstimateBucket(
-                  getStoredProgress(),
-                  exercise.id,
-                ),
-              }),
-          }
       : config;
   if (exercise.inputMode === "unlimited-strokes") {
     return {
@@ -111,12 +110,11 @@ function freehandConfig(
       readyText: exercise.kind.startsWith("angle-construct-")
         ? "Drag the free end to construct the requested angle."
         : "Drag the free end of the vertical segment.",
-      promptText:
-        exercise.kind.startsWith("angle-construct-")
-          ? "Construct the requested angle."
-          : exercise.inputMode === "adjustable-line-1-shot"
-            ? "Drag the free end of the segment once."
-            : "Drag the free end of the segment; commit when it looks right.",
+      promptText: exercise.kind.startsWith("angle-construct-")
+        ? "Construct the requested angle."
+        : exercise.inputMode === "adjustable-line-1-shot"
+          ? "Drag the free end of the segment once."
+          : "Drag the free end of the segment; commit when it looks right.",
       canvasLabel: exercise.kind.startsWith("angle-construct-")
         ? "Angle construction adjustable line field"
         : "Angle copy adjustable line field",
@@ -411,6 +409,23 @@ const FREEHAND_CONFIGS = {
       appendFreehandCorrection(layer, result, false);
     },
   },
+  "trace-compound-curve": {
+    isClosedShape: false,
+    createTarget: () => createFreehandTarget("trace-compound-curve"),
+    scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) =>
+      target?.kind === "compound-curve"
+        ? scoreTraceCompoundCurve(points, target)
+        : null,
+    promptText: "Trace the faint compound curve guide.",
+    readyText:
+      "Use Pencil, touch, or mouse to trace the faint compound curve guide.",
+    retryText: "Stroke was too short. Trace more of the compound curve.",
+    canvasLabel: "Compound curve tracing field",
+    renderCorrection: (layer: SVGGElement, result: FreehandResult) => {
+      if (result.kind !== "trace-compound-curve") return;
+      appendFreehandCorrection(layer, result, false);
+    },
+  },
   "loop-chain-wedge-scored": {
     isClosedShape: false,
     createTarget: () => createLoopChainWedgeTarget(),
@@ -553,7 +568,6 @@ function toMountable(exercise: ExerciseDefinition): MountableExercise {
     },
   };
 }
-
 
 export const MOUNTABLE_EXERCISES: MountableExercise[] =
   EXERCISES.map(toMountable);

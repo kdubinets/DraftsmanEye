@@ -144,7 +144,8 @@ export type ExerciseId =
   | "trace-spiral-archimedean-right"
   | "trace-spiral-logarithmic-left"
   | "trace-spiral-logarithmic-right"
-  | "trace-s-curve";
+  | "trace-s-curve"
+  | "trace-compound-curve";
 
 export type LineAxis = "horizontal" | "vertical" | "free";
 
@@ -240,7 +241,8 @@ export type FreehandExerciseDefinition = ExerciseBase & {
     | "trace-spiral-archimedean-right"
     | "trace-spiral-logarithmic-left"
     | "trace-spiral-logarithmic-right"
-    | "trace-s-curve";
+    | "trace-s-curve"
+    | "trace-compound-curve";
   inputMode?:
     | "single-stroke"
     | "unlimited-strokes"
@@ -380,7 +382,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     id: "trace-spiral-archimedean-right",
     family: "Trace Control",
     label: "Trace Archimedean Spiral — Right",
-    description: "Trace the faint right-winding Archimedean spiral guide. Coil spacing is uniform.",
+    description:
+      "Trace the faint right-winding Archimedean spiral guide. Coil spacing is uniform.",
     implemented: true,
     kind: "trace-spiral-archimedean-right",
   },
@@ -388,7 +391,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     id: "trace-spiral-archimedean-left",
     family: "Trace Control",
     label: "Trace Archimedean Spiral — Left",
-    description: "Trace the faint left-winding Archimedean spiral guide. Coil spacing is uniform.",
+    description:
+      "Trace the faint left-winding Archimedean spiral guide. Coil spacing is uniform.",
     implemented: true,
     kind: "trace-spiral-archimedean-left",
   },
@@ -396,7 +400,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     id: "trace-spiral-logarithmic-right",
     family: "Trace Control",
     label: "Trace Logarithmic Spiral — Right",
-    description: "Trace the faint right-winding logarithmic spiral guide. Spacing grows with each turn.",
+    description:
+      "Trace the faint right-winding logarithmic spiral guide. Spacing grows with each turn.",
     implemented: true,
     kind: "trace-spiral-logarithmic-right",
   },
@@ -404,7 +409,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     id: "trace-spiral-logarithmic-left",
     family: "Trace Control",
     label: "Trace Logarithmic Spiral — Left",
-    description: "Trace the faint left-winding logarithmic spiral guide. Spacing grows with each turn.",
+    description:
+      "Trace the faint left-winding logarithmic spiral guide. Spacing grows with each turn.",
     implemented: true,
     kind: "trace-spiral-logarithmic-left",
   },
@@ -416,6 +422,15 @@ export const EXERCISES: ExerciseDefinition[] = [
       "Trace a faint randomized S-curve guide inspired by French curve templates.",
     implemented: true,
     kind: "trace-s-curve",
+  },
+  {
+    id: "trace-compound-curve",
+    family: "Trace Control",
+    label: "Trace Compound Curve",
+    description:
+      "Trace a faint multi-bend curve with changing curvature and direction.",
+    implemented: true,
+    kind: "trace-compound-curve",
   },
   {
     id: "flat-triangle",
@@ -858,7 +873,10 @@ function angleConstructExercise(
   id: Extract<ExerciseId, `angle-construct-${string}`>,
   label: string,
   description: string,
-  kind: Extract<FreehandExerciseDefinition["kind"], `angle-construct-${string}`>,
+  kind: Extract<
+    FreehandExerciseDefinition["kind"],
+    `angle-construct-${string}`
+  >,
 ): FreehandExerciseDefinition {
   return {
     id,
@@ -1134,7 +1152,13 @@ function createDivisionTrial(
       directionRadians === undefined
         ? undefined
         : directionRadians + (anchorDirectionSign < 0 ? Math.PI : 0);
-    const line = createRandomLine(width, height, length, edgePadding, lineAngle);
+    const line = createRandomLine(
+      width,
+      height,
+      length,
+      edgePadding,
+      lineAngle,
+    );
     const targetScalar = usesDirectionCue
       ? (anchorDirectionSign < 0 ? line.endScalar : line.startScalar) +
         anchorDirectionSign * (length / denominator)

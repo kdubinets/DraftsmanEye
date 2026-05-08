@@ -4,10 +4,15 @@
  * nearest sample on the target curve, normalized by the curve's reference span.
  */
 import { clampNumber, distanceBetween } from "../geometry/primitives";
-import { sCurveSamplePoints } from "../geometry/sCurve";
+import {
+  compoundCurveSamplePoints,
+  sCurveSamplePoints,
+} from "../geometry/sCurve";
 import type {
   FreehandPoint,
+  FreehandCompoundCurveResult,
   FreehandSCurveResult,
+  TargetCompoundCurve,
   TargetSCurve,
 } from "../exercises/freehand/types";
 
@@ -21,6 +26,46 @@ export function scoreTraceSCurve(
   points: FreehandPoint[],
   target: TargetSCurve,
 ): FreehandSCurveResult | null {
+  const result = scoreTraceOpenCurve(
+    points,
+    target.referenceLength,
+    sCurveSamplePoints(target, SAMPLE_STEPS),
+  );
+  return result
+    ? {
+        kind: "trace-s-curve",
+        ...result,
+        target,
+      }
+    : null;
+}
+
+export function scoreTraceCompoundCurve(
+  points: FreehandPoint[],
+  target: TargetCompoundCurve,
+): FreehandCompoundCurveResult | null {
+  const result = scoreTraceOpenCurve(
+    points,
+    target.referenceLength,
+    compoundCurveSamplePoints(
+      target,
+      Math.ceil(SAMPLE_STEPS / target.segments.length),
+    ),
+  );
+  return result
+    ? {
+        kind: "trace-compound-curve",
+        ...result,
+        target,
+      }
+    : null;
+}
+
+function scoreTraceOpenCurve(
+  points: FreehandPoint[],
+  referenceLength: number,
+  samples: { x: number; y: number }[],
+): Omit<FreehandSCurveResult, "kind" | "target"> | null {
   if (points.length < MIN_POINTS) return null;
 
   let strokeLengthPixels = 0;
@@ -29,7 +74,6 @@ export function scoreTraceSCurve(
   }
   if (strokeLengthPixels < MIN_STROKE_LENGTH) return null;
 
-  const samples = sCurveSamplePoints(target, SAMPLE_STEPS);
   const pointErrors: number[] = [];
   for (const p of points) {
     let minDist = Infinity;
@@ -50,19 +94,17 @@ export function scoreTraceSCurve(
 
   const score = clampNumber(
     100 -
-      (W_MEAN * (meanErrorPixels / target.referenceLength) +
-        W_P95 * (p95Error / target.referenceLength)),
+      (W_MEAN * (meanErrorPixels / referenceLength) +
+        W_P95 * (p95Error / referenceLength)),
     0,
     100,
   );
 
   return {
-    kind: "trace-s-curve",
     score,
     meanErrorPixels,
     maxErrorPixels,
     strokeLengthPixels,
     pointCount: points.length,
-    target,
   };
 }

@@ -4,7 +4,10 @@ import {
   randomRange,
   pointOnCircle,
 } from "../../geometry/primitives";
-import { sCurveSamplePoints } from "../../geometry/sCurve";
+import {
+  compoundCurveSamplePoints,
+  sCurveSamplePoints,
+} from "../../geometry/sCurve";
 import { clampAngleOpeningDegrees } from "../../practice/angleOpenings";
 import {
   angleEstimateRangeForBucket,
@@ -21,6 +24,7 @@ import type {
   TargetLoopChainCircular,
   TargetLoopChainWedge,
   TargetSpiral,
+  TargetCompoundCurve,
   TargetSCurve,
 } from "./types";
 
@@ -35,7 +39,10 @@ export function createFreehandTarget(
 ): FreehandTarget | null {
   switch (kind) {
     case "target-line-two-points":
-      return createTargetLine(options.lineAngleBucket, options.showDirectionCue);
+      return createTargetLine(
+        options.lineAngleBucket,
+        options.showDirectionCue,
+      );
     case "trace-line":
       return {
         ...createTargetLine(options.lineAngleBucket, options.showDirectionCue),
@@ -50,17 +57,41 @@ export function createFreehandTarget(
     case "trace-ellipse":
       return createTraceEllipse();
     case "angle-copy-horizontal-aligned":
-      return createTargetAngle("horizontal", "aligned", options.angleOpeningBucket);
+      return createTargetAngle(
+        "horizontal",
+        "aligned",
+        options.angleOpeningBucket,
+      );
     case "angle-copy-vertical-aligned":
-      return createTargetAngle("vertical", "aligned", options.angleOpeningBucket);
+      return createTargetAngle(
+        "vertical",
+        "aligned",
+        options.angleOpeningBucket,
+      );
     case "angle-copy-horizontal-rotated":
-      return createTargetAngle("horizontal", "rotated", options.angleOpeningBucket);
+      return createTargetAngle(
+        "horizontal",
+        "rotated",
+        options.angleOpeningBucket,
+      );
     case "angle-copy-vertical-rotated":
-      return createTargetAngle("vertical", "rotated", options.angleOpeningBucket);
+      return createTargetAngle(
+        "vertical",
+        "rotated",
+        options.angleOpeningBucket,
+      );
     case "angle-copy-arbitrary-aligned":
-      return createTargetAngle("arbitrary", "aligned", options.angleOpeningBucket);
+      return createTargetAngle(
+        "arbitrary",
+        "aligned",
+        options.angleOpeningBucket,
+      );
     case "angle-copy-arbitrary-rotated":
-      return createTargetAngle("arbitrary", "rotated", options.angleOpeningBucket);
+      return createTargetAngle(
+        "arbitrary",
+        "rotated",
+        options.angleOpeningBucket,
+      );
     case "angle-construct-horizontal":
       return createConstructAngle("horizontal", options.angleEstimateBucket);
     case "angle-construct-vertical":
@@ -86,6 +117,8 @@ export function createFreehandTarget(
       return createTraceSpiral("logarithmic", "right");
     case "trace-s-curve":
       return createTraceSCurve();
+    case "trace-compound-curve":
+      return createTraceCompoundCurve();
     case "freehand-circle":
     case "freehand-ellipse":
     case "freehand-line":
@@ -109,8 +142,12 @@ function createTraceSpiral(
   const center = { x: SPIRAL_CANVAS_W / 2, y: SPIRAL_CANVAS_H / 2 };
   const innerRadius = randomRange(18, 28);
   const outerRadius =
-    Math.min(center.x, center.y, SPIRAL_CANVAS_W - center.x, SPIRAL_CANVAS_H - center.y) -
-    SPIRAL_MARGIN;
+    Math.min(
+      center.x,
+      center.y,
+      SPIRAL_CANVAS_W - center.x,
+      SPIRAL_CANVAS_H - center.y,
+    ) - SPIRAL_MARGIN;
 
   let turns: number;
   if (spiralKind === "archimedean") {
@@ -174,8 +211,14 @@ function createTraceSCurve(): TargetSCurve {
   const width = scaledBounds.maxX - scaledBounds.minX;
   const height = scaledBounds.maxY - scaledBounds.minY;
   const center = {
-    x: randomRange(S_CURVE_MARGIN + width / 2, SPIRAL_CANVAS_W - S_CURVE_MARGIN - width / 2),
-    y: randomRange(S_CURVE_MARGIN + height / 2, SPIRAL_CANVAS_H - S_CURVE_MARGIN - height / 2),
+    x: randomRange(
+      S_CURVE_MARGIN + width / 2,
+      SPIRAL_CANVAS_W - S_CURVE_MARGIN - width / 2,
+    ),
+    y: randomRange(
+      S_CURVE_MARGIN + height / 2,
+      SPIRAL_CANVAS_H - S_CURVE_MARGIN - height / 2,
+    ),
   };
   const offset = {
     x: center.x - (scaledBounds.minX + scaledBounds.maxX) / 2,
@@ -196,6 +239,113 @@ function createTraceSCurve(): TargetSCurve {
     referenceLength += distanceBetween(samples[i - 1], samples[i]);
   }
   return { ...curve, referenceLength };
+}
+
+function createTraceCompoundCurve(): TargetCompoundCurve {
+  const segmentCount = Math.random() < 0.45 ? 3 : 4;
+  const step = randomRange(170, 230);
+  const amplitude = randomRange(80, 175);
+  const phase = randomRange(0, Math.PI * 2);
+  const points = Array.from({ length: segmentCount + 1 }, (_, index) => {
+    const x = (index - segmentCount / 2) * step;
+    const y =
+      Math.sin(phase + index * randomRange(0.72, 1.18) * Math.PI) *
+      amplitude *
+      randomRange(0.62, 1.08);
+    return { x, y };
+  });
+  const segments = Array.from({ length: segmentCount }, (_, index) => {
+    const start = points[index];
+    const end = points[index + 1];
+    const dx = end.x - start.x;
+    const localBend = amplitude * randomRange(0.28, 0.78);
+    const bendSign = index % 2 === 0 ? 1 : -1;
+    return {
+      start,
+      control1: {
+        x: start.x + dx * randomRange(0.28, 0.44),
+        y: start.y + bendSign * localBend,
+      },
+      control2: {
+        x: end.x - dx * randomRange(0.28, 0.44),
+        y: end.y - bendSign * localBend * randomRange(0.75, 1.2),
+      },
+      end,
+    };
+  });
+  const rotationRadians = randomRange(0, Math.PI * 2);
+  const cos = Math.cos(rotationRadians);
+  const sin = Math.sin(rotationRadians);
+  const rotated = {
+    segments: segments.map((segment) => ({
+      start: rotatePoint(segment.start, cos, sin),
+      control1: rotatePoint(segment.control1, cos, sin),
+      control2: rotatePoint(segment.control2, cos, sin),
+      end: rotatePoint(segment.end, cos, sin),
+    })),
+    referenceLength: 1,
+  };
+
+  const rotatedSamples = compoundCurveSamplePoints(rotated, 48);
+  const bounds = boundsForPoints([
+    ...compoundCurveControlPoints(rotated.segments),
+    ...rotatedSamples,
+  ]);
+  const scale = Math.min(
+    1,
+    (SPIRAL_CANVAS_W - S_CURVE_MARGIN * 2) / (bounds.maxX - bounds.minX),
+    (SPIRAL_CANVAS_H - S_CURVE_MARGIN * 2) / (bounds.maxY - bounds.minY),
+  );
+  const scaledBounds = {
+    minX: bounds.minX * scale,
+    maxX: bounds.maxX * scale,
+    minY: bounds.minY * scale,
+    maxY: bounds.maxY * scale,
+  };
+  const width = scaledBounds.maxX - scaledBounds.minX;
+  const height = scaledBounds.maxY - scaledBounds.minY;
+  const center = {
+    x: randomRange(
+      S_CURVE_MARGIN + width / 2,
+      SPIRAL_CANVAS_W - S_CURVE_MARGIN - width / 2,
+    ),
+    y: randomRange(
+      S_CURVE_MARGIN + height / 2,
+      SPIRAL_CANVAS_H - S_CURVE_MARGIN - height / 2,
+    ),
+  };
+  const offset = {
+    x: center.x - (scaledBounds.minX + scaledBounds.maxX) / 2,
+    y: center.y - (scaledBounds.minY + scaledBounds.maxY) / 2,
+  };
+  const curve = {
+    kind: "compound-curve" as const,
+    segments: rotated.segments.map((segment) => ({
+      start: scaleAndOffset(segment.start, scale, offset),
+      control1: scaleAndOffset(segment.control1, scale, offset),
+      control2: scaleAndOffset(segment.control2, scale, offset),
+      end: scaleAndOffset(segment.end, scale, offset),
+    })),
+    referenceLength: 1,
+  };
+
+  const samples = compoundCurveSamplePoints(curve, 80);
+  let referenceLength = 0;
+  for (let i = 1; i < samples.length; i++) {
+    referenceLength += distanceBetween(samples[i - 1], samples[i]);
+  }
+  return { ...curve, referenceLength };
+}
+
+function compoundCurveControlPoints(
+  segments: TargetCompoundCurve["segments"],
+): { x: number; y: number }[] {
+  return segments.flatMap((segment) => [
+    segment.start,
+    segment.control1,
+    segment.control2,
+    segment.end,
+  ]);
 }
 
 function rotatePoint(
@@ -284,14 +434,8 @@ function createTargetLine(
   const halfX = Math.abs(Math.cos(angle) * half);
   const halfY = Math.abs(Math.sin(angle) * half);
   const center = {
-    x: randomRange(
-      LINE_MARGIN + halfX,
-      LINE_CANVAS_W - LINE_MARGIN - halfX,
-    ),
-    y: randomRange(
-      LINE_MARGIN + halfY,
-      LINE_CANVAS_H - LINE_MARGIN - halfY,
-    ),
+    x: randomRange(LINE_MARGIN + halfX, LINE_CANVAS_W - LINE_MARGIN - halfX),
+    y: randomRange(LINE_MARGIN + halfY, LINE_CANVAS_H - LINE_MARGIN - halfY),
   };
   return {
     kind: "line",

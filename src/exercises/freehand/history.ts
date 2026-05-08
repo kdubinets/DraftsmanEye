@@ -242,7 +242,8 @@ function boundsForAttempt(attempt: FreehandAttemptSnapshot): Bounds {
     attempt.result.kind === "loop-chain-band" ||
     attempt.result.kind === "loop-chain-scored" ||
     attempt.result.kind === "trace-spiral" ||
-    attempt.result.kind === "trace-s-curve"
+    attempt.result.kind === "trace-s-curve" ||
+    attempt.result.kind === "trace-compound-curve"
   ) {
     return b;
   }

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { sCurveSamplePoints } from "../../geometry/sCurve";
+import {
+  compoundCurveSamplePoints,
+  sCurveSamplePoints,
+} from "../../geometry/sCurve";
 import { distanceBetween } from "../../geometry/primitives";
 import type { FreehandExerciseDefinition } from "../../practice/catalog";
 import { createFreehandTarget } from "./targets";
@@ -130,6 +133,25 @@ describe("createFreehandTarget S-curve trace", () => {
         expect(point.x).toBeLessThanOrEqual(958);
         expect(point.y).toBeGreaterThanOrEqual(42);
         expect(point.y).toBeLessThanOrEqual(578);
+      }
+    }
+  });
+});
+
+describe("createFreehandTarget compound curve trace", () => {
+  it("keeps randomized compound curve samples inside the drawing field", () => {
+    for (let attempt = 0; attempt < 160; attempt += 1) {
+      const target = createFreehandTarget("trace-compound-curve");
+      expect(target?.kind).toBe("compound-curve");
+      if (target?.kind !== "compound-curve") continue;
+
+      expect(target.segments.length).toBeGreaterThanOrEqual(3);
+      expect(target.referenceLength).toBeGreaterThan(500);
+      for (const point of compoundCurveSamplePoints(target, 40)) {
+        expect(point.x).toBeGreaterThanOrEqual(41.99);
+        expect(point.x).toBeLessThanOrEqual(958.01);
+        expect(point.y).toBeGreaterThanOrEqual(41.99);
+        expect(point.y).toBeLessThanOrEqual(578.01);
       }
     }
   });
