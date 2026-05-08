@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { sCurveSamplePoints } from "../../geometry/sCurve";
 import { distanceBetween } from "../../geometry/primitives";
 import type { FreehandExerciseDefinition } from "../../practice/catalog";
 import { createFreehandTarget } from "./targets";
@@ -111,6 +112,24 @@ describe("createFreehandTarget line direction", () => {
             expect(point.y).toBeLessThanOrEqual(572);
           }
         }
+      }
+    }
+  });
+});
+
+describe("createFreehandTarget S-curve trace", () => {
+  it("keeps randomized S-curve samples inside the drawing field", () => {
+    for (let attempt = 0; attempt < 160; attempt += 1) {
+      const target = createFreehandTarget("trace-s-curve");
+      expect(target?.kind).toBe("s-curve");
+      if (target?.kind !== "s-curve") continue;
+
+      expect(target.referenceLength).toBeGreaterThan(300);
+      for (const point of sCurveSamplePoints(target, 100)) {
+        expect(point.x).toBeGreaterThanOrEqual(42);
+        expect(point.x).toBeLessThanOrEqual(958);
+        expect(point.y).toBeGreaterThanOrEqual(42);
+        expect(point.y).toBeLessThanOrEqual(578);
       }
     }
   });

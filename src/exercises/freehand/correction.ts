@@ -6,6 +6,7 @@
 import { radiansToDegrees } from "../../geometry/primitives";
 import { closedShapeTangents } from "../../geometry/strokeMath";
 import { spiralPathData } from "../../geometry/spiral";
+import { sCurvePathData } from "../../geometry/sCurve";
 import { s } from "../../render/h";
 import type {
   FreehandResult,
@@ -19,6 +20,7 @@ import type {
   TargetLoopChainWedge,
   LoopChainLoopDeviation,
   TargetSpiral,
+  TargetSCurve,
 } from "./types";
 
 export function isClosedFreehandResult(result: FreehandResult): boolean {
@@ -85,7 +87,8 @@ export function applyFreehandCorrectionElements(
   if (
     result.kind === "loop-chain-band" ||
     result.kind === "loop-chain-scored" ||
-    result.kind === "trace-spiral"
+    result.kind === "trace-spiral" ||
+    result.kind === "trace-s-curve"
   ) {
     return;
   }
@@ -238,11 +241,15 @@ export function appendFreehandCorrection(
   if (result.kind === "loop-chain-band") {
     return;
   }
-  if (result.kind === "trace-spiral") {
+  if (result.kind === "trace-spiral" || result.kind === "trace-s-curve") {
+    const correctionClass =
+      result.kind === "trace-spiral"
+        ? "freehand-target-correction-spiral"
+        : "freehand-target-correction-s-curve";
     parent.append(
-      createTraceSpiralGuide(
+      createOpenPathTraceGuide(
         result.target,
-        `freehand-trace-guide freehand-target-correction-spiral${isHistory ? " freehand-history-correction" : ""}`,
+        `freehand-trace-guide ${correctionClass}${isHistory ? " freehand-history-correction" : ""}`,
       ),
     );
     return;
@@ -291,6 +298,10 @@ export function appendFreehandTargetMarks(
   }
   if (target.kind === "spiral") {
     layer.append(createTraceSpiralGuide(target, "freehand-trace-guide"));
+    return;
+  }
+  if (target.kind === "s-curve") {
+    layer.append(createTraceSCurveGuide(target, "freehand-trace-guide"));
     return;
   }
   if (target.kind === "line") {
@@ -630,6 +641,22 @@ function createTraceSpiralGuide(
     ySign,
   );
   return s("path", { class: className, d, fill: "none" });
+}
+
+function createTraceSCurveGuide(
+  target: TargetSCurve,
+  className: string,
+): SVGPathElement {
+  return s("path", { class: className, d: sCurvePathData(target), fill: "none" });
+}
+
+function createOpenPathTraceGuide(
+  target: TargetSpiral | TargetSCurve,
+  className: string,
+): SVGPathElement {
+  return target.kind === "spiral"
+    ? createTraceSpiralGuide(target, className)
+    : createTraceSCurveGuide(target, className);
 }
 
 export function createLoopChainLinearGuides(

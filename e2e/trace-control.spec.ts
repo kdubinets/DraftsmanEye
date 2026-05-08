@@ -160,3 +160,43 @@ test("trace ellipse drill scores a stroke against the faint guide", async ({
   await expect(canvas.locator(".freehand-target-mark")).toHaveCount(0);
   await expect(page.locator(".freehand-history-item")).toHaveCount(1);
 });
+
+test("trace S-curve drill scores a stroke against the faint guide", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await page
+    .getByRole("article")
+    .filter({
+      has: page.getByRole("heading", { level: 3, name: "Trace S-Curve" }),
+    })
+    .getByRole("button", { name: "Practice" })
+    .click();
+
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Trace S-Curve" }),
+  ).toBeVisible();
+
+  const canvas = page.getByTestId("freehand-canvas");
+  const guide = canvas.locator(".freehand-trace-guide");
+  await expect(guide).toBeVisible();
+  const guidePoints = await guide.evaluate((path) => {
+    const curve = path as SVGPathElement;
+    const length = curve.getTotalLength();
+    return Array.from({ length: 81 }, (_, index) => {
+      const point = curve.getPointAtLength((length * index) / 80);
+      return { x: point.x, y: point.y };
+    });
+  });
+  const points = await svgPointsToClient(page, guidePoints);
+
+  await drawPolyline(page, points);
+
+  await expect(page.getByText(/Score \d+\.\d/)).toBeVisible();
+  await expect(page.getByText("Drift", { exact: true })).toBeVisible();
+  await expect(
+    canvas.locator(".freehand-target-correction-s-curve"),
+  ).toBeVisible();
+  await expect(page.locator(".freehand-history-item")).toHaveCount(1);
+});

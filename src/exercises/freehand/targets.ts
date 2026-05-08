@@ -1,5 +1,10 @@
 /** Trial target geometry generation for target and trace exercise variants. */
-import { randomRange, pointOnCircle } from "../../geometry/primitives";
+import {
+  distanceBetween,
+  randomRange,
+  pointOnCircle,
+} from "../../geometry/primitives";
+import { sCurveSamplePoints } from "../../geometry/sCurve";
 import { clampAngleOpeningDegrees } from "../../practice/angleOpenings";
 import {
   angleEstimateRangeForBucket,
@@ -16,6 +21,7 @@ import type {
   TargetLoopChainCircular,
   TargetLoopChainWedge,
   TargetSpiral,
+  TargetSCurve,
 } from "./types";
 
 export function createFreehandTarget(
@@ -78,6 +84,8 @@ export function createFreehandTarget(
       return createTraceSpiral("logarithmic", "left");
     case "trace-spiral-logarithmic-right":
       return createTraceSpiral("logarithmic", "right");
+    case "trace-s-curve":
+      return createTraceSCurve();
     case "freehand-circle":
     case "freehand-ellipse":
     case "freehand-line":
@@ -89,6 +97,7 @@ export function createFreehandTarget(
 const SPIRAL_CANVAS_W = 1000;
 const SPIRAL_CANVAS_H = 620;
 const SPIRAL_MARGIN = 30;
+const S_CURVE_MARGIN = 42;
 const LINE_CANVAS_W = 1000;
 const LINE_CANVAS_H = 620;
 const LINE_MARGIN = 48;
@@ -121,6 +130,111 @@ function createTraceSpiral(
     outerRadius,
     turns,
   };
+}
+
+function createTraceSCurve(): TargetSCurve {
+  const halfLength = randomRange(260, 390);
+  const bend = randomRange(90, 220) * (Math.random() < 0.5 ? -1 : 1);
+  const controlInset = randomRange(0.35, 0.72) * halfLength;
+  const rotationRadians = randomRange(0, Math.PI * 2);
+  const local = {
+    start: { x: -halfLength, y: 0 },
+    control1: { x: -controlInset, y: bend },
+    control2: { x: controlInset, y: -bend },
+    end: { x: halfLength, y: 0 },
+  };
+
+  const cos = Math.cos(rotationRadians);
+  const sin = Math.sin(rotationRadians);
+  const rotated = {
+    start: rotatePoint(local.start, cos, sin),
+    control1: rotatePoint(local.control1, cos, sin),
+    control2: rotatePoint(local.control2, cos, sin),
+    end: rotatePoint(local.end, cos, sin),
+  };
+  const rotatedSamples = sCurveSamplePoints(rotated, 80);
+  const bounds = boundsForPoints([
+    rotated.start,
+    rotated.control1,
+    rotated.control2,
+    rotated.end,
+    ...rotatedSamples,
+  ]);
+  const scale = Math.min(
+    1,
+    (SPIRAL_CANVAS_W - S_CURVE_MARGIN * 2) / (bounds.maxX - bounds.minX),
+    (SPIRAL_CANVAS_H - S_CURVE_MARGIN * 2) / (bounds.maxY - bounds.minY),
+  );
+  const scaledBounds = {
+    minX: bounds.minX * scale,
+    maxX: bounds.maxX * scale,
+    minY: bounds.minY * scale,
+    maxY: bounds.maxY * scale,
+  };
+  const width = scaledBounds.maxX - scaledBounds.minX;
+  const height = scaledBounds.maxY - scaledBounds.minY;
+  const center = {
+    x: randomRange(S_CURVE_MARGIN + width / 2, SPIRAL_CANVAS_W - S_CURVE_MARGIN - width / 2),
+    y: randomRange(S_CURVE_MARGIN + height / 2, SPIRAL_CANVAS_H - S_CURVE_MARGIN - height / 2),
+  };
+  const offset = {
+    x: center.x - (scaledBounds.minX + scaledBounds.maxX) / 2,
+    y: center.y - (scaledBounds.minY + scaledBounds.maxY) / 2,
+  };
+  const curve = {
+    kind: "s-curve" as const,
+    start: scaleAndOffset(rotated.start, scale, offset),
+    control1: scaleAndOffset(rotated.control1, scale, offset),
+    control2: scaleAndOffset(rotated.control2, scale, offset),
+    end: scaleAndOffset(rotated.end, scale, offset),
+    referenceLength: 1,
+  };
+
+  const samples = sCurveSamplePoints(curve, 120);
+  let referenceLength = 0;
+  for (let i = 1; i < samples.length; i++) {
+    referenceLength += distanceBetween(samples[i - 1], samples[i]);
+  }
+  return { ...curve, referenceLength };
+}
+
+function rotatePoint(
+  point: { x: number; y: number },
+  cos: number,
+  sin: number,
+): { x: number; y: number } {
+  return {
+    x: point.x * cos - point.y * sin,
+    y: point.x * sin + point.y * cos,
+  };
+}
+
+function scaleAndOffset(
+  point: { x: number; y: number },
+  scale: number,
+  offset: { x: number; y: number },
+): { x: number; y: number } {
+  return {
+    x: point.x * scale + offset.x,
+    y: point.y * scale + offset.y,
+  };
+}
+
+function boundsForPoints(points: { x: number; y: number }[]): {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+} {
+  return points.reduce(
+    (bounds, point) => ({
+      minX: Math.min(bounds.minX, point.x),
+      minY: Math.min(bounds.minY, point.y),
+      maxX: Math.max(bounds.maxX, point.x),
+      maxY: Math.max(bounds.maxY, point.y),
+    }),
+    { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity },
+  );
 }
 
 export function createLoopChainLinearTarget(): TargetLoopChainLinear {

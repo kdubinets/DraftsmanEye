@@ -31,6 +31,7 @@ import {
   scoreLoopChainWedge,
 } from "../scoring/loopChain";
 import { scoreTraceSpiral } from "../scoring/spiral";
+import { scoreTraceSCurve } from "../scoring/sCurve";
 import { getStoredProgress } from "../storage/progress";
 import { getSettings } from "../storage/settings";
 import { selectLineAngleBucket } from "../practice/lineAngles";
@@ -42,7 +43,10 @@ import {
   createLoopChainCircularTarget,
   createLoopChainWedgeTarget,
 } from "./freehand/targets";
-import { renderLoopChainReview } from "./freehand/correction";
+import {
+  appendFreehandCorrection,
+  renderLoopChainReview,
+} from "./freehand/correction";
 import type {
   FreehandExerciseConfig,
   FreehandPoint,
@@ -392,6 +396,20 @@ const FREEHAND_CONFIGS = {
     readyText: "Use Pencil, touch, or mouse to trace the faint spiral guide.",
     retryText: "Stroke was too short. Trace more of the spiral.",
     canvasLabel: "Logarithmic spiral tracing field",
+  },
+  "trace-s-curve": {
+    isClosedShape: false,
+    createTarget: () => createFreehandTarget("trace-s-curve"),
+    scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) =>
+      target?.kind === "s-curve" ? scoreTraceSCurve(points, target) : null,
+    promptText: "Trace the faint S-curve guide.",
+    readyText: "Use Pencil, touch, or mouse to trace the faint S-curve guide.",
+    retryText: "Stroke was too short. Trace more of the S-curve.",
+    canvasLabel: "S-curve tracing field",
+    renderCorrection: (layer: SVGGElement, result: FreehandResult) => {
+      if (result.kind !== "trace-s-curve") return;
+      appendFreehandCorrection(layer, result, false);
+    },
   },
   "loop-chain-wedge-scored": {
     isClosedShape: false,

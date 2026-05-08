@@ -143,7 +143,8 @@ export type ExerciseId =
   | "trace-spiral-archimedean-left"
   | "trace-spiral-archimedean-right"
   | "trace-spiral-logarithmic-left"
-  | "trace-spiral-logarithmic-right";
+  | "trace-spiral-logarithmic-right"
+  | "trace-s-curve";
 
 export type LineAxis = "horizontal" | "vertical" | "free";
 
@@ -238,7 +239,8 @@ export type FreehandExerciseDefinition = ExerciseBase & {
     | "trace-spiral-archimedean-left"
     | "trace-spiral-archimedean-right"
     | "trace-spiral-logarithmic-left"
-    | "trace-spiral-logarithmic-right";
+    | "trace-spiral-logarithmic-right"
+    | "trace-s-curve";
   inputMode?:
     | "single-stroke"
     | "unlimited-strokes"
@@ -405,6 +407,15 @@ export const EXERCISES: ExerciseDefinition[] = [
     description: "Trace the faint left-winding logarithmic spiral guide. Spacing grows with each turn.",
     implemented: true,
     kind: "trace-spiral-logarithmic-left",
+  },
+  {
+    id: "trace-s-curve",
+    family: "Trace Control",
+    label: "Trace S-Curve",
+    description:
+      "Trace a faint randomized S-curve guide inspired by French curve templates.",
+    implemented: true,
+    kind: "trace-s-curve",
   },
   {
     id: "flat-triangle",

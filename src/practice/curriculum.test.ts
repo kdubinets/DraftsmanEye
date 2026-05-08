@@ -88,6 +88,7 @@ describe("curriculum config", () => {
         "trace-spiral-archimedean-left",
         "trace-spiral-logarithmic-right",
         "trace-spiral-logarithmic-left",
+        "trace-s-curve",
       ],
     ]);
   });

@@ -106,6 +106,16 @@ export type FreehandSpiralResult = {
   target: TargetSpiral;
 };
 
+export type FreehandSCurveResult = {
+  kind: "trace-s-curve";
+  score: number;
+  meanErrorPixels: number;
+  maxErrorPixels: number;
+  strokeLengthPixels: number;
+  pointCount: number;
+  target: TargetSCurve;
+};
+
 export type LoopChainScoredResult = {
   kind: "loop-chain-scored";
   score: number;
@@ -147,7 +157,8 @@ export type FreehandResult =
   | FreehandTargetEllipseResult
   | LoopChainBandResult
   | LoopChainScoredResult
-  | FreehandSpiralResult;
+  | FreehandSpiralResult
+  | FreehandSCurveResult;
 
 export type TargetLine = {
   kind: "line";
@@ -223,6 +234,15 @@ export type TargetSpiral = {
   turns: number;
 };
 
+export type TargetSCurve = {
+  kind: "s-curve";
+  start: { x: number; y: number };
+  control1: { x: number; y: number };
+  control2: { x: number; y: number };
+  end: { x: number; y: number };
+  referenceLength: number;
+};
+
 export type FreehandTarget =
   | TargetLine
   | TargetCircle
@@ -231,7 +251,8 @@ export type FreehandTarget =
   | TargetLoopChainLinear
   | TargetLoopChainCircular
   | TargetLoopChainWedge
-  | TargetSpiral;
+  | TargetSpiral
+  | TargetSCurve;
 
 export type FreehandAttemptSnapshot = {
   id: number;
