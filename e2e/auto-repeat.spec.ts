@@ -62,12 +62,12 @@ test("target line early next activates new target geometry", async ({
 
   await openTargetLine(page);
   const canvas = page.getByTestId("freehand-canvas");
-  const canvasBox = await freehandCanvasBox(page);
   const oldMarks = canvas.locator(".freehand-target-mark");
   const oldTargets = [
     await locatorCenter(oldMarks.nth(0)),
     await locatorCenter(oldMarks.nth(1)),
   ];
+  const canvasBox = await freehandCanvasBox(page);
   await drawPolyline(page, [
     { x: canvasBox.x + 160, y: canvasBox.y + 180 },
     { x: canvasBox.x + 360, y: canvasBox.y + 220 },

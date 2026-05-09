@@ -242,17 +242,46 @@ export async function drawPolyline(
   page: Page,
   points: { x: number; y: number }[],
 ): Promise<void> {
-  const [firstPoint, ...restPoints] = points;
-  if (!firstPoint) {
+  if (!points[0]) {
     throw new Error("Expected at least one point to draw.");
   }
 
-  await page.mouse.move(firstPoint.x, firstPoint.y);
-  await page.mouse.down();
-  for (const point of restPoints) {
-    await page.mouse.move(point.x, point.y);
-  }
-  await page.mouse.up();
+  await page.getByTestId("freehand-canvas").evaluate((svgElement, path) => {
+    const svg = svgElement as SVGSVGElement;
+    const [start, ...rest] = path;
+    if (!start) return;
+
+    // Tests dispatch directly to the SVG so pointer capture is unnecessary.
+    // Native mouse delivery is flaky for long synthetic strokes under load.
+    svg.setPointerCapture = () => {};
+    svg.hasPointerCapture = () => false;
+    svg.releasePointerCapture = () => {};
+
+    const dispatch = (
+      type: "pointerdown" | "pointermove" | "pointerup",
+      point: { x: number; y: number },
+    ): void => {
+      svg.dispatchEvent(
+        new PointerEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          pointerId: 1,
+          pointerType: "mouse",
+          button: 0,
+          buttons: type === "pointerup" ? 0 : 1,
+          clientX: point.x,
+          clientY: point.y,
+          pressure: type === "pointerup" ? 0 : 0.5,
+        }),
+      );
+    };
+
+    dispatch("pointerdown", start);
+    for (const point of rest) {
+      dispatch("pointermove", point);
+    }
+    dispatch("pointerup", rest[rest.length - 1] ?? start);
+  }, points);
 }
 
 export function interpolatedPoints(

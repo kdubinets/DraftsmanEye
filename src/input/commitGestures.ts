@@ -23,9 +23,9 @@ type PointerSample = {
   time: number;
 };
 
-const DEFAULT_DOUBLE_TAP_INTERVAL_MS = 380;
-const DEFAULT_DOUBLE_TAP_DISTANCE_PX = 32;
-const DEFAULT_TAP_MOVEMENT_PX = 10;
+const DEFAULT_DOUBLE_TAP_INTERVAL_MS = 760;
+const DEFAULT_DOUBLE_TAP_DISTANCE_PX = 64;
+const DEFAULT_TAP_MOVEMENT_PX = 20;
 
 export function installSpaceCommitShortcut(
   options: CommitShortcutOptions,
