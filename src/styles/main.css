@@ -1332,8 +1332,9 @@ button {
 .freehand-history-score {
   margin: 0;
   justify-self: end;
-  color: var(--muted);
-  font-size: 0.8rem;
+  color: #3f3127;
+  font-size: 1.2rem;
+  font-weight: 550;
   font-variant-numeric: tabular-nums;
 }
 
