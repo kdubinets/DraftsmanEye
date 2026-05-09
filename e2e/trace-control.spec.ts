@@ -50,6 +50,60 @@ test("trace line drill scores a stroke against the faint guide", async ({
   await expect(page.locator(".freehand-history-item")).toHaveCount(1);
 });
 
+test("sequence mode advances trace line targets predictably", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "draftsman-eye.settings.v1",
+      JSON.stringify({ autoRepeatDelayMs: null }),
+    );
+  });
+  await page.goto("/");
+
+  await page
+    .getByRole("article")
+    .filter({
+      has: page.getByRole("heading", { level: 3, name: "Trace Line" }),
+    })
+    .getByRole("button", { name: "Practice" })
+    .click();
+
+  await page.getByRole("button", { name: "Sequence target mode" }).click();
+  await expect(page.getByTestId("guided-practice-sequence-label")).toContainText(
+    "1/9",
+  );
+  await page.getByTestId("guided-practice-sequence-label").click();
+  await expect(page.getByTestId("guided-practice-sequence-menu")).toBeVisible();
+  await page.getByRole("button", { name: "Length ladder" }).click();
+  await expect(page.getByTestId("guided-practice-sequence-label")).toContainText(
+    "Length ladder 1/9",
+  );
+
+  const canvas = page.getByTestId("freehand-canvas");
+  const guide = canvas.locator(".freehand-trace-guide");
+  const firstGuide = await svgLineEndpoints(guide);
+  const firstPoints = await svgPointsToClient(page, [
+    firstGuide.start,
+    firstGuide.end,
+  ]);
+  await drawPolyline(page, interpolatedPoints(firstPoints[0], firstPoints[1], 10));
+
+  await expect(page.getByRole("button", { name: "Next" })).toBeVisible();
+  await page.getByRole("button", { name: "Next" }).click();
+  await expect(page.getByTestId("guided-practice-sequence-label")).toContainText(
+    "2/9",
+  );
+
+  const secondGuide = await svgLineEndpoints(guide);
+  expect(
+    Math.hypot(
+      secondGuide.start.x - firstGuide.start.x,
+      secondGuide.start.y - firstGuide.start.y,
+    ),
+  ).toBeGreaterThan(1);
+});
+
 test("trace circle drill scores a stroke against the faint guide", async ({
   page,
 }) => {

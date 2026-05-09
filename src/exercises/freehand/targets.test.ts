@@ -5,8 +5,13 @@ import {
 } from "../../geometry/sCurve";
 import { distanceBetween } from "../../geometry/primitives";
 import type { FreehandExerciseDefinition } from "../../practice/catalog";
-import { createFreehandTarget } from "./targets";
+import { createFreehandTarget, createFreehandTargetSequence } from "./targets";
 import type { TargetAngle } from "./types";
+import type {
+  FreehandTarget,
+  TargetCompoundCurve,
+  TargetSCurve,
+} from "./types";
 
 const ANGLE_COPY_KINDS: FreehandExerciseDefinition["kind"][] = [
   "angle-copy-horizontal-aligned",
@@ -156,6 +161,142 @@ describe("createFreehandTarget compound curve trace", () => {
     }
   });
 });
+
+describe("createFreehandTargetSequence", () => {
+  it("keeps guided line sequences inside the drawing field", () => {
+    for (const kind of ["target-line-two-points", "trace-line"] as const) {
+      const sequence = createFreehandTargetSequence(kind, undefined, {
+        showDirectionCue: true,
+      });
+
+      expect(sequence.targets).toHaveLength(9);
+      for (const target of sequence.targets) {
+        expect(target.kind).toBe("line");
+        expect(pointsForTarget(target).every(pointIsInBounds)).toBe(true);
+      }
+    }
+  });
+
+  it("builds requested sequence progression types", () => {
+    expect(createFreehandTargetSequence("trace-line", "angle").label).toBe(
+      "Angle ladder",
+    );
+    expect(
+      createFreehandTargetSequence("target-circle-center-point", "position")
+        .label,
+    ).toBe("Position grid");
+    expect(createFreehandTargetSequence("trace-ellipse", "ratio").label).toBe(
+      "Ratio ladder",
+    );
+    expect(createFreehandTargetSequence("trace-s-curve", "rotation").label).toBe(
+      "Rotation ladder",
+    );
+  });
+
+  it("keeps circle and ellipse sequences inside the drawing field", () => {
+    for (const kind of [
+      "target-circle-center-point",
+      "target-circle-three-points",
+      "trace-circle",
+      "trace-ellipse",
+    ] as const) {
+      const sequence = createFreehandTargetSequence(kind);
+
+      expect(sequence.targets).toHaveLength(9);
+      for (const target of sequence.targets) {
+        expect(pointsForTarget(target).every(pointIsInBounds)).toBe(true);
+      }
+    }
+  });
+
+  it("keeps curve and spiral sequences renderable inside the drawing field", () => {
+    for (const kind of [
+      "trace-spiral-archimedean-left",
+      "trace-spiral-archimedean-right",
+      "trace-spiral-logarithmic-left",
+      "trace-spiral-logarithmic-right",
+      "trace-s-curve",
+      "trace-compound-curve",
+    ] as const) {
+      const sequence = createFreehandTargetSequence(kind);
+
+      expect(sequence.targets).toHaveLength(9);
+      for (const target of sequence.targets) {
+        expect(pointsForTarget(target).every(pointIsInBounds)).toBe(true);
+      }
+    }
+  });
+});
+
+function pointsForTarget(target: FreehandTarget): { x: number; y: number }[] {
+  switch (target.kind) {
+    case "line":
+      return [target.start, target.end];
+    case "circle":
+      return [
+        target.center,
+        { x: target.center.x - target.radius, y: target.center.y },
+        { x: target.center.x + target.radius, y: target.center.y },
+        { x: target.center.x, y: target.center.y - target.radius },
+        { x: target.center.x, y: target.center.y + target.radius },
+        ...target.marks,
+      ];
+    case "ellipse":
+      return ellipseCardinalPoints(target);
+    case "spiral":
+      return [
+        target.center,
+        { x: target.center.x - target.outerRadius, y: target.center.y },
+        { x: target.center.x + target.outerRadius, y: target.center.y },
+        { x: target.center.x, y: target.center.y - target.outerRadius },
+        { x: target.center.x, y: target.center.y + target.outerRadius },
+      ];
+    case "s-curve":
+      return sCurvePoints(target);
+    case "compound-curve":
+      return compoundCurvePoints(target);
+    case "angle":
+    case "loop-chain-linear":
+    case "loop-chain-circular":
+    case "loop-chain-wedge":
+      return [];
+  }
+}
+
+function ellipseCardinalPoints(
+  target: Extract<FreehandTarget, { kind: "ellipse" }>,
+): { x: number; y: number }[] {
+  const cos = Math.cos(target.rotationRadians);
+  const sin = Math.sin(target.rotationRadians);
+  return [
+    { x: target.majorRadius, y: 0 },
+    { x: -target.majorRadius, y: 0 },
+    { x: 0, y: target.minorRadius },
+    { x: 0, y: -target.minorRadius },
+  ].map((point) => ({
+    x: target.center.x + point.x * cos - point.y * sin,
+    y: target.center.y + point.x * sin + point.y * cos,
+  }));
+}
+
+function sCurvePoints(target: TargetSCurve): { x: number; y: number }[] {
+  return [target.start, target.control1, target.control2, target.end];
+}
+
+function compoundCurvePoints(
+  target: TargetCompoundCurve,
+): { x: number; y: number }[] {
+  return target.segments.flatMap((segment) => [
+    segment.start,
+    segment.control1,
+    segment.control2,
+    segment.end,
+  ]);
+}
+
+function pointIsInBounds(point: { x: number; y: number }): boolean {
+  return point.x >= 0 && point.x <= 1000 && point.y >= 0 && point.y <= 620;
+}
 
 function anglePoints(target: TargetAngle): { x: number; y: number }[] {
   return [

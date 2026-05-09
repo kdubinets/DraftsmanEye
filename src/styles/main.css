@@ -414,6 +414,86 @@ button {
   margin: 0;
 }
 
+.guided-practice-mode-control {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 0.15rem;
+  padding: 0.16rem;
+  border: 1px solid rgba(31, 26, 23, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 252, 246, 0.72);
+}
+
+.guided-practice-mode-button {
+  min-width: 0;
+  padding: 0.36rem 0.62rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(31, 26, 23, 0.62);
+  font-size: 0.82rem;
+  line-height: 1.1;
+}
+
+.guided-practice-mode-button.is-active {
+  background: rgba(31, 26, 23, 0.12);
+  color: rgba(31, 26, 23, 0.9);
+}
+
+.guided-practice-sequence-picker {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.guided-practice-sequence-label {
+  flex: 0 0 auto;
+  padding: 0.25rem 0.45rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(31, 26, 23, 0.55);
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.guided-practice-sequence-label:not(:disabled):hover,
+.guided-practice-sequence-label:not(:disabled)[aria-expanded="true"] {
+  border-color: rgba(31, 26, 23, 0.16);
+  background: rgba(31, 26, 23, 0.06);
+  color: rgba(31, 26, 23, 0.82);
+}
+
+.guided-practice-sequence-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.35rem);
+  z-index: 5;
+  min-width: 10rem;
+  padding: 0.35rem;
+  border: 1px solid rgba(31, 26, 23, 0.14);
+  border-radius: 8px;
+  background: rgb(255, 252, 246);
+  box-shadow: 0 12px 30px rgba(31, 26, 23, 0.14);
+}
+
+.guided-practice-sequence-option {
+  display: block;
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(31, 26, 23, 0.72);
+  text-align: left;
+  font-size: 0.84rem;
+}
+
+.guided-practice-sequence-option:hover,
+.guided-practice-sequence-option.is-active {
+  background: rgba(31, 26, 23, 0.08);
+  color: rgba(31, 26, 23, 0.92);
+}
+
 .exercise-stage.is-maximized .exercise-toolbar {
   position: absolute;
   top: max(0.65rem, env(safe-area-inset-top));
@@ -438,6 +518,10 @@ button {
   color: rgba(31, 26, 23, 0.68);
   font-size: 0.82rem;
   line-height: 1.15;
+}
+
+.exercise-stage.is-maximized .guided-practice-sequence-picker {
+  display: none;
 }
 
 .exercise-stage.is-maximized .secondary-action:hover {

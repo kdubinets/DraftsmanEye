@@ -284,6 +284,22 @@ export type FreehandAttemptSnapshot = {
   target: FreehandTarget | null;
 };
 
+export const GUIDED_PRACTICE_MODES = ["random", "repeat", "sequence"] as const;
+
+export type GuidedPracticeMode = (typeof GUIDED_PRACTICE_MODES)[number];
+
+export type FreehandTargetSequence = {
+  key: string;
+  label: string;
+  restartLabel: string;
+  targets: FreehandTarget[];
+};
+
+export type FreehandTargetSequenceOption = {
+  key: string;
+  label: string;
+};
+
 /**
  * Per-exercise configuration passed to mountFreehandScreen.
  * Encapsulates every kind-specific decision so the screen body stays kind-agnostic.
@@ -291,6 +307,8 @@ export type FreehandAttemptSnapshot = {
 export type FreehandExerciseConfig = {
   isClosedShape: boolean;
   createTarget: () => FreehandTarget | null;
+  sequenceOptions?: FreehandTargetSequenceOption[];
+  createSequence?: (key?: string) => FreehandTargetSequence;
   scoreStroke: (
     points: FreehandPoint[],
     target: FreehandTarget | null,

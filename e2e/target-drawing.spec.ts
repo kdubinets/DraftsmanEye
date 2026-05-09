@@ -82,6 +82,52 @@ test("target line directional prompt can be disabled", async ({ page }) => {
   ).toHaveLength(1);
 });
 
+test("repeat mode keeps the same target line across attempts", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "draftsman-eye.settings.v1",
+      JSON.stringify({ autoRepeatDelayMs: null }),
+    );
+  });
+  await page.goto("/");
+  await openTargetLine(page);
+
+  await page.getByRole("button", { name: "Repeat target mode" }).click();
+  await expect(page.getByRole("button", { name: "Repeat target mode" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+
+  const canvas = page.getByTestId("freehand-canvas");
+  const marks = canvas.locator(".freehand-target-mark");
+  const firstStart = await locatorCenter(marks.nth(0));
+  const firstEnd = await locatorCenter(marks.nth(1));
+  await drawPolyline(page, interpolatedPoints(firstStart, firstEnd, 10));
+
+  await expect(page.getByRole("button", { name: "Again" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "New" })).toBeVisible();
+  await page.getByRole("button", { name: "Again" }).click();
+
+  const secondStart = await locatorCenter(marks.nth(0));
+  const secondEnd = await locatorCenter(marks.nth(1));
+  expect(secondStart.x).toBeCloseTo(firstStart.x, 1);
+  expect(secondStart.y).toBeCloseTo(firstStart.y, 1);
+  expect(secondEnd.x).toBeCloseTo(firstEnd.x, 1);
+  expect(secondEnd.y).toBeCloseTo(firstEnd.y, 1);
+
+  await drawPolyline(page, interpolatedPoints(secondStart, secondEnd, 10));
+  await expect(page.locator(".freehand-history-item")).toHaveCount(2);
+  const attempts = await page.evaluate(() => {
+    const raw = window.localStorage.getItem("draftsman-eye.progress.v10");
+    return raw
+      ? JSON.parse(raw).aggregates["target-line-two-points"]?.attempts
+      : undefined;
+  });
+  expect(attempts).toBe(2);
+});
+
 test("target circle drill scores a circle from center and radius point", async ({
   page,
 }) => {

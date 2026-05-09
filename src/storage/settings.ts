@@ -22,6 +22,8 @@ export type Settings = {
   solidReferenceStyle: SolidReferenceStyle;
   /** Last selected home-page presentation. */
   lastHomeView: HomeView;
+  /** Per guided trace/target drill target generation mode. */
+  guidedPracticeModes: Record<string, GuidedPracticeMode>;
 };
 
 const STORAGE_KEY = "draftsman-eye.settings.v1";
@@ -31,6 +33,8 @@ export const SOLID_REFERENCE_STYLES = ["wireframe", "shaded"] as const;
 export type SolidReferenceStyle = (typeof SOLID_REFERENCE_STYLES)[number];
 export const HOME_VIEWS = ["exercise-list", "curriculum"] as const;
 export type HomeView = (typeof HOME_VIEWS)[number];
+export const GUIDED_PRACTICE_MODES = ["random", "repeat", "sequence"] as const;
+export type GuidedPracticeMode = (typeof GUIDED_PRACTICE_MODES)[number];
 
 const DEFAULTS: Settings = {
   allowTouchDrawing: false,
@@ -42,6 +46,7 @@ const DEFAULTS: Settings = {
   directionalLineGuides: true,
   solidReferenceStyle: "wireframe",
   lastHomeView: "exercise-list",
+  guidedPracticeModes: {},
 };
 
 let cache: Settings | null = null;
@@ -112,6 +117,7 @@ function mergeWithDefaults(raw: unknown): Settings {
         : DEFAULTS.directionalLineGuides,
     solidReferenceStyle: parseSolidReferenceStyle(src["solidReferenceStyle"]),
     lastHomeView: parseHomeView(src["lastHomeView"]),
+    guidedPracticeModes: parseGuidedPracticeModes(src["guidedPracticeModes"]),
   };
 }
 
@@ -131,4 +137,18 @@ function parseHomeView(raw: unknown): HomeView {
   return HOME_VIEWS.includes(raw as HomeView)
     ? (raw as HomeView)
     : DEFAULTS.lastHomeView;
+}
+
+function parseGuidedPracticeModes(raw: unknown): Record<string, GuidedPracticeMode> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const modes: Record<string, GuidedPracticeMode> = {};
+  for (const [exerciseId, mode] of Object.entries(raw)) {
+    if (
+      typeof exerciseId === "string" &&
+      GUIDED_PRACTICE_MODES.includes(mode as GuidedPracticeMode)
+    ) {
+      modes[exerciseId] = mode as GuidedPracticeMode;
+    }
+  }
+  return modes;
 }

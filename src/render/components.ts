@@ -52,7 +52,7 @@ export function actionButton(
 
 export function exerciseToolbar(
   prompt: HTMLElement,
-  ...actions: HTMLButtonElement[]
+  ...actions: HTMLElement[]
 ): HTMLElement {
   return h("div", { class: "exercise-toolbar" }, [prompt, ...actions]);
 }

@@ -11,7 +11,11 @@ import type {
 } from "../storage/progress";
 import { startActivePracticeTimer } from "../storage/activePracticeTimer";
 import { recordCurriculumCompletion } from "../storage/curriculumStats";
-import { getSettings } from "../storage/settings";
+import {
+  getSettings,
+  updateSetting,
+  type GuidedPracticeMode,
+} from "../storage/settings";
 import {
   createDoubleTapCommitDetector,
   installSpaceCommitShortcut,
@@ -101,6 +105,7 @@ import type {
   FreehandTarget,
   FreehandAttemptSnapshot,
   FreehandExerciseConfig,
+  FreehandTargetSequence,
 } from "../exercises/freehand/types";
 import type { AppState, ListFilterState } from "../app/state";
 
@@ -126,8 +131,19 @@ export function mountFreehandScreen(
   let isResultPaused = false;
   let escapeListener: ((e: KeyboardEvent) => void) | null = null;
   let nextAttemptId = 1;
-  let target: FreehandTarget | null = config.createTarget();
   const settings = getSettings();
+  const supportsGuidedPractice = config.createSequence !== undefined;
+  let practiceMode: GuidedPracticeMode = supportsGuidedPractice
+    ? settings.guidedPracticeModes[exercise.id] ?? "random"
+    : "random";
+  let sequence: FreehandTargetSequence | null =
+    practiceMode === "sequence" && config.createSequence
+      ? config.createSequence()
+      : null;
+  let preferredSequenceKey: string | null = null;
+  let sequenceIndex = 0;
+  let target: FreehandTarget | null = null;
+  target = nextTargetForMode("initial");
   const autoRepeatDelayMs = settings.autoRepeatDelayMs;
   const showResultString = settings.showResultString;
   const showScoreBoxes = settings.showScoreBoxes;
@@ -149,6 +165,29 @@ export function mountFreehandScreen(
     promptTextForCurrentTarget(),
   ]);
 
+  const modeControl = createPracticeModeControl();
+  const sequenceLabel = h("button", {
+    type: "button",
+    class: "guided-practice-sequence-label",
+    dataset: { testid: "guided-practice-sequence-label" },
+    on: {
+      click: (event) => {
+        event.stopPropagation();
+        toggleSequenceMenu();
+      },
+    },
+  });
+  const sequenceMenu = h("div", {
+    class: "guided-practice-sequence-menu",
+    hidden: true,
+    dataset: { testid: "guided-practice-sequence-menu" },
+  });
+  const sequencePicker = h("div", { class: "guided-practice-sequence-picker" }, [
+    sequenceLabel,
+    sequenceMenu,
+  ]);
+  updateSequenceLabel();
+
   const pauseBtn = actionButton("Pause", () => {
     if (!result || autoRepeatDelayMs === null) return;
     if (isResultPaused) {
@@ -164,6 +203,11 @@ export function mountFreehandScreen(
     resetToFreshTrial();
   });
   againBtn.hidden = true;
+
+  const newTargetBtn = actionButton("New", () => {
+    resetToNewTargetSet();
+  });
+  newTargetBtn.hidden = true;
 
   const commitBtn = actionButton("Commit", () => {
     commitPendingResult();
@@ -205,10 +249,13 @@ export function mountFreehandScreen(
 
   const toolbar = exerciseToolbar(
     prompt,
+    modeControl,
+    sequencePicker,
     commitBtn,
     resetLineBtn,
     pauseBtn,
     againBtn,
+    newTargetBtn,
     fullBtn,
     backBtn,
   );
@@ -537,12 +584,19 @@ export function mountFreehandScreen(
   stage.append(toolbar, svg, feedback, summary);
   screen.append(header, stage, historySection);
   root.append(screen);
+  const closeSequenceMenuOnOutsideClick = (event: MouseEvent): void => {
+    if (!sequencePicker.contains(event.target as Node | null)) {
+      closeSequenceMenu();
+    }
+  };
+  document.addEventListener("click", closeSequenceMenuOnOutsideClick);
 
   return () => {
     cancelled = true;
     clearAutoResetTimer();
     stopActiveTimer();
     removeSpaceCommitShortcut?.();
+    document.removeEventListener("click", closeSequenceMenuOnOutsideClick);
     window.removeEventListener("pointerup", finishAdjustableDrag);
     window.removeEventListener("pointercancel", finishAdjustableDrag);
     if (escapeListener !== null) {
@@ -550,6 +604,223 @@ export function mountFreehandScreen(
       escapeListener = null;
     }
   };
+
+  function createPracticeModeControl(): HTMLElement {
+    const group = h("div", {
+      class: "guided-practice-mode-control",
+      dataset: { testid: "guided-practice-mode-control" },
+    });
+    if (!supportsGuidedPractice) {
+      group.hidden = true;
+      return group;
+    }
+
+    const modes: { mode: GuidedPracticeMode; label: string }[] = [
+      { mode: "random", label: "Random" },
+      { mode: "repeat", label: "Repeat" },
+      { mode: "sequence", label: "Sequence" },
+    ];
+    group.append(
+      ...modes.map(({ mode, label }) => {
+        const button = h(
+          "button",
+          {
+            type: "button",
+            class: "guided-practice-mode-button",
+            on: {
+              click: () => setPracticeMode(mode),
+            },
+          },
+          [label],
+        );
+        button.dataset.mode = mode;
+        button.setAttribute("aria-label", `${label} target mode`);
+        button.classList.toggle("is-active", mode === practiceMode);
+        button.setAttribute(
+          "aria-pressed",
+          mode === practiceMode ? "true" : "false",
+        );
+        return button;
+      }),
+    );
+    return group;
+  }
+
+  function setPracticeMode(nextMode: GuidedPracticeMode): void {
+    if (!supportsGuidedPractice || nextMode === practiceMode) return;
+    practiceMode = nextMode;
+    const current = getSettings().guidedPracticeModes;
+    updateSetting("guidedPracticeModes", {
+      ...current,
+      [exercise.id]: nextMode,
+    });
+    if (nextMode === "sequence") {
+      sequence = config.createSequence?.(preferredSequenceKey ?? undefined) ?? null;
+      sequenceIndex = 0;
+    } else {
+      sequence = null;
+      sequenceIndex = 0;
+    }
+    syncPracticeModeControl();
+    syncPracticeActions();
+
+    if (result === null && drawingPointerId === null && points.length === 0) {
+      target = nextTargetForMode("initial");
+      prompt.textContent = promptTextForCurrentTarget();
+      renderFreehandTargetMarks(targetLayer, target);
+      updateSequenceLabel();
+      if (isAdjustableLineMode) resetAdjustableLine();
+    } else {
+      updateSequenceLabel();
+    }
+  }
+
+  function toggleSequenceMenu(): void {
+    if (
+      !supportsGuidedPractice ||
+      practiceMode !== "sequence" ||
+      sequenceOptions().length <= 1
+    ) {
+      return;
+    }
+    const nextOpen = sequenceMenu.hidden;
+    renderSequenceMenu();
+    sequenceMenu.hidden = !nextOpen;
+    sequenceLabel.setAttribute("aria-expanded", nextOpen ? "true" : "false");
+  }
+
+  function closeSequenceMenu(): void {
+    sequenceMenu.hidden = true;
+    sequenceLabel.setAttribute("aria-expanded", "false");
+  }
+
+  function renderSequenceMenu(): void {
+    const options = sequenceOptions();
+    sequenceMenu.replaceChildren(
+      h(
+        "button",
+        {
+          type: "button",
+          class:
+            preferredSequenceKey === null
+              ? "guided-practice-sequence-option is-active"
+              : "guided-practice-sequence-option",
+          on: {
+            click: () => selectSequenceKey(null),
+          },
+        },
+        ["Random set"],
+      ),
+      ...options.map((option) =>
+        h(
+          "button",
+          {
+            type: "button",
+            class:
+              preferredSequenceKey === option.key
+                ? "guided-practice-sequence-option is-active"
+                : "guided-practice-sequence-option",
+            on: {
+              click: () => selectSequenceKey(option.key),
+            },
+          },
+          [option.label],
+        ),
+      ),
+    );
+  }
+
+  function selectSequenceKey(key: string | null): void {
+    preferredSequenceKey = key;
+    sequence = config.createSequence?.(key ?? undefined) ?? null;
+    sequenceIndex = 0;
+    closeSequenceMenu();
+    updateSequenceLabel();
+    syncPracticeActions();
+    if (result === null && drawingPointerId === null) {
+      target = sequence?.targets[0] ?? config.createTarget();
+      prompt.textContent = promptTextForCurrentTarget();
+      renderFreehandTargetMarks(targetLayer, target);
+      if (isAdjustableLineMode) resetAdjustableLine();
+    }
+  }
+
+  function sequenceOptions(): { key: string; label: string }[] {
+    return config.sequenceOptions ?? [];
+  }
+
+  function syncPracticeModeControl(): void {
+    if (!supportsGuidedPractice) return;
+    for (const child of modeControl.children) {
+      if (!(child instanceof HTMLButtonElement)) continue;
+      const active = child.dataset.mode === practiceMode;
+      child.classList.toggle("is-active", active);
+      child.setAttribute("aria-pressed", active ? "true" : "false");
+    }
+  }
+
+  function syncPracticeActions(): void {
+    if (result === null) {
+      againBtn.hidden = true;
+      newTargetBtn.hidden = true;
+      return;
+    }
+
+    againBtn.hidden = false;
+    againBtn.textContent =
+      !supportsGuidedPractice || practiceMode === "repeat" ? "Again" : "Next";
+    newTargetBtn.hidden =
+      !supportsGuidedPractice ||
+      (practiceMode !== "repeat" && practiceMode !== "sequence");
+    newTargetBtn.textContent =
+      practiceMode === "sequence" ? sequence?.restartLabel ?? "Restart" : "New";
+  }
+
+  function updateSequenceLabel(): void {
+    if (!supportsGuidedPractice || practiceMode !== "sequence" || !sequence) {
+      sequencePicker.hidden = true;
+      sequenceLabel.textContent = "";
+      closeSequenceMenu();
+      return;
+    }
+    sequencePicker.hidden = false;
+    sequenceLabel.textContent = `${sequence.label} ${sequenceIndex + 1}/${sequence.targets.length}`;
+    sequenceLabel.disabled = sequenceOptions().length <= 1;
+    sequenceLabel.setAttribute(
+      "aria-label",
+      sequenceOptions().length <= 1
+        ? "Current sequence progression"
+        : "Change sequence progression",
+    );
+    renderSequenceMenu();
+  }
+
+  function nextTargetForMode(
+    reason: "initial" | "after-result" | "new-set",
+  ): FreehandTarget | null {
+    if (!supportsGuidedPractice || practiceMode === "random") {
+      return config.createTarget();
+    }
+
+    if (practiceMode === "repeat") {
+      if (reason === "initial" || reason === "new-set" || target === null) {
+        return config.createTarget();
+      }
+      return target;
+    }
+
+    if (reason === "new-set" || !sequence) {
+      sequence = config.createSequence?.(preferredSequenceKey ?? undefined) ?? null;
+      sequenceIndex = 0;
+    } else if (reason === "after-result") {
+      sequenceIndex = (sequenceIndex + 1) % sequence.targets.length;
+    }
+
+    if (!sequence || sequence.targets.length === 0) {
+      return config.createTarget();
+    }
+    return sequence.targets[sequenceIndex] ?? sequence.targets[0];
+  }
 
   function isSafeFreehandCommitTap(event: PointerEvent): boolean {
     const point = freehandPointFromEvent(svg, event);
@@ -757,7 +1028,7 @@ export function mountFreehandScreen(
     summary.hidden = !showScoreBoxes;
     summary.replaceChildren(...freehandResultStats(result));
 
-    againBtn.hidden = false;
+    syncPracticeActions();
     resetLineBtn.hidden = true;
     adjustableLayer.style.display = "none";
     scheduleAutoReset();
@@ -772,7 +1043,7 @@ export function mountFreehandScreen(
     drawingPointerId = null;
     adjustablePointerId = null;
     doubleTapCommit.reset();
-    target = config.createTarget();
+    target = nextTargetForMode("after-result");
     prompt.textContent = promptTextForCurrentTarget();
     ghostLayer.replaceChildren();
     correctionLayer.replaceChildren();
@@ -794,6 +1065,7 @@ export function mountFreehandScreen(
     feedback.hidden = false;
     feedback.textContent = config.readyText;
     againBtn.hidden = true;
+    newTargetBtn.hidden = true;
     commitBtn.disabled = true;
     commitBtn.hidden =
       inputMode === "single-stroke" || inputMode === "adjustable-line-1-shot";
@@ -803,6 +1075,52 @@ export function mountFreehandScreen(
     } else {
       adjustableLayer.style.display = "none";
     }
+    updateSequenceLabel();
+    updateAutoRepeatButton();
+  }
+
+  function resetToNewTargetSet(): void {
+    if (cancelled) return;
+    clearAutoResetTimer();
+    points = [];
+    result = null;
+    pendingResult = null;
+    drawingPointerId = null;
+    adjustablePointerId = null;
+    doubleTapCommit.reset();
+    target = nextTargetForMode("new-set");
+    prompt.textContent = promptTextForCurrentTarget();
+    ghostLayer.replaceChildren();
+    correctionLayer.replaceChildren();
+    strokeLayer.replaceChildren();
+    renderFreehandTargetMarks(targetLayer, target);
+    hideFreehandCorrectionElements(
+      fittedLine,
+      fittedCircle,
+      fittedEllipse,
+      closureGap,
+      startTangent,
+      endTangent,
+    );
+    summary.classList.add("is-pending");
+    summary.hidden = !showScoreBoxes;
+    summary.replaceChildren(...pendingResultSummary());
+    feedback.removeAttribute("data-tone");
+    summary.removeAttribute("data-tone");
+    feedback.hidden = false;
+    feedback.textContent = config.readyText;
+    againBtn.hidden = true;
+    newTargetBtn.hidden = true;
+    commitBtn.disabled = true;
+    commitBtn.hidden =
+      inputMode === "single-stroke" || inputMode === "adjustable-line-1-shot";
+    resetLineBtn.hidden = inputMode !== "adjustable-line";
+    if (isAdjustableLineMode) {
+      resetAdjustableLine();
+    } else {
+      adjustableLayer.style.display = "none";
+    }
+    updateSequenceLabel();
     updateAutoRepeatButton();
   }
 
@@ -820,7 +1138,7 @@ export function mountFreehandScreen(
     result = null;
     pendingResult = null;
     points = [point];
-    target = config.createTarget();
+    target = nextTargetForMode("after-result");
     prompt.textContent = promptTextForCurrentTarget();
     drawingPointerId = event.pointerId;
     strokeLayer.replaceChildren();
@@ -840,7 +1158,9 @@ export function mountFreehandScreen(
     feedback.hidden = false;
     feedback.textContent = "Keep the stroke continuous, then lift.";
     againBtn.hidden = true;
+    newTargetBtn.hidden = true;
     commitBtn.disabled = true;
+    updateSequenceLabel();
     updateAutoRepeatButton();
     renderFreehandStroke(strokeLayer, points, "freehand-user-stroke");
     svg.setPointerCapture(event.pointerId);

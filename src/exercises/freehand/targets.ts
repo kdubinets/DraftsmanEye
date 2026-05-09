@@ -16,6 +16,7 @@ import {
 import type { FreehandExerciseDefinition } from "../../practice/catalog";
 import type {
   FreehandTarget,
+  FreehandTargetSequence,
   TargetLine,
   TargetCircle,
   TargetEllipse,
@@ -27,6 +28,23 @@ import type {
   TargetCompoundCurve,
   TargetSCurve,
 } from "./types";
+
+type TraceCurveKind =
+  | "trace-s-curve"
+  | "trace-compound-curve"
+  | "trace-spiral-archimedean-left"
+  | "trace-spiral-archimedean-right"
+  | "trace-spiral-logarithmic-left"
+  | "trace-spiral-logarithmic-right";
+
+type GuidedSequenceKind =
+  | "target-line-two-points"
+  | "trace-line"
+  | "target-circle-center-point"
+  | "target-circle-three-points"
+  | "trace-circle"
+  | "trace-ellipse"
+  | TraceCurveKind;
 
 export function createFreehandTarget(
   kind: FreehandExerciseDefinition["kind"],
@@ -127,6 +145,41 @@ export function createFreehandTarget(
   }
 }
 
+export function createFreehandTargetSequence(
+  kind: GuidedSequenceKind,
+  key?: string,
+  options: {
+    lineAngleBucket?: number;
+    showDirectionCue?: boolean;
+  } = {},
+): FreehandTargetSequence {
+  switch (kind) {
+    case "target-line-two-points":
+    case "trace-line":
+      return createLineSequence(kind === "trace-line", key, options);
+    case "target-circle-center-point":
+      return createCircleSequence(1, false, key);
+    case "target-circle-three-points":
+      return createCircleSequence(3, false, key);
+    case "trace-circle":
+      return createCircleSequence(1, true, key);
+    case "trace-ellipse":
+      return createEllipseSequence(key);
+    case "trace-spiral-archimedean-left":
+      return createSpiralSequence("archimedean", "left");
+    case "trace-spiral-archimedean-right":
+      return createSpiralSequence("archimedean", "right");
+    case "trace-spiral-logarithmic-left":
+      return createSpiralSequence("logarithmic", "left");
+    case "trace-spiral-logarithmic-right":
+      return createSpiralSequence("logarithmic", "right");
+    case "trace-s-curve":
+      return createSCurveSequence(key);
+    case "trace-compound-curve":
+      return createCompoundCurveSequence();
+  }
+}
+
 const SPIRAL_CANVAS_W = 1000;
 const SPIRAL_CANVAS_H = 620;
 const SPIRAL_MARGIN = 30;
@@ -134,6 +187,315 @@ const S_CURVE_MARGIN = 42;
 const LINE_CANVAS_W = 1000;
 const LINE_CANVAS_H = 620;
 const LINE_MARGIN = 48;
+
+const SEQUENCE_STEPS = [-4, -3, -2, -1, 0, 1, 2, 3, 4] as const;
+
+function createLineSequence(
+  trace: boolean,
+  key: string | undefined,
+  options: { lineAngleBucket?: number; showDirectionCue?: boolean },
+): FreehandTargetSequence {
+  const setKind = sequenceKind(key, ["parallel", "angle", "length"]);
+  const baseAngle =
+    options.lineAngleBucket === undefined
+      ? randomRange(-0.18, 0.18)
+      : (options.lineAngleBucket * Math.PI) / 180;
+  const showDirectionCue = options.showDirectionCue ?? false;
+
+  if (setKind === "angle") {
+    return {
+      key: "angle",
+      label: "Angle ladder",
+      restartLabel: "Restart",
+      targets: SEQUENCE_STEPS.map((step) =>
+        lineTargetFromGeometry({
+          angle: baseAngle + (step * 3 * Math.PI) / 180,
+          center: { x: LINE_CANVAS_W / 2, y: LINE_CANVAS_H / 2 },
+          length: 430,
+          trace,
+          showDirectionCue,
+        }),
+      ),
+    };
+  }
+
+  if (setKind === "length") {
+    return {
+      key: "length",
+      label: "Length ladder",
+      restartLabel: "Restart",
+      targets: SEQUENCE_STEPS.map((step) =>
+        lineTargetFromGeometry({
+          angle: baseAngle,
+          center: { x: LINE_CANVAS_W / 2, y: LINE_CANVAS_H / 2 },
+          length: 420 + step * 18,
+          trace,
+          showDirectionCue,
+        }),
+      ),
+    };
+  }
+
+  const normal = { x: -Math.sin(baseAngle), y: Math.cos(baseAngle) };
+  return {
+    key: "parallel",
+    label: "Parallel set",
+    restartLabel: "Restart",
+    targets: SEQUENCE_STEPS.map((step) =>
+      lineTargetFromGeometry({
+        angle: baseAngle,
+        center: {
+          x: LINE_CANVAS_W / 2 + normal.x * step * 28,
+          y: LINE_CANVAS_H / 2 + normal.y * step * 22,
+        },
+        length: 430,
+        trace,
+        showDirectionCue,
+      }),
+    ),
+  };
+}
+
+function createCircleSequence(
+  markCount: 1 | 3,
+  trace: boolean,
+  key?: string,
+): FreehandTargetSequence {
+  const setKind = sequenceKind(key, ["radius", "position", "combined"]);
+  const center = { x: 500, y: 310 };
+  const startAngle = randomRange(0, Math.PI * 2);
+
+  if (setKind === "position") {
+    return {
+      key: "position",
+      label: "Position grid",
+      restartLabel: "Restart",
+      targets: SEQUENCE_STEPS.map((step) =>
+        circleTargetFromGeometry({
+          center: { x: center.x + step * 28, y: center.y + step * 13 },
+          radius: 135,
+          markCount,
+          startAngle,
+          trace,
+        }),
+      ),
+    };
+  }
+
+  if (setKind === "combined") {
+    return {
+      key: "combined",
+      label: "Circle ladder",
+      restartLabel: "Restart",
+      targets: SEQUENCE_STEPS.map((step) =>
+        circleTargetFromGeometry({
+          center: { x: center.x + step * 16, y: center.y - step * 8 },
+          radius: 136 + step * 7,
+          markCount,
+          startAngle,
+          trace,
+        }),
+      ),
+    };
+  }
+
+  return {
+    key: "radius",
+    label: "Radius ladder",
+    restartLabel: "Restart",
+    targets: SEQUENCE_STEPS.map((step) =>
+      circleTargetFromGeometry({
+        center,
+        radius: 140 + step * 8,
+        markCount,
+        startAngle,
+        trace,
+      }),
+    ),
+  };
+}
+
+function createEllipseSequence(key?: string): FreehandTargetSequence {
+  const setKind = sequenceKind(key, ["rotation", "ratio", "size"]);
+  const center = { x: 500, y: 310 };
+
+  if (setKind === "ratio") {
+    return {
+      key: "ratio",
+      label: "Ratio ladder",
+      restartLabel: "Restart",
+      targets: SEQUENCE_STEPS.map((step) =>
+        ellipseTargetFromGeometry(center, 205, 105 + step * 8, 0.16),
+      ),
+    };
+  }
+
+  if (setKind === "size") {
+    return {
+      key: "size",
+      label: "Size ladder",
+      restartLabel: "Restart",
+      targets: SEQUENCE_STEPS.map((step) =>
+        ellipseTargetFromGeometry(center, 200 + step * 10, 106 + step * 5, 0.16),
+      ),
+    };
+  }
+
+  return {
+    key: "rotation",
+    label: "Rotation ladder",
+    restartLabel: "Restart",
+    targets: SEQUENCE_STEPS.map((step) =>
+      ellipseTargetFromGeometry(center, 205, 108, (step * 5 * Math.PI) / 180),
+    ),
+  };
+}
+
+function createSpiralSequence(
+  spiralKind: "archimedean" | "logarithmic",
+  direction: "left" | "right",
+): FreehandTargetSequence {
+  const center = { x: SPIRAL_CANVAS_W / 2, y: SPIRAL_CANVAS_H / 2 };
+  const innerRadius = 22;
+  const outerRadius =
+    Math.min(
+      center.x,
+      center.y,
+      SPIRAL_CANVAS_W - center.x,
+      SPIRAL_CANVAS_H - center.y,
+    ) - SPIRAL_MARGIN;
+  return {
+    key: spiralKind === "archimedean" ? "spacing" : "growth",
+    label:
+      spiralKind === "archimedean" ? "Spacing ladder" : "Growth ladder",
+    restartLabel: "Restart",
+    targets: SEQUENCE_STEPS.map((step) => {
+      const turns =
+        spiralKind === "archimedean"
+          ? (outerRadius - innerRadius) / (42 + step * 3)
+          : Math.log(outerRadius / innerRadius) /
+            Math.log(1.65 + step * 0.06);
+      return {
+        kind: "spiral",
+        spiralKind,
+        direction,
+        center,
+        innerRadius,
+        outerRadius,
+        turns,
+      };
+    }),
+  };
+}
+
+function createSCurveSequence(key?: string): FreehandTargetSequence {
+  const setKind = sequenceKind(key, ["bend", "rotation"]);
+  return {
+    key: setKind,
+    label: setKind === "bend" ? "Bend ladder" : "Rotation ladder",
+    restartLabel: "Restart",
+    targets: SEQUENCE_STEPS.map((step) =>
+      createTraceSCurveFromParams({
+        halfLength: 330,
+        bend: setKind === "bend" ? 145 + step * 12 : 155,
+        rotationRadians:
+          setKind === "rotation" ? (step * 7 * Math.PI) / 180 : 0.18,
+      }),
+    ),
+  };
+}
+
+function createCompoundCurveSequence(): FreehandTargetSequence {
+  return {
+    key: "family",
+    label: "Family set",
+    restartLabel: "New Set",
+    targets: SEQUENCE_STEPS.map((step) =>
+      createTraceCompoundCurveFromParams({
+        segmentCount: 4,
+        amplitude: 118 + step * 9,
+        rotationRadians: (step * 4 * Math.PI) / 180,
+      }),
+    ),
+  };
+}
+
+function sequenceKind<const T extends string>(
+  key: string | undefined,
+  choices: readonly T[],
+): T {
+  return choices.includes(key as T)
+    ? (key as T)
+    : randomSequenceKind(choices);
+}
+
+function randomSequenceKind<const T extends string>(choices: readonly T[]): T {
+  return choices[Math.floor(Math.random() * choices.length)] ?? choices[0];
+}
+
+function lineTargetFromGeometry(options: {
+  center: { x: number; y: number };
+  angle: number;
+  length: number;
+  trace: boolean;
+  showDirectionCue: boolean;
+}): TargetLine {
+  const half = options.length / 2;
+  return {
+    kind: "line",
+    start: {
+      x: options.center.x - Math.cos(options.angle) * half,
+      y: options.center.y - Math.sin(options.angle) * half,
+    },
+    end: {
+      x: options.center.x + Math.cos(options.angle) * half,
+      y: options.center.y + Math.sin(options.angle) * half,
+    },
+    trace: options.trace,
+    showDirectionCue: options.showDirectionCue,
+  };
+}
+
+function circleTargetFromGeometry(options: {
+  center: { x: number; y: number };
+  radius: number;
+  markCount: 1 | 3;
+  startAngle: number;
+  trace: boolean;
+}): TargetCircle {
+  return {
+    kind: "circle",
+    center: options.center,
+    radius: options.radius,
+    marks: options.trace
+      ? []
+      : Array.from({ length: options.markCount }, (_, index) =>
+          pointOnCircle(
+            options.center,
+            options.radius,
+            options.startAngle + index * ((Math.PI * 2) / options.markCount),
+          ),
+        ),
+    showCenter: !options.trace && options.markCount === 1,
+    trace: options.trace,
+  };
+}
+
+function ellipseTargetFromGeometry(
+  center: { x: number; y: number },
+  majorRadius: number,
+  minorRadius: number,
+  rotationRadians: number,
+): TargetEllipse {
+  return {
+    kind: "ellipse",
+    center,
+    majorRadius,
+    minorRadius,
+    rotationRadians,
+    trace: true,
+  };
+}
 
 function createTraceSpiral(
   spiralKind: "archimedean" | "logarithmic",
@@ -170,19 +532,31 @@ function createTraceSpiral(
 }
 
 function createTraceSCurve(): TargetSCurve {
-  const halfLength = randomRange(260, 390);
-  const bend = randomRange(90, 220) * (Math.random() < 0.5 ? -1 : 1);
-  const controlInset = randomRange(0.35, 0.72) * halfLength;
-  const rotationRadians = randomRange(0, Math.PI * 2);
+  return createTraceSCurveFromParams({
+    halfLength: randomRange(260, 390),
+    bend: randomRange(90, 220) * (Math.random() < 0.5 ? -1 : 1),
+    controlInsetRatio: randomRange(0.35, 0.72),
+    rotationRadians: randomRange(0, Math.PI * 2),
+  });
+}
+
+function createTraceSCurveFromParams(options: {
+  halfLength: number;
+  bend: number;
+  controlInsetRatio?: number;
+  rotationRadians: number;
+}): TargetSCurve {
+  const controlInset =
+    (options.controlInsetRatio ?? 0.54) * options.halfLength;
   const local = {
-    start: { x: -halfLength, y: 0 },
-    control1: { x: -controlInset, y: bend },
-    control2: { x: controlInset, y: -bend },
-    end: { x: halfLength, y: 0 },
+    start: { x: -options.halfLength, y: 0 },
+    control1: { x: -controlInset, y: options.bend },
+    control2: { x: controlInset, y: -options.bend },
+    end: { x: options.halfLength, y: 0 },
   };
 
-  const cos = Math.cos(rotationRadians);
-  const sin = Math.sin(rotationRadians);
+  const cos = Math.cos(options.rotationRadians);
+  const sin = Math.sin(options.rotationRadians);
   const rotated = {
     start: rotatePoint(local.start, cos, sin),
     control1: rotatePoint(local.control1, cos, sin),
@@ -242,40 +616,55 @@ function createTraceSCurve(): TargetSCurve {
 }
 
 function createTraceCompoundCurve(): TargetCompoundCurve {
-  const segmentCount = Math.random() < 0.45 ? 3 : 4;
-  const step = randomRange(170, 230);
-  const amplitude = randomRange(80, 175);
-  const phase = randomRange(0, Math.PI * 2);
+  return createTraceCompoundCurveFromParams({
+    segmentCount: Math.random() < 0.45 ? 3 : 4,
+    amplitude: randomRange(80, 175),
+    step: randomRange(170, 230),
+    phase: randomRange(0, Math.PI * 2),
+    rotationRadians: randomRange(0, Math.PI * 2),
+  });
+}
+
+function createTraceCompoundCurveFromParams(options: {
+  segmentCount: number;
+  amplitude: number;
+  step?: number;
+  phase?: number;
+  rotationRadians: number;
+}): TargetCompoundCurve {
+  const segmentCount = options.segmentCount;
+  const step = options.step ?? 200;
+  const amplitude = options.amplitude;
+  const phase = options.phase ?? 0.4;
   const points = Array.from({ length: segmentCount + 1 }, (_, index) => {
     const x = (index - segmentCount / 2) * step;
     const y =
-      Math.sin(phase + index * randomRange(0.72, 1.18) * Math.PI) *
+      Math.sin(phase + index * 0.94 * Math.PI) *
       amplitude *
-      randomRange(0.62, 1.08);
+      (0.84 + (index % 2) * 0.1);
     return { x, y };
   });
   const segments = Array.from({ length: segmentCount }, (_, index) => {
     const start = points[index];
     const end = points[index + 1];
     const dx = end.x - start.x;
-    const localBend = amplitude * randomRange(0.28, 0.78);
+    const localBend = amplitude * 0.54;
     const bendSign = index % 2 === 0 ? 1 : -1;
     return {
       start,
       control1: {
-        x: start.x + dx * randomRange(0.28, 0.44),
+        x: start.x + dx * 0.35,
         y: start.y + bendSign * localBend,
       },
       control2: {
-        x: end.x - dx * randomRange(0.28, 0.44),
-        y: end.y - bendSign * localBend * randomRange(0.75, 1.2),
+        x: end.x - dx * 0.35,
+        y: end.y - bendSign * localBend * 0.95,
       },
       end,
     };
   });
-  const rotationRadians = randomRange(0, Math.PI * 2);
-  const cos = Math.cos(rotationRadians);
-  const sin = Math.sin(rotationRadians);
+  const cos = Math.cos(options.rotationRadians);
+  const sin = Math.sin(options.rotationRadians);
   const rotated = {
     segments: segments.map((segment) => ({
       start: rotatePoint(segment.start, cos, sin),

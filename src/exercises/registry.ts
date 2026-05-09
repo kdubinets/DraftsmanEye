@@ -39,6 +39,7 @@ import { selectAngleOpeningBucket } from "../practice/angleOpenings";
 import { selectAngleEstimateBucket } from "../practice/angleEstimation";
 import {
   createFreehandTarget,
+  createFreehandTargetSequence,
   createLoopChainLinearTarget,
   createLoopChainCircularTarget,
   createLoopChainWedgeTarget,
@@ -53,6 +54,7 @@ import type {
   FreehandTarget,
   FreehandResult,
   LoopChainScoredResult,
+  FreehandTargetSequenceOption,
 } from "./freehand/types";
 import type { AppState, ListFilterState } from "../app/state";
 
@@ -162,6 +164,19 @@ const FREEHAND_CONFIGS = {
         showDirectionCue: directional,
       });
     },
+    sequenceOptions: lineSequenceOptions(),
+    createSequence: (key?: string) => {
+      const directional = getSettings().directionalLineGuides;
+      return createFreehandTargetSequence("target-line-two-points", key, {
+        lineAngleBucket: directional
+          ? selectLineAngleBucket(
+              getStoredProgress(),
+              "target-line-two-points",
+            )
+          : undefined,
+        showDirectionCue: directional,
+      });
+    },
     scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) =>
       target?.kind === "line"
         ? scoreTargetLine(points, target, {
@@ -176,6 +191,9 @@ const FREEHAND_CONFIGS = {
   "target-circle-center-point": {
     isClosedShape: true,
     createTarget: () => createFreehandTarget("target-circle-center-point"),
+    sequenceOptions: circleSequenceOptions(),
+    createSequence: (key?: string) =>
+      createFreehandTargetSequence("target-circle-center-point", key),
     scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) =>
       target?.kind === "circle" ? scoreTargetCircle(points, target) : null,
     promptText: "Draw a circle using the center and radius point.",
@@ -186,6 +204,9 @@ const FREEHAND_CONFIGS = {
   "target-circle-three-points": {
     isClosedShape: true,
     createTarget: () => createFreehandTarget("target-circle-three-points"),
+    sequenceOptions: circleSequenceOptions(),
+    createSequence: (key?: string) =>
+      createFreehandTargetSequence("target-circle-three-points", key),
     scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) =>
       target?.kind === "circle" ? scoreTargetCircle(points, target) : null,
     promptText: "Draw a circle through the three marks.",
@@ -198,6 +219,16 @@ const FREEHAND_CONFIGS = {
     createTarget: () => {
       const directional = getSettings().directionalLineGuides;
       return createFreehandTarget("trace-line", {
+        lineAngleBucket: directional
+          ? selectLineAngleBucket(getStoredProgress(), "trace-line")
+          : undefined,
+        showDirectionCue: directional,
+      });
+    },
+    sequenceOptions: lineSequenceOptions(),
+    createSequence: (key?: string) => {
+      const directional = getSettings().directionalLineGuides;
+      return createFreehandTargetSequence("trace-line", key, {
         lineAngleBucket: directional
           ? selectLineAngleBucket(getStoredProgress(), "trace-line")
           : undefined,
@@ -218,6 +249,9 @@ const FREEHAND_CONFIGS = {
   "trace-circle": {
     isClosedShape: true,
     createTarget: () => createFreehandTarget("trace-circle"),
+    sequenceOptions: circleSequenceOptions(),
+    createSequence: (key?: string) =>
+      createFreehandTargetSequence("trace-circle", key),
     scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) =>
       target?.kind === "circle" ? scoreTargetCircle(points, target) : null,
     promptText: "Trace the faint circle guide.",
@@ -228,6 +262,9 @@ const FREEHAND_CONFIGS = {
   "trace-ellipse": {
     isClosedShape: true,
     createTarget: () => createFreehandTarget("trace-ellipse"),
+    sequenceOptions: ellipseSequenceOptions(),
+    createSequence: (key?: string) =>
+      createFreehandTargetSequence("trace-ellipse", key),
     scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) =>
       target?.kind === "ellipse" ? scoreTargetEllipse(points, target) : null,
     promptText: "Trace the faint ellipse guide.",
@@ -358,6 +395,9 @@ const FREEHAND_CONFIGS = {
   "trace-spiral-archimedean-right": {
     isClosedShape: false,
     createTarget: () => createFreehandTarget("trace-spiral-archimedean-right"),
+    sequenceOptions: [{ key: "spacing", label: "Spacing ladder" }],
+    createSequence: () =>
+      createFreehandTargetSequence("trace-spiral-archimedean-right"),
     scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) =>
       target?.kind === "spiral" ? scoreTraceSpiral(points, target) : null,
     promptText: "Trace the faint right-winding Archimedean spiral.",
@@ -368,6 +408,9 @@ const FREEHAND_CONFIGS = {
   "trace-spiral-archimedean-left": {
     isClosedShape: false,
     createTarget: () => createFreehandTarget("trace-spiral-archimedean-left"),
+    sequenceOptions: [{ key: "spacing", label: "Spacing ladder" }],
+    createSequence: () =>
+      createFreehandTargetSequence("trace-spiral-archimedean-left"),
     scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) =>
       target?.kind === "spiral" ? scoreTraceSpiral(points, target) : null,
     promptText: "Trace the faint left-winding Archimedean spiral.",
@@ -378,6 +421,9 @@ const FREEHAND_CONFIGS = {
   "trace-spiral-logarithmic-right": {
     isClosedShape: false,
     createTarget: () => createFreehandTarget("trace-spiral-logarithmic-right"),
+    sequenceOptions: [{ key: "growth", label: "Growth ladder" }],
+    createSequence: () =>
+      createFreehandTargetSequence("trace-spiral-logarithmic-right"),
     scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) =>
       target?.kind === "spiral" ? scoreTraceSpiral(points, target) : null,
     promptText: "Trace the faint right-winding logarithmic spiral.",
@@ -388,6 +434,9 @@ const FREEHAND_CONFIGS = {
   "trace-spiral-logarithmic-left": {
     isClosedShape: false,
     createTarget: () => createFreehandTarget("trace-spiral-logarithmic-left"),
+    sequenceOptions: [{ key: "growth", label: "Growth ladder" }],
+    createSequence: () =>
+      createFreehandTargetSequence("trace-spiral-logarithmic-left"),
     scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) =>
       target?.kind === "spiral" ? scoreTraceSpiral(points, target) : null,
     promptText: "Trace the faint left-winding logarithmic spiral.",
@@ -398,6 +447,12 @@ const FREEHAND_CONFIGS = {
   "trace-s-curve": {
     isClosedShape: false,
     createTarget: () => createFreehandTarget("trace-s-curve"),
+    sequenceOptions: [
+      { key: "bend", label: "Bend ladder" },
+      { key: "rotation", label: "Rotation ladder" },
+    ],
+    createSequence: (key?: string) =>
+      createFreehandTargetSequence("trace-s-curve", key),
     scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) =>
       target?.kind === "s-curve" ? scoreTraceSCurve(points, target) : null,
     promptText: "Trace the faint S-curve guide.",
@@ -412,6 +467,8 @@ const FREEHAND_CONFIGS = {
   "trace-compound-curve": {
     isClosedShape: false,
     createTarget: () => createFreehandTarget("trace-compound-curve"),
+    sequenceOptions: [{ key: "family", label: "Family set" }],
+    createSequence: () => createFreehandTargetSequence("trace-compound-curve"),
     scoreStroke: (points: FreehandPoint[], target: FreehandTarget | null) =>
       target?.kind === "compound-curve"
         ? scoreTraceCompoundCurve(points, target)
@@ -445,6 +502,30 @@ const FREEHAND_CONFIGS = {
     },
   },
 } satisfies Record<FreehandKind, FreehandExerciseConfig>;
+
+function lineSequenceOptions(): FreehandTargetSequenceOption[] {
+  return [
+    { key: "parallel", label: "Parallel set" },
+    { key: "angle", label: "Angle ladder" },
+    { key: "length", label: "Length ladder" },
+  ];
+}
+
+function circleSequenceOptions(): FreehandTargetSequenceOption[] {
+  return [
+    { key: "radius", label: "Radius ladder" },
+    { key: "position", label: "Position grid" },
+    { key: "combined", label: "Circle ladder" },
+  ];
+}
+
+function ellipseSequenceOptions(): FreehandTargetSequenceOption[] {
+  return [
+    { key: "rotation", label: "Rotation ladder" },
+    { key: "ratio", label: "Ratio ladder" },
+    { key: "size", label: "Size ladder" },
+  ];
+}
 
 function angleCopyConfig(
   kind: Extract<FreehandKind, `angle-copy-${string}`>,

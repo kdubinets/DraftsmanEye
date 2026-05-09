@@ -37,6 +37,7 @@ describe("getSettings", () => {
       directionalLineGuides: true,
       solidReferenceStyle: "wireframe",
       lastHomeView: "exercise-list",
+      guidedPracticeModes: {},
     });
   });
 
@@ -100,6 +101,21 @@ describe("getSettings", () => {
     expect(getSettings().lastHomeView).toBe("exercise-list");
   });
 
+  it("accepts valid guided practice modes and drops malformed entries", () => {
+    store[STORAGE_KEY] = JSON.stringify({
+      guidedPracticeModes: {
+        "trace-line": "repeat",
+        "trace-circle": "sequence",
+        "freehand-circle": "locked",
+      },
+    });
+
+    expect(getSettings().guidedPracticeModes).toEqual({
+      "trace-line": "repeat",
+      "trace-circle": "sequence",
+    });
+  });
+
   it("returns defaults and logs for invalid JSON", () => {
     store[STORAGE_KEY] = "{{not-json";
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -148,6 +164,14 @@ describe("updateSetting", () => {
 
     expect(JSON.parse(store[STORAGE_KEY] ?? "{}")).toMatchObject({
       lastHomeView: "curriculum",
+    });
+  });
+
+  it("persists guided practice modes", () => {
+    updateSetting("guidedPracticeModes", { "trace-line": "sequence" });
+
+    expect(JSON.parse(store[STORAGE_KEY] ?? "{}")).toMatchObject({
+      guidedPracticeModes: { "trace-line": "sequence" },
     });
   });
 });
