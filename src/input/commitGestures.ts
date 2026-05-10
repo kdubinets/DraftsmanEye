@@ -67,7 +67,7 @@ export function createDoubleTapCommitDetector(
 
   return {
     onPointerDown(event): void {
-      if (event.button !== 0) {
+      if (!isPrimaryCommitPointerDown(event)) {
         down = null;
         return;
       }
@@ -104,6 +104,15 @@ export function createDoubleTapCommitDetector(
       previousTap = null;
     },
   };
+}
+
+function isPrimaryCommitPointerDown(event: PointerEvent): boolean {
+  if (event.button === 0) return true;
+  if (event.button === 2 || event.button === 5) return false;
+  if (event.buttons === 2 || event.buttons === 32) return false;
+  if (event.pointerType !== "pen" && event.pointerType !== "touch") return false;
+
+  return event.button === -1 && (event.buttons === 0 || event.buttons === 1);
 }
 
 function isSpaceKey(event: KeyboardEvent): boolean {
